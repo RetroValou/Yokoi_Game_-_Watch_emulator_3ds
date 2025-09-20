@@ -8,8 +8,13 @@ console_*.png
 console_*.t3s
 
 romfs/gfx/*
+!romfs/gfx/.gitkeep
 build/*
+!build/.gitkeep
 source/std/GW_ROM/*
+!source/std/GW_ROM/.gitkeep
 
 CONVERT_ROM/tmp/img/*
+!CONVERT_ROM/tmp/img/.gitkeep
 CONVERT_ROM/rom/*
+!CONVERT_ROM/rom/.gitkeep
