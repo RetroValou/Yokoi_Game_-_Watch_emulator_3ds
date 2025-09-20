@@ -15,7 +15,7 @@ destination_file = r"..\source\std\GW_ALL.h"
 destination_game_file = r"..\source\std\GW_ROM"
 destination_graphique_file = "../gfx/"
 
-reset_img_svg = True
+reset_img_svg = False
 resolution_up = [400, 240]
 resolution_down = [320, 240]
 demi_resolution_up = [200, 240]
