@@ -7,6 +7,6 @@ background_*.t3s
 console_*.png
 console_*.t3s
 
-romfs/gfx/
-build/
-source/std/GW_ROM/
+romfs/gfx/*
+build/*
+source/std/GW_ROM/*
