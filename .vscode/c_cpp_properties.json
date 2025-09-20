@@ -1,0 +1,31 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Program Files (x86)/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.**/include",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.**/ucrt",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.**/shared",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.**/um",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.**/winrt",
+                "C:/devkitPro/libctru/include/**",
+                "C:/devkitPro/**",
+                "C:/devkitPro/devkitARM/arm-none-eabi/include/**",
+                "C:/devkitPro/portlibs/3ds/bin/**",
+                "${workspaceFolder}/source"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22621.0",
+            "compilerPath": "C:/devkitPro/devkitARM/bin/arm-none-eabi-g++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}

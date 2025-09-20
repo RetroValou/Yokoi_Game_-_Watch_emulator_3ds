@@ -1,0 +1,1 @@
+D:\emulateur\Citra\nightly-mingw\citra.exe "D:\Documents\c_project\Game_Watch_Emulator_3ds\Game_Watch_Emulator_3ds.3dsx"
