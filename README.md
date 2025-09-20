@@ -13,6 +13,10 @@ There is no strict ROM size limit—you can define one or use existing sizes.
 
 The conversion code requires **Inkscape**, as MAME ROMs use the SVG vector format (not directly readable on the 3DS). Inkscape is used to convert these vector graphics into PNG images.
 
+# Known issues
+- Very imperfect sound / strange resonance on Game & Watch SM510 (e.g., Donkey Kong JR Widescreen)
+- Bug on some Game & Watch SM5A (sometimes freezes at the end of a game)
+
 # License
 Public Domain / Free to use  
 No attribution required :)
