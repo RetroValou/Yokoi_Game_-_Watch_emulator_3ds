@@ -1,6 +1,8 @@
 # Yokoi - Game & Watch Emulator for 3DS
 A Game & Watch emulator for 3DS: SM5A, SM510, and SM511/SM512.
 
+<img src="screenshot/all.png" alt="Gameplay"/>
+
 # Build Instructions
 The code has been tested and compiled on Windows. The conversion scripts may not work on Linux or Mac due to the reliance on Inkscape.  
 The source code is provided **without the ROMs or graphics of the original Game & Watch devices** (copyrighted).  
