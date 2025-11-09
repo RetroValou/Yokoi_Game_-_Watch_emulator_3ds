@@ -9,10 +9,10 @@
                 "C:/Program Files (x86)/Windows Kits/10/Include/10.0.**/shared",
                 "C:/Program Files (x86)/Windows Kits/10/Include/10.0.**/um",
                 "C:/Program Files (x86)/Windows Kits/10/Include/10.0.**/winrt",
-                "C:/devkitPro/libctru/include/**",
-                "C:/devkitPro/**",
-                "C:/devkitPro/devkitARM/arm-none-eabi/include/**",
-                "C:/devkitPro/portlibs/3ds/bin/**",
+                "D:/devkitPro/libctru/include/**",
+                "D:/devkitPro/**",
+                "D:/devkitPro/devkitARM/arm-none-eabi/include/**",
+                "D:/devkitPro/portlibs/3ds/bin/**",
                 "${workspaceFolder}/source"
             ],
             "defines": [
@@ -21,11 +21,11 @@
                 "_UNICODE"
             ],
             "windowsSdkVersion": "10.0.22621.0",
-            "compilerPath": "C:/devkitPro/devkitARM/bin/arm-none-eabi-g++",
+            "compilerPath": "D:/devkitPro/devkitARM/bin/arm-none-eabi-g++",
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "gcc-x64"
         }
     ],
     "version": 4
-}
+} 
