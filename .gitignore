@@ -18,3 +18,8 @@ CONVERT_ROM/tmp/img/*
 !CONVERT_ROM/tmp/img/.gitkeep
 CONVERT_ROM/rom/*
 !CONVERT_ROM/rom/.gitkeep
+
+Yokoi*.3dsx
+Yokoi*.elf
+Yokoi*.cia
+Yokoi*.smdh
