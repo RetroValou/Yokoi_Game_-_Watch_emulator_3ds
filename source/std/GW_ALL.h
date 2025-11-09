@@ -107,10 +107,12 @@ extern const GW_rom Zelda;
 extern const GW_rom Gold_Cliff;
 #include "GW_ROM/Mario_the_Juggle.h"
 extern const GW_rom Mario_the_Juggle;
+#include "GW_ROM/Shuttle_Voyage.h"
+extern const GW_rom Shuttle_Voyage;
 
 
 
 
-const GW_rom* GW_list[] = {&ball, &Flagman, &Vermin, &Fire, &Judge, &Manhole, &Helmet, &Lion, &Parachute, &octopus, &Popeye, &Chef, &Mickey_Mouse, &Egg, &Fire_wide_screen, &Turtle_Bridge, &Fire_Attack, &Snoopy_Tennis, &Oil_Panic, &Donkey_kong, &Donkey_Kong_JR, &Mickey_Donald, &Green_House, &Donkey_Kong_2, &Mario_Bros, &Mario_Cement_Factory_panorama, &Mario_Cement_Factory, &Rain_Shower, &Manhole_wide_screen, &Snoopy_Table_Top, &Popeye_Table_Top, &Donkey_Kong_Circus, &DK_JR_panorama, &Life_Boat, &Mario_Bombs_Away, &Pinball, &Mickey_Mouse_panorama, &crab_grab, &Spitball_Sparky, &boxing, &Donkey_Kong_3, &Donkey_Kong_hockey, &black_jack, &Tropical_Fish, &Squish, &bomb_sweeper, &Safe_Buster, &Super_Mario_Bros, &Ice_Climber, &Balloon_Fight, &Zelda, &Gold_Cliff, &Mario_the_Juggle};
-const size_t nb_games = 53;
+const GW_rom* GW_list[] = {&ball, &Flagman, &Vermin, &Fire, &Judge, &Manhole, &Helmet, &Lion, &Parachute, &octopus, &Popeye, &Chef, &Mickey_Mouse, &Egg, &Fire_wide_screen, &Turtle_Bridge, &Fire_Attack, &Snoopy_Tennis, &Oil_Panic, &Donkey_kong, &Donkey_Kong_JR, &Mickey_Donald, &Green_House, &Donkey_Kong_2, &Mario_Bros, &Mario_Cement_Factory_panorama, &Mario_Cement_Factory, &Rain_Shower, &Manhole_wide_screen, &Snoopy_Table_Top, &Popeye_Table_Top, &Donkey_Kong_Circus, &DK_JR_panorama, &Life_Boat, &Mario_Bombs_Away, &Pinball, &Mickey_Mouse_panorama, &crab_grab, &Spitball_Sparky, &boxing, &Donkey_Kong_3, &Donkey_Kong_hockey, &black_jack, &Tropical_Fish, &Squish, &bomb_sweeper, &Safe_Buster, &Super_Mario_Bros, &Ice_Climber, &Balloon_Fight, &Zelda, &Gold_Cliff, &Mario_the_Juggle, &Shuttle_Voyage};
+const size_t nb_games = 54;
 

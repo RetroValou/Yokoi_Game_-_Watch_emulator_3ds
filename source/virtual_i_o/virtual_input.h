@@ -1537,7 +1537,35 @@ class UD_202 : public Virtual_Input{
         }
 };
 
+////// Shuttle Voyage : SM11 //////
+class MG_8 : public Virtual_Input{
+    public : 
+        MG_8(SM5XX* c) : Virtual_Input(c) {
+            left_configuration = CONF_2_BUTTON_UPDOWN;
+            right_configuration = CONF_1_BUTTON_ACTION;
+        }
 
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_SETUP:
+                    switch (button) {
+                        case BUTTON_GAMEA: cpu->input_set(7, 0, state); break;
+                        case BUTTON_ALARM: cpu->input_set(7, 1, state); break;
+                        case BUTTON_ACL: cpu->input_set(7, 2, state); break;
+                        default: break; } break;
+                case PART_LEFT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(6, 0, state); break; // 
+                        case BUTTON_DOWN: cpu->input_set(6, 1, state); break; // 
+                        default: break; } break;
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_ACTION: cpu->input_set(6, 3, !state); break;
+                        default: break; } break;
+                default: break;
+            }
+        }
+};
 
 
 ////// punch_out : SM11 //////
@@ -1639,6 +1667,7 @@ Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "TF_104") { return new TF_104(cpu); } // Tropical Fish
     else if (ref_game == "BU_201") { return new BU_201(cpu); } // Spitball Sparky
     else if (ref_game == "UD_202") { return new UD_202(cpu); } // Crab Grab
+    else if (ref_game == "MG_8")   { return new MG_8(cpu); }   // Shuttle Voyage (Tronica)
     
 
     /* SM511/SM512 */

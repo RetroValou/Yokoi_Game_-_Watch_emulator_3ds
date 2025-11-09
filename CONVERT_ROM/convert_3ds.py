@@ -724,6 +724,16 @@ games_path = {
                     , "console" : r'.\rom\gnw_mariotj\gnw_mariotj.png'
                 }
               
+            , "Shuttle_Voyage" :
+                    { "ref" : "mg-8"
+                    , "display_name" : "Shuttle Voyage"
+                    , "date" : "1983-01-XX"
+                    , "Rom" : r'.\rom\trshutvoy\0019_238e'
+                    , "Visual" : [r'.\rom\trshutvoy\trshutvoy.svg']
+                    , "Background" : [r'.\rom\trshutvoy\BackgroundNS.png']
+                    , "transform_visual" : [[[1266, 28, 18], [835, 8, 32]]]
+                    , "console" : r'.\rom\trshutvoy\Unit.png'
+                }
               
 }
 
