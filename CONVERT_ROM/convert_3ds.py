@@ -1032,7 +1032,74 @@ def generate_global_file(games_path, destination_file):
 
 
 
+def validate_game_files(games_path):
+    """Check if all required files exist for each game before processing."""
+    print("Validating game files...")
+    print("=" * 60)
+    
+    missing_files = {}
+    has_errors = False
+    
+    for key in games_path:
+        game_missing = []
+        
+        # Check ROM file
+        rom_path = games_path[key]["Rom"]
+        if not os.path.exists(rom_path):
+            game_missing.append(f"ROM: {rom_path}")
+        
+        # Check Melody ROM if specified
+        if 'Melody_Rom' in games_path[key] and games_path[key]['Melody_Rom'] != '':
+            melody_path = games_path[key]['Melody_Rom']
+            if not os.path.exists(melody_path):
+                game_missing.append(f"Melody: {melody_path}")
+        
+        # Check Visual files (SVG files)
+        if 'Visual' in games_path[key]:
+            for visual_path in games_path[key]['Visual']:
+                if not os.path.exists(visual_path):
+                    game_missing.append(f"Visual: {visual_path}")
+        
+        # Check Background files if specified
+        if 'Background' in games_path[key] and len(games_path[key]['Background']) > 0:
+            for bg_path in games_path[key]['Background']:
+                if bg_path != '' and not os.path.exists(bg_path):
+                    game_missing.append(f"Background: {bg_path}")
+        
+        # Check Console file
+        console_path = games_path[key].get('console', default_console)
+        if not os.path.exists(console_path):
+            game_missing.append(f"Console: {console_path}")
+        
+        # Store missing files for this game
+        if game_missing:
+            missing_files[key] = game_missing
+            has_errors = True
+    
+    # Report results
+    if has_errors:
+        print("\n❌ MISSING FILES DETECTED:\n")
+        for game, files in missing_files.items():
+            print(f"Game: {game}")
+            for file in files:
+                print(f"  - {file}")
+            print()
+        print("=" * 60)
+        print(f"\n⚠️  Found {len(missing_files)} game(s) with missing files.")
+        print("Please add the missing files before running the script.\n")
+        return False
+    else:
+        print("✓ All required files found!")
+        print("=" * 60)
+        print()
+        return True
+
+
 if __name__ == "__main__":
+    # Validate all game files before processing
+    if not validate_game_files(games_path):
+        print("Exiting due to missing files.")
+        exit(1)
     
     os.makedirs(r'.\tmp', exist_ok=True)
     os.makedirs(r'.\tmp\img', exist_ok=True)
