@@ -919,8 +919,36 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
 
 def visual_console_data(name, path_console):
     img = Image.open(path_console)
-    img, tmp_x, tmp_y = im.transform_img(img, console_size[0], console_size[1], respect_ratio = False
-                                         , rotate_90 = False, miror = True)
+    original_width, original_height = img.size
+    
+    # Calculate aspect ratios
+    target_ratio = console_size[0] / console_size[1]  # 320/240 = 1.333...
+    image_ratio = original_width / original_height
+    
+    # Determine cuts for center crop to match target aspect ratio
+    if image_ratio > target_ratio:
+        # Image is wider than target - need to crop left and right
+        new_width = int(original_height * target_ratio)
+        x_cut_total = original_width - new_width
+        x_cut_left = x_cut_total / 2
+        x_cut_right = x_cut_total / 2
+        y_cut = [0, 0]
+    else:
+        # Image is taller than target - need to crop top and bottom
+        new_height = int(original_width / target_ratio)
+        y_cut_total = original_height - new_height
+        y_cut_top = y_cut_total / 2
+        y_cut_bottom = y_cut_total / 2
+        x_cut_left = 0
+        x_cut_right = 0
+        y_cut = [y_cut_top / original_height, y_cut_bottom / original_height]
+    
+    # Convert cuts to fractions
+    x_cut = [x_cut_left / original_width, x_cut_right / original_width]
+    
+    img, tmp_x, tmp_y = im.transform_img(img, console_size[0], console_size[1], respect_ratio = True
+                                         , rotate_90 = False, miror = True
+                                         , new_ratio = 0, cut = [x_cut, y_cut], add_SHARPEN = False)
     img = np.array(img)
     img_f = np.zeros((console_atlas_size[1], console_atlas_size[0], 4), dtype=np.uint8)
     img_f[0:img.shape[0], 0:img.shape[1], :] = img
