@@ -79,3 +79,9 @@ There are only 56 unique games listed above. The following games have bug fixes 
 | RGW-001  | Game & Watch: Ball (Club Nintendo Limited Premium)           | 2010.04.01   | Remake of AC-01: Game & Watch: Ball      |
 | SM-35    | Game & Watch: Super Mario Bros. 35th Anniversary Edition     | 2020.11.13   | Modern remake of Game & Watch device     |
 | ZL-35    | Game & Watch: The Legend of Zelda 35th Anniversary Edition   | 2021.11.12   | Modern remake of Game & Watch device     |
+
+## List of Tronic games
+
+| No. | Model   | Filename            | Game Title                                                   | Release Date |
+|-----|---------|---------------------|--------------------------------------------------------------|--------------|
+| 01  | MG-8    | trshutvoy.zip       | Shuttle Voyage                                               | 1983.01.01   |
