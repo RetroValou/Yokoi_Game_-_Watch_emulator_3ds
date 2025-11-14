@@ -1156,7 +1156,19 @@ if __name__ == "__main__":
     
     os.makedirs(r'.\tmp', exist_ok=True)
     os.makedirs(r'.\tmp\img', exist_ok=True)
-    
+
+    # Clean up gfx folder - remove all .t3s and .png files except logo_ and texte_ prefixes
+    if os.path.exists(destination_graphique_file):
+        for filename in os.listdir(destination_graphique_file):
+            if filename.endswith(('.t3s', '.png')):
+                if not filename.startswith(('logo_', 'texte_')):
+                    file_path = os.path.join(destination_graphique_file, filename)
+                    try:
+                        os.remove(file_path)
+                        print(f"Removed: {filename}")
+                    except Exception as e:
+                        print(f"Error removing {filename}: {e}")
+                            
     # Prepare game data with default values
     game_items = []
     for key in games_path:
