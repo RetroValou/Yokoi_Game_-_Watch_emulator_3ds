@@ -46,6 +46,29 @@ class GameMetadata:
     release_date: Optional[str]
 
 
+@dataclass(frozen=True)
+class Bounds:
+    x: float
+    y: float
+    width: float
+    height: float
+
+    def as_int_tuple(self) -> Tuple[int, int, int, int]:
+        return (
+            int(round(self.x)),
+            int(round(self.y)),
+            int(round(self.width)),
+            int(round(self.height)),
+        )
+
+
+@dataclass(frozen=True)
+class SurfaceData:
+    screen_bounds: Bounds
+    background_bounds: Optional[Bounds]
+    background_file: Optional[str]
+
+
 def _strip_title_prefix(title: str) -> str:
     cleaned = title.strip()
     if not cleaned:
@@ -115,6 +138,63 @@ def _load_game_metadata(script_dir: Path) -> Dict[str, GameMetadata]:
         )
 
     return mapping
+
+
+def _parse_float(value: str) -> Optional[float]:
+    try:
+        return float(value.strip())
+    except (ValueError, AttributeError):
+        return None
+
+
+def _bounds_from_attrs(attrs: Dict[str, str]) -> Optional[Bounds]:
+    if not attrs:
+        return None
+
+    x_val = _parse_float(attrs.get("x"))
+    y_val = _parse_float(attrs.get("y"))
+    width_val = _parse_float(attrs.get("width"))
+    height_val = _parse_float(attrs.get("height"))
+
+    if width_val is not None and height_val is not None:
+        if x_val is None:
+            x_val = 0.0
+        if y_val is None:
+            y_val = 0.0
+        return Bounds(x_val, y_val, width_val, height_val)
+
+    left_val = _parse_float(attrs.get("left"))
+    right_val = _parse_float(attrs.get("right"))
+    top_val = _parse_float(attrs.get("top"))
+    bottom_val = _parse_float(attrs.get("bottom"))
+
+    if None not in (left_val, right_val, top_val, bottom_val):
+        return Bounds(left_val, top_val, right_val - left_val, bottom_val - top_val)
+
+    return None
+
+
+def _extract_bounds(node: Optional[ET.Element], root: ET.Element) -> Optional[Bounds]:
+    if node is None:
+        return None
+
+    bounds_node = node.find("bounds")
+    bounds = _bounds_from_attrs(bounds_node.attrib if bounds_node is not None else node.attrib)
+    if bounds is not None:
+        return bounds
+
+    ref_name = node.get("ref") or node.get("element")
+    if ref_name:
+        ref_element = root.find(f".//element[@name='{ref_name}']")
+        if ref_element is not None:
+            ref_bounds_node = ref_element.find("bounds")
+            ref_bounds = _bounds_from_attrs(
+                ref_bounds_node.attrib if ref_bounds_node is not None else ref_element.attrib
+            )
+            if ref_bounds is not None:
+                return ref_bounds
+
+    return None
 
 
 @dataclass
@@ -250,7 +330,46 @@ def _find_adjacent_background(
     return None
 
 
-def _collect_background_files(root: ET.Element, image_map: Dict[str, str]) -> List[str]:
+def _resolve_background_file(node: Optional[ET.Element], image_map: Dict[str, str]) -> Optional[str]:
+    if node is None:
+        return None
+    name_attr = node.get("ref") or node.get("element") or node.get("name") or ""
+    if name_attr:
+        file_name = image_map.get(name_attr)
+        if file_name:
+            return file_name
+    file_attr = node.get("file")
+    if file_attr:
+        return file_attr
+    image_child = node.find("image")
+    if image_child is not None and "file" in image_child.attrib:
+        return image_child.attrib["file"]
+    return None
+
+
+def _collect_background_candidates(
+    siblings: Sequence[ET.Element],
+    image_map: Dict[str, str],
+) -> List[str]:
+    collected: List[str] = []
+    seen: set[str] = set()
+    for node in siblings:
+        if node.tag not in {"element", "overlay"}:
+            continue
+        name_attr = node.get("ref") or node.get("element") or ""
+        if not _is_background_name(name_attr):
+            continue
+        file_name = image_map.get(name_attr)
+        if file_name and file_name not in seen:
+            collected.append(file_name)
+            seen.add(file_name)
+    return collected
+
+
+def _extract_view_assets(
+    root: ET.Element,
+    image_map: Dict[str, str],
+) -> Tuple[List[str], List[SurfaceData]]:
     for view_name, _ in VIEW_PRIORITY:
         view = root.find(f".//view[@name='{view_name}']")
         if view is None:
@@ -258,37 +377,66 @@ def _collect_background_files(root: ET.Element, image_map: Dict[str, str]) -> Li
 
         siblings = list(view)
         screen_positions = [i for i, node in enumerate(siblings) if node.tag == "screen"]
+        surfaces: List[SurfaceData] = []
+        background_files: List[str] = []
 
-        collected: List[str] = []
         if screen_positions:
+            ordered_ids: List[str] = []
+            surface_by_id: Dict[str, SurfaceData] = {}
             for pos in screen_positions:
-                node = _find_adjacent_background(siblings, pos)
-                if node is None:
+                screen_node = siblings[pos]
+                screen_bounds = _extract_bounds(screen_node, root)
+                if screen_bounds is None:
                     continue
-                name_attr = node.get("ref") or node.get("element") or ""
-                file_name = image_map.get(name_attr)
-                if file_name:
-                    collected.append(file_name)
-        else:
-            for node in siblings:
-                if node.tag in {"element", "overlay"}:
-                    name_attr = node.get("ref") or node.get("element") or ""
-                    if _is_background_name(name_attr):
-                        file_name = image_map.get(name_attr)
-                        if file_name:
-                            collected.append(file_name)
-                            break
+                screen_id = screen_node.get("index") or str(len(ordered_ids))
+                if screen_id not in surface_by_id:
+                    ordered_ids.append(screen_id)
+                background_node = _find_adjacent_background(siblings, pos)
+                background_bounds = _extract_bounds(background_node, root)
+                background_file = _resolve_background_file(background_node, image_map)
+                surface_by_id[screen_id] = SurfaceData(
+                    screen_bounds=screen_bounds,
+                    background_bounds=background_bounds,
+                    background_file=background_file,
+                )
 
-        if collected:
-            ordered: List[str] = []
-            seen: set[str] = set()
-            for file_name in collected:
-                if file_name not in seen:
-                    ordered.append(file_name)
-                    seen.add(file_name)
-            return ordered
+            surfaces = [surface_by_id[idx] for idx in ordered_ids]
+            seen_files: set[str] = set()
+            for surface in surfaces:
+                if surface.background_file and surface.background_file not in seen_files:
+                    background_files.append(surface.background_file)
+                    seen_files.add(surface.background_file)
 
-    return []
+            if surfaces or background_files:
+                return background_files, surfaces
+
+        fallback_files = _collect_background_candidates(siblings, image_map)
+        if fallback_files:
+            return fallback_files, surfaces
+
+    return [], []
+
+
+def _compute_transform(surface: SurfaceData) -> List[List[int]]:
+    screen = surface.screen_bounds
+    bg = surface.background_bounds
+
+    width = int(round(screen.width))
+    height = int(round(screen.height))
+
+    if bg is None:
+        return [[width, 0, 0], [height, 0, 0]]
+
+    left_cut = max(0, int(round(bg.x - screen.x)))
+    right_cut = max(0, int(round((screen.x + screen.width) - (bg.x + bg.width))))
+    top_cut = max(0, int(round(bg.y - screen.y)))
+    bottom_cut = max(0, int(round((screen.y + screen.height) - (bg.y + bg.height))))
+
+    return [[width, left_cut, right_cut], [height, top_cut, bottom_cut]]
+
+
+def _compute_transforms(surfaces: Sequence[SurfaceData]) -> List[List[List[int]]]:
+    return [_compute_transform(surface) for surface in surfaces]
 
 
 def _find_rom_in_folder(folder: Path) -> Optional[Path]:
@@ -397,21 +545,21 @@ def _rom_fallback_candidates(name: str) -> List[str]:
     return candidates
 
 
-def _parse_layout(lay_path: Path) -> Tuple[Optional[str], Optional[str], List[str]]:
+def _parse_layout(lay_path: Path) -> Tuple[Optional[str], Optional[str], List[str], List[SurfaceData]]:
     try:
         text = lay_path.read_text(encoding="utf-8", errors="ignore")
     except OSError:
-        return None, None, []
+        return None, None, [], []
 
     display_name = _extract_display_name(text)
 
     try:
         root = ET.fromstring(text)
     except ET.ParseError:
-        return display_name, None, []
+        return display_name, None, [], []
 
     image_map = _collect_element_images(root)
-    background_files = _collect_background_files(root, image_map)
+    background_files, surfaces = _extract_view_assets(root, image_map)
 
     ref_candidate: Optional[str] = None
     for element in root.findall("element"):
@@ -419,7 +567,7 @@ def _parse_layout(lay_path: Path) -> Tuple[Optional[str], Optional[str], List[st
         if ref_candidate is None and MODEL_PATTERN.match(name_attr):
             ref_candidate = name_attr.strip()
 
-    return display_name, ref_candidate, background_files
+    return display_name, ref_candidate, background_files, surfaces
 
 
 def main() -> None:
@@ -453,7 +601,7 @@ def main() -> None:
                 skipped.append((name, "missing default.lay"))
                 continue
 
-        display_name, model_ref, background_files = _parse_layout(layout_path)
+        display_name, model_ref, background_files, surfaces = _parse_layout(layout_path)
 
         rom_path = _resolve_rom_file(name, folder, fallback_folder, folder_map)
         if rom_path is None:
@@ -476,6 +624,10 @@ def main() -> None:
                 if fallback_candidate.exists():
                     resolved_backgrounds.append(fallback_candidate)
         background_paths = resolved_backgrounds
+
+        transform_data = _compute_transforms(surfaces) if surfaces else []
+        if transform_data and len(transform_data) < len(visuals):
+            transform_data = []
 
         console_path = _resolve_console_path(folder)
         if not console_path.exists():
@@ -515,7 +667,7 @@ def main() -> None:
             console_path=console_path,
             melody_path=melody_path,
             date=date_value,
-            transform_visual=[],
+            transform_visual=transform_data,
         )
         entries.append(entry)
 
