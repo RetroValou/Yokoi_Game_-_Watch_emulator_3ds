@@ -200,8 +200,7 @@ void init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
 
 enum GameState {
     STATE_MENU,
-    STATE_PLAY,
-    STATE_QUIT
+    STATE_PLAY
 };
 
 
