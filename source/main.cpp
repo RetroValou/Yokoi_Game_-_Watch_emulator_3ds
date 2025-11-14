@@ -84,12 +84,37 @@ void update_name_game(Virtual_Screen* v_screen, bool for_choose = true){
 
     v_screen->delete_all_text();
     
-    if(!for_choose){ text = std::string(" ")+text; }
-    else { text = std::string("<")+text+std::string(">"); }
-    int16_t pos_x = (400 - text.length()*16)/2;
+    // Check if text contains brackets for two-line display
+    std::string line1 = text;
+    std::string line2 = "";
+    size_t bracket_pos = text.find('(');
+    if (bracket_pos != std::string::npos) {
+        line1 = text.substr(0, bracket_pos);
+        // Remove trailing space if present
+        while (!line1.empty() && line1.back() == ' ') {
+            line1.pop_back();
+        }
+        line2 = text.substr(bracket_pos);
+    }
+    
+    if(!for_choose){ 
+        line1 = std::string(" ") + line1;
+    }
+    else { 
+        line1 = std::string("<") + line1 + std::string(">"); 
+    }
+    
+    int16_t pos_x = (400 - line1.length()*16)/2;
     int16_t pos_y = (240 - 16)/2;
-    v_screen->set_text(text, pos_x, pos_y, 0, 2);
-    v_screen->set_text(date, 160, pos_y+38, 0, 1);
+    
+    // Always display two lines for consistent layout
+    pos_y -= 16;
+    v_screen->set_text(line1, pos_x, pos_y, 0, 2);
+    
+    int16_t pos_x2 = (400 - line2.length()*16)/2;
+    v_screen->set_text(line2, pos_x2, pos_y + 32, 0, 2);
+    
+    v_screen->set_text(date, 160, pos_y+70, 0, 1);
 
     v_screen->set_text("L+R", 280, 228, 1, 1);
     v_screen->set_text("MENU", 276, 220, 1, 1);
