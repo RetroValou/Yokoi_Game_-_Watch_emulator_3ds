@@ -1677,7 +1677,7 @@ Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "JB_63") { return new JB_63(cpu); } // Safe Buster
     else if (ref_game == "MV_64") { return new MV_64(cpu); } // Gold Cliff
     else if (ref_game == "ZL_65") { return new ZL_65(cpu); } // Zelda    
-    else if (ref_game == "CM_72") { return new CM_72(cpu); } // Mario's Cement Factory
+    else if (ref_game == "CM_72" || ref_game == "CM_72A") { return new CM_72(cpu); } // Mario's Cement Factory
     else if (ref_game == "SM_91") { return new SM_91(cpu); } // Snoopy (table top)
     else if (ref_game == "PG_92") { return new PG_92(cpu); } // Popeye (table top)
     else if (ref_game == "CJ_93") { return new CJ_93(cpu); } // DK JR (Panorama)
