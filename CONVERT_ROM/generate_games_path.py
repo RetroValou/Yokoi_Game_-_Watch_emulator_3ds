@@ -212,6 +212,9 @@ class GameEntry:
     melody_path: Optional[Path]
     date: Optional[str] = None
     transform_visual: List[List[List[int]]] = field(default_factory=list)
+    size_visual: List[List[int]] = field(default_factory=list)
+    two_in_one_screen: bool = False
+    mask: bool = False
 
     def format_lines(self, script_dir: Path) -> List[str]:
         """Format this entry using the house style seen in ``convert_3ds.py``."""
@@ -231,6 +234,17 @@ class GameEntry:
         lines.append(
             f'{INDENT_FIELD}, "transform_visual" : {_format_transform(self.transform_visual)}'
         )
+
+        if self.size_visual:
+            lines.append(
+                f'{INDENT_FIELD}, "size_visual" : {_format_transform([self.size_visual])[1:-1]}'
+            )
+
+        if self.two_in_one_screen:
+            lines.append(f'{INDENT_FIELD}, "2_in_one_screen" : True')
+
+        if self.mask:
+            lines.append(f'{INDENT_FIELD}, "mask" : True')
 
         if self.date is not None:
             lines.append(f'{INDENT_FIELD}, "date" : "{self.date}"')
@@ -439,6 +453,41 @@ def _compute_transforms(surfaces: Sequence[SurfaceData]) -> List[List[List[int]]
     return [_compute_transform(surface) for surface in surfaces]
 
 
+def _detect_multiscreen_config(
+    surfaces: Sequence[SurfaceData],
+) -> Tuple[List[List[int]], bool]:
+    """Detect multi-screen orientation and return size_visual and two_in_one_screen flag.
+    
+    Returns:
+        Tuple of (size_visual, two_in_one_screen) where:
+        - size_visual is [[w1, h1], [w2, h2]] for multi-screen games, [] otherwise
+        - two_in_one_screen is True for left/right orientation, False otherwise
+    """
+    if len(surfaces) != 2:
+        return [], False
+
+    screen1 = surfaces[0].screen_bounds
+    screen2 = surfaces[1].screen_bounds
+
+    # Calculate centers
+    center1_x = screen1.x + screen1.width / 2
+    center1_y = screen1.y + screen1.height / 2
+    center2_x = screen2.x + screen2.width / 2
+    center2_y = screen2.y + screen2.height / 2
+
+    # Determine orientation based on relative positions
+    dx = abs(center2_x - center1_x)
+    dy = abs(center2_y - center1_y)
+
+    # If screens are primarily arranged horizontally (left/right)
+    if dx > dy:
+        # Left/right configuration
+        return [[200, 240], [200, 240]], True
+    else:
+        # Top/bottom configuration
+        return [[320, 240], [320, 240]], False
+
+
 def _find_rom_in_folder(folder: Path) -> Optional[Path]:
     for pattern in ROM_PRIORITY:
         matches = sorted(folder.glob(pattern))
@@ -629,6 +678,8 @@ def main() -> None:
         if transform_data and len(transform_data) < len(visuals):
             transform_data = []
 
+        size_visual_data, two_in_one_screen = _detect_multiscreen_config(surfaces)
+
         console_path = _resolve_console_path(folder)
         if not console_path.exists():
             missing_console.append(console_path)
@@ -656,6 +707,12 @@ def main() -> None:
         display_label = display_source or key_candidate.replace("_", " ")
         date_value = metadata.release_date if metadata else None
 
+        # Determine if mask should be True (Panorama games and specific models)
+        needs_mask = (
+            "panorama" in display_label.lower() or
+            (metadata and metadata.model.upper() in {"MK-96", "TB-94"})
+        )
+
         entry = GameEntry(
             folder_name=name,
             key=key,
@@ -668,6 +725,9 @@ def main() -> None:
             melody_path=melody_path,
             date=date_value,
             transform_visual=transform_data,
+            size_visual=size_visual_data,
+            two_in_one_screen=two_in_one_screen,
+            mask=needs_mask,
         )
         entries.append(entry)
 
