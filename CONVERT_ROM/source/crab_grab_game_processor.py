@@ -28,7 +28,7 @@ class CrabGrabGameProcessor(GameProcessor):
         target.background_paths = [combined_background]
 
         # Set custom values
-        target.alpha_bright = 1
+        target.alpha_bright = 1.0
         target.fond_bright = 1.3
         target.color_segment = True
 

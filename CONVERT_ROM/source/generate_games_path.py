@@ -693,8 +693,7 @@ def generate_games_path() -> bool:
             transform_visual=transform_data,
             size_visual=size_visual_data,
             two_in_one_screen=two_in_one_screen,
-            mask=needs_mask,
-            color_segment=needs_color_segments,
+            mask=needs_mask
         )
         entries.append(entry)
 
