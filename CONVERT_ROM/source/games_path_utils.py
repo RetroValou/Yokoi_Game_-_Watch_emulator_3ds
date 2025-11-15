@@ -38,6 +38,7 @@ class GameEntry:
 	size_visual: List[List[int]] = field(default_factory=list)
 	two_in_one_screen: bool = False
 	mask: bool = False
+	color_segment: bool = False
 
 	def format_lines(self, script_dir: Path) -> List[str]:
 		"""Format this entry using the house style used by the generator."""
@@ -69,6 +70,9 @@ class GameEntry:
 
 		if self.mask:
 			lines.append(f'{INDENT_FIELD}, "mask" : True')
+
+		if self.color_segment:
+			lines.append(f'{INDENT_FIELD}, "color_segment" : True')
 
 		if self.date is not None:
 			lines.append(f'{INDENT_FIELD}, "date" : "{self.date}"')
@@ -236,6 +240,7 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 		size_visual = data.get("size_visual") or []
 		two_in_one = bool(data.get("2_in_one_screen", False))
 		mask = bool(data.get("mask", False))
+		color_segment = bool(data.get("color_segment", False))
 		date = data.get("date")
 		display_name = data.get("display_name", key)
 		ref = data.get("ref", "")
@@ -257,6 +262,7 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 				size_visual=size_visual,
 				two_in_one_screen=two_in_one,
 				mask=mask,
+				color_segment=color_segment,
 			),
 		)
 

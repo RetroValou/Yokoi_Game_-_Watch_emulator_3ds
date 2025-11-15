@@ -212,11 +212,6 @@ def _extract_bounds(node: Optional[ET.Element], root: ET.Element) -> Optional[Bo
 
     return None
 
-@dataclass
-class GameEntry(GameEntry):
-    """Alias to the shared ``GameEntry`` for backward compatibility."""
-
-
 def _extract_display_name(text: str) -> Optional[str]:
     for pattern in DISPLAY_NAME_PATTERNS:
         match = pattern.search(text)
@@ -684,6 +679,11 @@ def generate_games_path() -> bool:
             (metadata and metadata.model.upper() in {"MK-96", "TB-94"})
         )
 
+        # Determine if color_segments should be True (specific models)
+        needs_color_segments = (
+            metadata and metadata.model.upper() in {"UD-202", "BU-201"}
+        )
+
         entry = GameEntry(
             folder_name=name,
             key=key,
@@ -699,6 +699,7 @@ def generate_games_path() -> bool:
             size_visual=size_visual_data,
             two_in_one_screen=two_in_one_screen,
             mask=needs_mask,
+            color_segment=needs_color_segments,
         )
         entries.append(entry)
 
