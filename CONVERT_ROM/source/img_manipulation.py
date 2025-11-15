@@ -11,7 +11,7 @@ def transform_img(image_b, x_size, y_size, respect_ratio, rotate_90, miror
                   , new_ratio = 0, cut = [[0, 0],[0, 0]], add_SHARPEN=False):
     image_base = image_b.convert("RGBA")
 
-    # delete low alpha - VECTORIZED
+    # delete low alpha
     arr = np.array(image_base)
     alpha = arr[:, :, 3]
     alpha[alpha < 30] = 0
@@ -77,7 +77,7 @@ def transform_img(image_b, x_size, y_size, respect_ratio, rotate_90, miror
 
     if add_SHARPEN: img = img.filter(ImageFilter.UnsharpMask(radius=1, percent=50, threshold=3))
 
-    # Reapply alpha recreate by resize img - VECTORIZED
+    # Reapply alpha recreate by resize img
     arr = np.array(img)
     alpha = arr[:, :, 3]
     alpha[alpha < 30] = 0
@@ -125,8 +125,7 @@ def convert_to_only_Alpha(img_base, x_size, y_size, respect_ratio = False, rotat
             
                        
  
-def make_alpha(img_base: Image.Image, fond_bright: float, alpha_bright: float):
-    """Optimized alpha processing using vectorized NumPy operations."""
+def make_alpha(img_base:np.array, fond_bright:float, alpha_bright:float):
     img_alpha = ImageEnhance.Brightness(img_base.copy())
     img_alpha = img_alpha.enhance(alpha_bright)
     
@@ -136,28 +135,14 @@ def make_alpha(img_base: Image.Image, fond_bright: float, alpha_bright: float):
     data = np.array(img)
     data_alpha = np.array(img_alpha)
     r, g, b, a = data_alpha[:,:,0], data_alpha[:,:,1], data_alpha[:,:,2], data_alpha[:,:,3]
-    
-    # Vectorized operations instead of nested loops - MUCH FASTER
-    min_rgb = np.minimum(np.minimum(r, g), b)
-    
-    # Create transition array
-    transition = np.zeros_like(r, dtype=np.float32)
-    
-    # Condition 1: All RGB > seuil_tr -> alpha = min(0, a)
-    mask1 = (r > seuil_tr) & (g > seuil_tr) & (b > seuil_tr)
-    transition[mask1] = np.minimum(0, a[mask1])
-    
-    # Condition 2: min RGB < seuil_semi_tr -> alpha = min(255, a)
-    mask2 = (min_rgb < seuil_semi_tr) & ~mask1
-    transition[mask2] = np.minimum(255, a[mask2])
-    
-    # Condition 3: everything else -> interpolate
-    mask3 = ~mask1 & ~mask2
-    if np.any(mask3):
-        interpolated = 255 * (seuil_tr - min_rgb[mask3]) / (seuil_tr - seuil_semi_tr)
-        transition[mask3] = np.minimum(interpolated, a[mask3])
+    transition = np.zeros((len(r), len(r[0])), dtype=np.float64)
+    for x in range(len(r)):
+        for y in range(len(r[0])):
+            if ((r[x, y]>seuil_tr) and (g[x, y]>seuil_tr) and (b[x, y]>seuil_tr)): transition[x, y] = min(0, a[x, y])
+            elif (min(min(r[x, y], g[x, y]), b[x, y]) < seuil_semi_tr): transition[x, y] = min(255, a[x, y])
+            else: transition[x, y] = min(int(255.0 * float(seuil_tr - min(min(r[x, y], g[x, y]), b[x, y])) / float(seuil_tr - seuil_semi_tr)), float(a[x, y])) 
 
-    data[:,:, 3] = transition.astype(np.uint8)
+    data[:,:, 3] = transition
     return data
 
 
@@ -191,4 +176,3 @@ def save_packed_img(packer, all_img: list, atlas_size: list, pad: int, destinati
         all_img[curr_i].append(atlas_size[1]-y-h+pad) # in 3ds, y is on button not on up
         
     atlas.save(destination_graphique_file + 'segment_' + name + '.png')
-    
