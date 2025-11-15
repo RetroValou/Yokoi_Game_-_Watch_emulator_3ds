@@ -21,7 +21,12 @@ CONVERT_ROM/rom/*
 
 *.pyc
 
+games_path.py
+
 Yokoi*.3dsx
 Yokoi*.elf
 Yokoi*.cia
 Yokoi*.smdh
+
+.DS_Store
+Thumbs.db   

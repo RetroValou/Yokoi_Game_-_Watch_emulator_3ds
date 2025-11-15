@@ -69,7 +69,8 @@ def find_matching_pairs(artwork_zips: Dict[str, Path],
 def extract_and_merge(name: str, 
                      artwork_zip: Path, 
                      roms_zip: Path, 
-                     destination_base: Path) -> bool:
+                     destination_base: Path,
+                     console_folder: Path) -> bool:
     """
     Extract both zip files and merge their contents into a single folder.
     
@@ -97,8 +98,12 @@ def extract_and_merge(name: str,
         with zipfile.ZipFile(roms_zip, 'r') as zip_ref:
             zip_ref.extractall(destination)
             roms_files = len(zip_ref.namelist())
-        
-        print(f"  ✓ {name:<25} → {artwork_files} artwork + {roms_files} rom files")
+
+        console_suffix = copy_console_image_and_suffix(name, console_folder, destination)
+        print(
+            f"  ✓ {name:<25} → {artwork_files} artwork + {roms_files} rom files" 
+            f"{console_suffix}"
+        )
         
         return True
         
@@ -112,7 +117,8 @@ def extract_and_merge(name: str,
 
 def extract_rom_only(name: str, 
                      roms_zip: Path, 
-                     destination_base: Path) -> bool:
+                     destination_base: Path,
+                     console_folder: Path) -> bool:
     """
     Extract a ROM zip file that has no matching artwork.
     
@@ -134,8 +140,12 @@ def extract_rom_only(name: str,
         with zipfile.ZipFile(roms_zip, 'r') as zip_ref:
             zip_ref.extractall(destination)
             roms_files = len(zip_ref.namelist())
-        
-        print(f"  ✓ {name:<25} → {roms_files} rom files (no artwork)")
+
+        console_suffix = copy_console_image_and_suffix(name, console_folder, destination)
+        print(
+            f"  ✓ {name:<25} → {roms_files} rom files (no artwork)" 
+            f"{console_suffix}"
+        )
         
         return True
         
@@ -147,12 +157,33 @@ def extract_rom_only(name: str,
         return False
 
 
-def main():
+def copy_console_image_and_suffix(name: str, console_folder: Path, destination: Path) -> str:
+    """Copy console PNG into destination and return info suffix.
+
+    Returns " + 1 console file" if the console image was copied,
+    otherwise " (no console file)". Errors are non-fatal.
+    """
+    console_src = console_folder / f"{name}.png"
+    if not console_src.exists():
+        return " (no console file)"
+
+    try:
+        console_dst = destination / f"{name}.png"
+        with console_src.open("rb") as src_f, console_dst.open("wb") as dst_f:
+            dst_f.write(src_f.read())
+        return " + 1 console file"
+    except Exception as e:
+        print(f"  ! Warning: could not copy console image for {name}: {e}")
+        return " (no console file)"
+
+
+def extract_assets():
     """Main execution function."""
     # Set up paths
-    script_dir = Path(__file__).parent
+    script_dir = Path(__file__).parent.parent
     artwork_folder = script_dir / "rom" / "artwork"
     roms_folder = script_dir / "rom" / "roms"
+    console_folder = script_dir / "rom" / "console"
     destination_base = script_dir / "rom"
     
     print("=" * 70)
@@ -217,7 +248,8 @@ def main():
             name,
             artwork_zips[name],
             roms_zips[name],
-            destination_base
+            destination_base,
+            console_folder
         )
         
         if success:
@@ -230,7 +262,8 @@ def main():
         success = extract_rom_only(
             name,
             roms_zips[name],
-            destination_base
+            destination_base,
+            console_folder
         )
         
         if success:
@@ -245,7 +278,8 @@ def main():
     if fail_count > 0:
         print(f"  ✗ Failed: {fail_count}")
     print("=" * 70)
+    print("\n")
 
 
 if __name__ == "__main__":
-    main()
+    extract_assets()

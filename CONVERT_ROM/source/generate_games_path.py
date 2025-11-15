@@ -619,8 +619,8 @@ def _parse_layout(lay_path: Path) -> Tuple[Optional[str], Optional[str], List[st
     return display_name, ref_candidate, background_files, surfaces
 
 
-def main() -> None:
-    script_dir = Path(__file__).resolve().parent
+def generate_games_path() -> bool:
+    script_dir = Path(__file__).resolve().parent.parent
     metadata_map = _load_game_metadata(script_dir)
     rom_root = script_dir / "rom"
     if not rom_root.exists():
@@ -710,6 +710,7 @@ def main() -> None:
         # Determine if mask should be True (Panorama games and specific models)
         needs_mask = (
             "panorama" in display_label.lower() or
+            "table top" in display_label.lower() or
             (metadata and metadata.model.upper() in {"MK-96", "TB-94"})
         )
 
@@ -742,19 +743,27 @@ def main() -> None:
             output_lines.append(INDENT_KEY_FIRST)
     output_lines.append("}")
 
-    destination = script_dir / "generated_games_path.py"
+    destination = script_dir / "games_path.py"
     destination.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
 
     print(f"Generated {len(entries)} games. Output -> {destination}")
+
+    has_issues = False
     if skipped:
+        has_issues = True
         print("\nSkipped folders:")
         for name, reason in skipped:
             print(f"  - {name}: {reason}")
     if missing_console:
+        has_issues = True
         print("\nMissing console images:")
         for path in sorted({p.resolve() for p in missing_console}):
             print(f"  - {path}")
 
+    # Return False if any folders were skipped or console images are missing,
+    # True otherwise.
+    return not has_issues
+
 
 if __name__ == "__main__":  # pragma: no cover - script entry point
-    main()
+    success = generate_games_path()
