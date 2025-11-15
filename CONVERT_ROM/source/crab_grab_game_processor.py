@@ -1,5 +1,7 @@
-# Game prcessor for Crab Grab
+# Game processor for Crab Grab
+from source.games_path_utils import GamesPathUpdater
 from source.game_processor import GameProcessor
+
 class CrabGrabGameProcessor(GameProcessor):
     def __init__(self):
         super().__init__()
@@ -11,5 +13,20 @@ class CrabGrabGameProcessor(GameProcessor):
 
     def post_process(self):
         self.add_colour_indices()
+
+        # Combine the regular background with the Frame with the pink link separating the header
+        updater = GamesPathUpdater()
+        target = updater.get_target(self.game_key)
+        # Frame is in the same folder as background
+        frame_path = target.background_paths[0].parent / "Frame2.png"
+        # check frame exists
+        if not frame_path.exists():
+            print(f"Frame file not found: {frame_path} for game {self.game_key}")
+            raise SystemExit(1)
+        
+        combined_background = self.combine_backgrounds(target.background_paths[0], frame_path)
+        target.background_paths = [combined_background]
+        updater.write()
+
         self.multiscreen_conversion()
 

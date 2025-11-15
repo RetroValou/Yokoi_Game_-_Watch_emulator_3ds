@@ -210,6 +210,29 @@ class GameProcessor:
 			f"{skipped_count} skipped (already had index)"
 		)
 
+	def combine_backgrounds(self, bg1: Path, bg2: Path) -> Path:
+		"""Combine two background images vertically into one.
+
+		Returns the path to the combined image.
+		"""
+		out_filename = f"{bg1.stem}_combined{bg1.suffix}"
+		out_path = self.rework_dir / out_filename
+
+		img1 = Image.open(bg1).convert("RGBA")
+		img2 = Image.open(bg2).convert("RGBA")
+
+		if img2.size != img1.size:
+			img2 = img2.resize(img1.size, resample=Image.BILINEAR)
+
+		combined = img1.copy()
+		combined.alpha_composite(img2)
+		combined.save(out_path)
+
+		width, height = combined.size
+		print(f"Saved combined background: {out_path.name} ({width}x{height})")
+
+		return out_path
+
 	def multiscreen_conversion(self) -> None:
 		"""Placeholder for multiscreen conversion logic for this game."""
 		updater = GamesPathUpdater()
