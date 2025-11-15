@@ -160,6 +160,47 @@ def write_games_path(entries: Sequence[GameEntry], script_dir: Path, destination
 	destination.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+class GamesPathUpdater:
+	"""Helper for loading, updating, and rewriting ``games_path.py``.
+
+	Typical usage::
+
+		updater = GamesPathUpdater()
+		entry = updater.get_target("gnw_cgrab")
+		if entry is not None:
+			# mutate entry in place
+			entry.visual_paths = [Path("rom/gnw_cgrab/rework/foo.svg")]
+			updater.write()
+
+	The class keeps the entries list and target module path in memory so
+	that multiple updates can be applied before a single call to
+	:meth:`write`.
+	"""
+
+	def __init__(self) -> None:
+		self.games_path_file, self.entries = load_games_path()
+
+	def get_target(self, game_key: str) -> Optional[GameEntry]:
+		"""Return the :class:`GameEntry` for ``game_key``, or ``None``."""
+
+		for entry in self.entries:
+			if entry.key == game_key:
+				return entry
+		return None
+
+	def write(self, script_root: Optional[Path] = None) -> None:
+		"""Rewrite ``games_path.py`` with the current entries.
+
+		If ``script_root`` is omitted, the directory containing
+		``games_path.py`` is used as the root for relative paths.
+		"""
+
+		if script_root is None:
+			script_root = self.games_path_file.parent
+
+		write_games_path(self.entries, script_root, self.games_path_file)
+
+
 def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[GameEntry]:
 	"""Convert a ``games_path`` dict back into ``GameEntry`` objects.
 
