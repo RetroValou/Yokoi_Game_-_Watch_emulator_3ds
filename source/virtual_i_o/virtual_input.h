@@ -1637,7 +1637,7 @@ Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "FL_02") { return new FL_02(cpu); } // Flagman
     else if (ref_game == "MT_03") { return new MT_03(cpu); } // Vermin
     else if (ref_game == "RC_04") { return new RC_04(cpu); } // Fire
-    else if (ref_game == "IP_05") { return new IP_05(cpu); } // Judge
+    else if (ref_game == "IP_05" || ref_game == "IP_15") { return new IP_05(cpu); } // Judge
     else if (ref_game == "MH_06") { return new MH_06(cpu); } // Manhole
     else if (ref_game == "CN_07" || ref_game == "CN_17") { return new CN_07(cpu); } // Helmet    
     else if (ref_game == "LN_08") { return new LN_08(cpu); } // Lion
