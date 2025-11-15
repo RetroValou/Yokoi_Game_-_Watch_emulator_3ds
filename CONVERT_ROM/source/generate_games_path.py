@@ -9,7 +9,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from analyze_default_lay import iter_artwork_folders, resolve_default_lay
+try:
+    # When imported as part of the 'source' package
+    from source.games_path_utils import GameEntry, write_games_path
+except ImportError:
+    # When run directly from the 'source' directory
+    from games_path_utils import GameEntry, write_games_path
 
 # Preferred background views ordered by desirability. Boolean marks multi-screen views.
 VIEW_PRIORITY: Sequence[Tuple[str, bool]] = (
@@ -23,11 +28,22 @@ VIEW_PRIORITY: Sequence[Tuple[str, bool]] = (
     ("Backgrounds Only", True),
 )
 
-INDENT_KEY_FIRST = "              "
-INDENT_KEY_OTHER = "            , "
-INDENT_FIELD = "                    "
-INDENT_CONT = "                                    "
-INDENT_FOOTER = "                }"
+try:
+    from source.games_path_utils import (
+        INDENT_KEY_FIRST,
+        INDENT_KEY_OTHER,
+        INDENT_FIELD,
+        INDENT_CONT,
+        INDENT_FOOTER,
+    )
+except ImportError:
+    from games_path_utils import (
+        INDENT_KEY_FIRST,
+        INDENT_KEY_OTHER,
+        INDENT_FIELD,
+        INDENT_CONT,
+        INDENT_FOOTER,
+    )
 
 MODEL_PATTERN = re.compile(r"^[A-Za-z]{2,4}[-_]?\d{2,3}[A-Za-z0-9_-]*$")
 DISPLAY_NAME_PATTERNS = (
@@ -196,93 +212,9 @@ def _extract_bounds(node: Optional[ET.Element], root: ET.Element) -> Optional[Bo
 
     return None
 
-
 @dataclass
-class GameEntry:
-    """Structured data for one ``games_path`` dictionary entry."""
-
-    folder_name: str
-    key: str
-    display_name: str
-    ref: str
-    rom_path: Path
-    visual_paths: List[Path]
-    background_paths: List[Path]
-    console_path: Optional[Path]
-    melody_path: Optional[Path]
-    date: Optional[str] = None
-    transform_visual: List[List[List[int]]] = field(default_factory=list)
-    size_visual: List[List[int]] = field(default_factory=list)
-    two_in_one_screen: bool = False
-    mask: bool = False
-
-    def format_lines(self, script_dir: Path) -> List[str]:
-        """Format this entry using the house style seen in ``convert_3ds.py``."""
-
-        lines: List[str] = []
-        lines.append(f'{INDENT_FIELD}{{ "ref" : "{self.ref}"')
-        lines.append(f'{INDENT_FIELD}, "display_name" : "{self.display_name}"')
-        lines.append(f'{INDENT_FIELD}, "Rom" : {_format_path(self.rom_path, script_dir)}')
-
-        if self.melody_path is not None:
-            lines.append(
-                f'{INDENT_FIELD}, "Melody_Rom" : {_format_path(self.melody_path, script_dir)}'
-            )
-
-        lines.extend(_format_path_list("Visual", self.visual_paths, script_dir))
-        lines.extend(_format_path_list("Background", self.background_paths, script_dir))
-        lines.append(
-            f'{INDENT_FIELD}, "transform_visual" : {_format_transform(self.transform_visual)}'
-        )
-
-        if self.size_visual:
-            lines.append(
-                f'{INDENT_FIELD}, "size_visual" : {_format_transform([self.size_visual])[1:-1]}'
-            )
-
-        if self.two_in_one_screen:
-            lines.append(f'{INDENT_FIELD}, "2_in_one_screen" : True')
-
-        if self.mask:
-            lines.append(f'{INDENT_FIELD}, "mask" : True')
-
-        if self.date is not None:
-            lines.append(f'{INDENT_FIELD}, "date" : "{self.date}"')
-
-        if self.console_path is not None:
-            lines.append(
-                f'{INDENT_FIELD}, "console" : {_format_path(self.console_path, script_dir)}'
-            )
-
-        lines.append(INDENT_FOOTER)
-        return lines
-
-
-def _format_transform(transform: Sequence[Sequence[Sequence[int]]]) -> str:
-    if not transform:
-        return "[]"
-    return str(transform).replace(" ", "")
-
-
-def _format_path(path: Path, script_dir: Path) -> str:
-    rel = path.resolve().relative_to(script_dir)
-    windows_style = str(rel).replace("/", "\\")
-    return f"r'.\\{windows_style}'"
-
-
-def _format_path_list(
-    label: str,
-    paths: Sequence[Path],
-    script_dir: Path,
-) -> List[str]:
-    if not paths:
-        return [f'{INDENT_FIELD}, "{label}" : []']
-
-    rendered = [f'{INDENT_FIELD}, "{label}" : [{_format_path(paths[0], script_dir)}']
-    for path in paths[1:]:
-        rendered.append(f'{INDENT_CONT}, {_format_path(path, script_dir)}')
-    rendered[-1] += ']'
-    return rendered
+class GameEntry(GameEntry):
+    """Alias to the shared ``GameEntry`` for backward compatibility."""
 
 
 def _extract_display_name(text: str) -> Optional[str]:
@@ -618,6 +550,44 @@ def _parse_layout(lay_path: Path) -> Tuple[Optional[str], Optional[str], List[st
 
     return display_name, ref_candidate, background_files, surfaces
 
+def _iter_artwork_folders(root: Path) -> Iterable[Tuple[str, Path]]:
+    """Yield (name, path) for every gnw_* folder plus tr* folder."""
+    for entry in sorted(root.iterdir()):
+        if not entry.is_dir():
+            continue
+        name = entry.name
+        if name.lower().startswith("gnw_") or name.lower().startswith("tr"):
+            yield name, entry
+
+
+def _resolve_default_lay(
+    name: str,
+    folder: Path,
+    folder_map: Dict[str, Path],
+) -> Tuple[Optional[Path], str]:
+    """Check for default.lay in folder, falling back to the shortened name.
+
+    Returns a tuple (layout_path, source_name) where:
+      * layout_path: path to default.lay when found, otherwise None.
+      * source_name: 'self' when the file lives in the folder itself,
+        otherwise the fallback folder name that supplied the layout.
+    """
+
+    layout_path = folder / "default.lay"
+    if layout_path.exists():
+        return layout_path, "self"
+
+    fallback_name = name[:-1]
+    if len(fallback_name) < 3:  # avoid empty or trivial fallbacks
+        return None, ""
+
+    fallback_folder = folder_map.get(fallback_name)
+    if fallback_folder:
+        fallback_path = fallback_folder / "default.lay"
+        if fallback_path.exists():
+            return fallback_path, fallback_name
+
+    return None, ""
 
 def generate_games_path() -> bool:
     script_dir = Path(__file__).resolve().parent.parent
@@ -627,7 +597,7 @@ def generate_games_path() -> bool:
         print("rom/ directory not found", file=sys.stderr)
         raise SystemExit(1)
 
-    folder_map = {name: path for name, path in iter_artwork_folders(rom_root)}
+    folder_map = {name: path for name, path in _iter_artwork_folders(rom_root)}
 
     entries: List[GameEntry] = []
     skipped: List[Tuple[str, str]] = []
@@ -636,7 +606,7 @@ def generate_games_path() -> bool:
 
     for name, folder in folder_map.items():
         metadata = metadata_map.get(name.lower())
-        layout_path, source = resolve_default_lay(name, folder, folder_map)
+        layout_path, source = _resolve_default_lay(name, folder, folder_map)
         fallback_folder = folder_map.get(source) if source not in {"", "self"} else None
 
         if layout_path is None:
@@ -734,17 +704,8 @@ def generate_games_path() -> bool:
 
     entries.sort(key=lambda item: item.key.lower())
 
-    output_lines: List[str] = ["games_path = {"]
-    for idx, entry in enumerate(entries):
-        prefix = INDENT_KEY_FIRST if idx == 0 else INDENT_KEY_OTHER
-        output_lines.append(f'{prefix}"{entry.key}" :')
-        output_lines.extend(entry.format_lines(script_dir))
-        if idx != len(entries) - 1:
-            output_lines.append(INDENT_KEY_FIRST)
-    output_lines.append("}")
-
     destination = script_dir / "games_path.py"
-    destination.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
+    write_games_path(entries, script_dir, destination)
 
     print(f"Generated {len(entries)} games. Output -> {destination}")
 
