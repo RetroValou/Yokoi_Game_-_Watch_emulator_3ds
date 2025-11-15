@@ -16,6 +16,7 @@
 from source.extract_assets import extract_assets
 from source.generate_games_path import generate_games_path
 from source.crab_grab_game_processor import CrabGrabGameProcessor
+from source.spitball_sparky_game_processor import SpitballSparkyGameProcessor
 
 extract_assets()
 
@@ -24,8 +25,9 @@ if generate_games_path() is False:
     exit(1)
 
 # Optional: post-process specific games that need special handling.
-processor = CrabGrabGameProcessor()
-if processor.load_info():
-    processor.post_process()
+processors = [CrabGrabGameProcessor(), SpitballSparkyGameProcessor()]
+for processor in processors:
+    if processor.load_info():
+        processor.post_process()
 
-
+print("\nFiles processed and ready.\n\nYou can now run convert_3ds.py to generate the 3DS build data.")
