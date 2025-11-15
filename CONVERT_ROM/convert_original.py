@@ -15,10 +15,17 @@
 
 from source.extract_assets import extract_assets
 from source.generate_games_path import generate_games_path
+from source.crab_grab_game_processor import CrabGrabGameProcessor
 
 extract_assets()
 
 if generate_games_path() is False:
     print("Missing files, check previous output for details")
     exit(1)
+
+# Optional: post-process specific games that need special handling.
+processor = CrabGrabGameProcessor()
+if processor.load_info():
+    processor.post_process()
+
 
