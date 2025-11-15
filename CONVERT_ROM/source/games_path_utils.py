@@ -19,6 +19,8 @@ INDENT_FIELD = "                    "
 INDENT_CONT = "                                    "
 INDENT_FOOTER = "                }"
 
+default_alpha_bright = 1.7
+default_fond_bright = 1.35
 
 @dataclass
 class GameEntry:
@@ -39,6 +41,9 @@ class GameEntry:
 	two_in_one_screen: bool = False
 	mask: bool = False
 	color_segment: bool = False
+	alpha_bright: float = default_alpha_bright
+	fond_bright: float = default_fond_bright
+	rotate: bool = False
 
 	def format_lines(self, script_dir: Path) -> List[str]:
 		"""Format this entry using the house style used by the generator."""
@@ -73,6 +78,17 @@ class GameEntry:
 
 		if self.color_segment:
 			lines.append(f'{INDENT_FIELD}, "color_segment" : True')
+
+		# Only emit non-default brightness / rotation values to keep
+		# backwards compatibility with existing games_path entries.
+		if self.alpha_bright != default_alpha_bright:
+			lines.append(f'{INDENT_FIELD}, "alpha_bright" : {self.alpha_bright}')
+
+		if self.fond_bright != default_fond_bright:
+			lines.append(f'{INDENT_FIELD}, "fond_bright" : {self.fond_bright}')
+
+		if self.rotate:
+			lines.append(f'{INDENT_FIELD}, "rotate" : True')
 
 		if self.date is not None:
 			lines.append(f'{INDENT_FIELD}, "date" : "{self.date}"')
@@ -241,6 +257,9 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 		two_in_one = bool(data.get("2_in_one_screen", False))
 		mask = bool(data.get("mask", False))
 		color_segment = bool(data.get("color_segment", False))
+		alpha_bright = float(data.get("alpha_bright", default_alpha_bright))
+		fond_bright = float(data.get("fond_bright", default_fond_bright))
+		rotate = bool(data.get("rotate", False))
 		date = data.get("date")
 		display_name = data.get("display_name", key)
 		ref = data.get("ref", "")
@@ -263,6 +282,9 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 				two_in_one_screen=two_in_one,
 				mask=mask,
 				color_segment=color_segment,
+				alpha_bright=alpha_bright,
+				fond_bright=fond_bright,
+				rotate=rotate,
 			),
 		)
 

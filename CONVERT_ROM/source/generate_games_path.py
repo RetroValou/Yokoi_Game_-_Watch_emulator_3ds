@@ -679,11 +679,6 @@ def generate_games_path() -> bool:
             (metadata and metadata.model.upper() in {"MK-96", "TB-94"})
         )
 
-        # Determine if color_segments should be True (specific models)
-        needs_color_segments = (
-            metadata and metadata.model.upper() in {"UD-202", "BU-201"}
-        )
-
         entry = GameEntry(
             folder_name=name,
             key=key,

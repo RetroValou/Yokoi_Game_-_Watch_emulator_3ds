@@ -26,6 +26,12 @@ class CrabGrabGameProcessor(GameProcessor):
         
         combined_background = self.combine_backgrounds(target.background_paths[0], frame_path)
         target.background_paths = [combined_background]
+
+        # Set custom values
+        target.alpha_bright = 1
+        target.fond_bright = 1.3
+        target.color_segment = True
+
         updater.write()
 
         self.multiscreen_conversion()
