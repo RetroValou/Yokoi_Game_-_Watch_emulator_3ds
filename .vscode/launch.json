@@ -23,6 +23,21 @@
             "cwd": "${workspaceFolder}/CONVERT_ROM",
             "python": "${workspaceFolder}/CONVERT_ROM/.venv/Scripts/python.exe",
             "justMyCode": true
+        },
+        {
+            "name": "Python: Current File (Crab Grab)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/CONVERT_ROM",
+            "python": "${workspaceFolder}/CONVERT_ROM/.venv/Scripts/python.exe",
+            "justMyCode": true,
+            "args": [
+                "-c",
+                "-g",
+                "Crab_Grab"
+            ]
         }
     ]
 }
