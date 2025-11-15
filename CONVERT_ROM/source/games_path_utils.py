@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 
 INDENT_KEY_FIRST = "              "
@@ -108,6 +108,33 @@ def _format_path_list(
 	rendered[-1] += ']'
 	return rendered
 
+def load_games_path() -> Tuple[Path, List[GameEntry]]:
+	"""Dynamically load ``games_path.py`` from its fixed location.
+
+	Returns a tuple of (path_to_games_path_py, entries).
+	Raises ``RuntimeError`` if the file is missing or malformed.
+	"""
+
+	# games_path.py lives one level above this source/ folder.
+	script_root = Path(__file__).resolve().parent.parent
+	games_path_module = script_root / "games_path.py"
+	if not games_path_module.exists():
+		raise RuntimeError(f"games_path.py not found at {games_path_module}")
+
+	import importlib.util
+
+	spec = importlib.util.spec_from_file_location("games_path", str(games_path_module))
+	if spec is None or spec.loader is None:
+		raise RuntimeError("Unable to create import spec for games_path.py")
+
+	module = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(module)  # type: ignore[assignment]
+	games_path = getattr(module, "games_path", None)
+	if not isinstance(games_path, dict):
+		raise RuntimeError("games_path.py does not define a 'games_path' dict")
+
+	entries = _dict_to_entries(games_path, script_root)
+	return games_path_module, entries
 
 def build_games_path_lines(entries: Sequence[GameEntry], script_dir: Path) -> List[str]:
 	"""Build the full ``games_path.py`` file contents as a list of lines."""
@@ -133,7 +160,7 @@ def write_games_path(entries: Sequence[GameEntry], script_dir: Path, destination
 	destination.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[GameEntry]:
+def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[GameEntry]:
 	"""Convert a ``games_path`` dict back into ``GameEntry`` objects.
 
 	This is used by tools that want to rewrite ``games_path.py`` using
@@ -194,3 +221,5 @@ def dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[GameE
 
 	entries.sort(key=lambda e: e.key.lower())
 	return entries
+
+
