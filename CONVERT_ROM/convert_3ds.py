@@ -1110,7 +1110,7 @@ def validate_game_files(games_path):
 
 
 def process_single_game(args):
-    """Process a single game - designed for multiprocessing."""
+    """Process a single game - designed for multiprocessing or sequential use."""
     key, game_data = args
     
     print(f"\n--------\n{key}\n")
@@ -1150,6 +1150,9 @@ def process_single_game(args):
 
 
 if __name__ == "__main__":
+    # Toggle to control processing mode
+    USE_PARALLEL_PROCESSING = False  # Set to True to enable multiprocessing
+
     # Validate all game files before processing
     if not validate_game_files(games_path):
         print("Exiting due to missing files.")
@@ -1169,7 +1172,7 @@ if __name__ == "__main__":
                         print(f"Removed: {filename}")
                     except Exception as e:
                         print(f"Error removing {filename}: {e}")
-                            
+
     # Prepare game data with default values
     game_items = []
     for key in games_path:
@@ -1192,31 +1195,48 @@ if __name__ == "__main__":
         
         game_items.append((key, game_data))
     
-    # Process games in parallel using multiprocessing
-    # Adjust the number of processes based on your CPU cores
-    # Use fewer processes if you run into memory issues
-    num_processes = min(8, os.cpu_count() or 1)  # Use up to 8 processes
-    
-    print(f"\n{'='*60}")
-    print(f"Processing {len(game_items)} games using {num_processes} parallel processes...")
-    print(f"{'='*60}\n")
-    
-    try:
-        with Pool(processes=num_processes) as pool:
-            results = pool.map(process_single_game, game_items)
-        
+    if USE_PARALLEL_PROCESSING:
+        # Process games in parallel using multiprocessing
+        # Adjust the number of processes based on your CPU cores
+        # Use fewer processes if you run into memory issues
+        num_processes = min(4, os.cpu_count() or 1)  # Use up to 4 processes
+
         print(f"\n{'='*60}")
-        print(f"Successfully processed {len(results)} games!")
+        print(f"Processing {len(game_items)} games using {num_processes} parallel processes...")
         print(f"{'='*60}\n")
-        
-    except Exception as e:
-        print(f"\n❌ Error during parallel processing: {e}")
-        print("Falling back to sequential processing...\n")
-        
-        # Fallback to sequential processing
+
+        try:
+            with Pool(processes=num_processes) as pool:
+                results = pool.map(process_single_game, game_items)
+
+            print(f"\n{'='*60}")
+            print(f"Successfully processed {len(results)} games!")
+            print(f"{'='*60}\n")
+
+        except Exception as e:
+            print(f"\n❌ Error during parallel processing: {e}")
+            print("Falling back to sequential processing...\n")
+
+            # Fallback to sequential processing
+            for item in game_items:
+                try:
+                    process_single_game(item)
+                except Exception as game_error:
+                    print(f"Error processing {item[0]}: {game_error}")
+                    continue
+    else:
+        # Sequential processing (default)
+        print(f"\n{'='*60}")
+        print(f"Processing {len(game_items)} games sequentially...")
+        print(f"{'='*60}\n")
+
+        results = []
         for item in game_items:
             try:
-                process_single_game(item)
+                result = process_single_game(item)
+                results.append(result)
+                print_timing_stats()
+                reset_timing_stats()
             except Exception as game_error:
                 print(f"Error processing {item[0]}: {game_error}")
                 continue
