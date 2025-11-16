@@ -260,10 +260,16 @@ class GameProcessor:
 			f"{skipped_count} skipped (already had index)"
 		)
 
-	def combine_backgrounds(self, bg1: Path, bg2: Path) -> Path:
-		"""Combine two background images vertically into one.
+	def combine_backgrounds(self, bg1: Path, bg2: Path, mode: str = "normal") -> Path:
+		"""Combine two background images into one with a blend mode.
 
-		Returns the path to the combined image.
+		Args:
+			bg1: Base/background image path (destination).
+			bg2: Foreground image path (source).
+			mode: One of "normal" (alpha over), "add", or "multiply".
+
+		Returns:
+			Path to the combined image written into the rework folder.
 		"""
 		out_filename = f"{bg1.stem}_combined{bg1.suffix}"
 		out_path = self.rework_dir / out_filename
@@ -274,8 +280,36 @@ class GameProcessor:
 		if img2.size != img1.size:
 			img2 = img2.resize(img1.size, resample=Image.BILINEAR)
 
+		mode = mode.lower()
 		combined = img1.copy()
-		combined.alpha_composite(img2)
+
+		if mode == "normal":
+			# Standard source-over alpha composite
+			combined.alpha_composite(img2)
+		elif mode in {"add", "multiply"}:
+			# Use ImageChops for per-channel math; preserve alpha from img2
+			from PIL import ImageChops
+
+			base_rgb = combined.convert("RGB")
+			top_rgb = img2.convert("RGB")
+			if mode == "add":
+				result_rgb = ImageChops.add(base_rgb, top_rgb, scale=1.0, offset=0)
+			else:  # "multiply"
+				result_rgb = ImageChops.multiply(base_rgb, top_rgb)
+
+			# Reattach alpha (use top image alpha to mimic layout semantics)
+			result = Image.new("RGBA", combined.size)
+			alpha = img2.split()[-1]
+			rgba_data = [
+				(r, g, b, a)
+				for (r, g, b), a in zip(result_rgb.getdata(), alpha.getdata())
+			]
+			result.putdata(rgba_data)
+			combined = result
+		else:
+			# Fallback to normal if an unknown mode is provided
+			combined.alpha_composite(img2)
+
 		combined.save(out_path)
 
 		width, height = combined.size
