@@ -20,20 +20,30 @@ class SpitballSparkyGameProcessor(GameProcessor):
 		updater = GamesPathUpdater()
 		target = updater.get_target(self.game_key)
 
-		# Combine the regular background with the Frame 
-		# Frame is in the same folder as background
+		# Combine the regular background with the Subtract, Overlay, Frame and Lines
 		game_folder = target.background_paths[0].parent
-		frame_path = game_folder / "Frame2.png"
+
+		# Subtract
+		subtract_path = game_folder / "Subtract.png"
 		# check frame exists
-		if not frame_path.exists():
-			print(f"Frame file not found: {frame_path} for game {self.game_key}")
+		if not subtract_path.exists():
+			print(f"Frame file not found: {subtract_path} for game {self.game_key}")
 			raise SystemExit(1)
 		
-		combined_background = self.combine_backgrounds(target.background_paths[0], frame_path)
+		combined_background = self.combine_backgrounds(target.background_paths[0], subtract_path, mode="multiply")
 		target.background_paths = [combined_background]
 
-		# Combine the background and Frame combo background with the Lines background
-		# Lines is in the same folder as background
+		# Overlay
+		overlay_path = game_folder / "Overlay.png"
+		# check frame exists
+		if not overlay_path.exists():
+			print(f"Frame file not found: {overlay_path} for game {self.game_key}")
+			raise SystemExit(1)
+		
+		combined_background = self.combine_backgrounds(target.background_paths[0], overlay_path, mode="add")
+		target.background_paths = [combined_background]
+
+		# Lines
 		lines_path = game_folder / "Lines2.png"
 		# check frame exists
 		if not lines_path.exists():
@@ -43,10 +53,21 @@ class SpitballSparkyGameProcessor(GameProcessor):
 		combined_background = self.combine_backgrounds(target.background_paths[0], lines_path)
 		target.background_paths = [combined_background]
 
+		# Frame
+		frame_path = game_folder / "Frame2.png"
+		# check frame exists
+		if not frame_path.exists():
+			print(f"Frame file not found: {frame_path} for game {self.game_key}")
+			raise SystemExit(1)
+		
+		combined_background = self.combine_backgrounds(target.background_paths[0], frame_path)
+		target.background_paths = [combined_background]
+
 		# Set custom values
-		target.alpha_bright = 1
+		target.alpha_bright = 0.8
 		target.fond_bright = 1.3
 		target.color_segment = True
+		target.shadow = False
 
 		updater.write()
 
