@@ -1,4 +1,5 @@
 # Game processor for Crab Grab
+from pathlib import Path
 from source.games_path_utils import GamesPathUpdater
 from source.game_processor import GameProcessor
 
@@ -19,49 +20,13 @@ class SpitballSparkyGameProcessor(GameProcessor):
 
 		updater = GamesPathUpdater()
 		target = updater.get_target(self.game_key)
-
-		# Combine the regular background with the Subtract, Overlay, Frame and Lines
 		game_folder = target.background_paths[0].parent
 
-		# Subtract
-		subtract_path = game_folder / "Subtract.png"
-		# check frame exists
-		if not subtract_path.exists():
-			print(f"Frame file not found: {subtract_path} for game {self.game_key}")
-			raise SystemExit(1)
-		
-		combined_background = self.combine_backgrounds(target.background_paths[0], subtract_path, mode="multiply")
-		target.background_paths = [combined_background]
-
-		# Overlay
-		overlay_path = game_folder / "Overlay.png"
-		# check frame exists
-		if not overlay_path.exists():
-			print(f"Frame file not found: {overlay_path} for game {self.game_key}")
-			raise SystemExit(1)
-		
-		combined_background = self.combine_backgrounds(target.background_paths[0], overlay_path, mode="add")
-		target.background_paths = [combined_background]
-
-		# Lines
-		lines_path = game_folder / "Lines2.png"
-		# check frame exists
-		if not lines_path.exists():
-			print(f"Frame file not found: {lines_path} for game {self.game_key}")
-			raise SystemExit(1)
-		
-		combined_background = self.combine_backgrounds(target.background_paths[0], lines_path)
-		target.background_paths = [combined_background]
-
-		# Frame
-		frame_path = game_folder / "Frame2.png"
-		# check frame exists
-		if not frame_path.exists():
-			print(f"Frame file not found: {frame_path} for game {self.game_key}")
-			raise SystemExit(1)
-		
-		combined_background = self.combine_backgrounds(target.background_paths[0], frame_path)
-		target.background_paths = [combined_background]
+		# Create the background by combining all the layers
+		target.background_paths = self.combine_background_paths(target.background_paths[0], game_folder / "Subtract.png", mode="multiply")
+		target.background_paths = self.combine_background_paths(target.background_paths[0], game_folder / "Overlay.png", mode="add")
+		target.background_paths = self.combine_background_paths(target.background_paths[0], game_folder / "Lines2.png")
+		target.background_paths = self.combine_background_paths(target.background_paths[0], game_folder / "Frame2.png")
 
 		# Set custom values
 		target.alpha_bright = 0.8

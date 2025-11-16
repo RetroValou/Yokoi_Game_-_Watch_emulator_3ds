@@ -21,37 +21,12 @@ class CrabGrabGameProcessor(GameProcessor):
 		# Combine the regular background with the Subtract, Overlay and Frame
 		updater = GamesPathUpdater()
 		target = updater.get_target(self.game_key)
-
-		# Subtract is in the same folder as background
 		game_folder = target.background_paths[0].parent
-		subtract_path = game_folder / "Subtract.png"
-		# check subtract exists
-		if not subtract_path.exists():
-			print(f"Subtract file not found: {subtract_path} for game {self.game_key}")
-			raise SystemExit(1)
-		
-		combined_background = self.combine_backgrounds(target.background_paths[0], subtract_path, mode="multiply")
-		target.background_paths = [combined_background]
 
-		# Overlay is in the same folder as background
-		overlay_path = game_folder / "Overlay.png"
-		# check overlay exists
-		if not overlay_path.exists():
-			print(f"Overlay file not found: {overlay_path} for game {self.game_key}")
-			raise SystemExit(1)
-		
-		combined_background = self.combine_backgrounds(target.background_paths[0], overlay_path, mode="add")
-		target.background_paths = [combined_background]
-
-		# Frame is in the same folder as background
-		frame_path = game_folder / "Frame2.png"
-		# check frame exists
-		if not frame_path.exists():
-			print(f"Frame file not found: {frame_path} for game {self.game_key}")
-			raise SystemExit(1)
-		
-		combined_background = self.combine_backgrounds(target.background_paths[0], frame_path)
-		target.background_paths = [combined_background]
+		# Create the background by combining all the layers
+		target.background_paths = self.combine_background_paths(target.background_paths[0], game_folder / "Subtract.png", mode="multiply")
+		target.background_paths = self.combine_background_paths(target.background_paths[0], game_folder / "Overlay.png", mode="add")
+		target.background_paths = self.combine_background_paths(target.background_paths[0], game_folder / "Frame2.png")
 
 		# Set custom values
 		target.alpha_bright = 0.8

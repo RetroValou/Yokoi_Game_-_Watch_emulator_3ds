@@ -260,7 +260,7 @@ class GameProcessor:
 			f"{skipped_count} skipped (already had index)"
 		)
 
-	def combine_backgrounds(self, bg1: Path, bg2: Path, mode: str = "normal") -> Path:
+	def combine_images(self, image1: Path, image2: Path, mode: str = "normal") -> Path:
 		"""Combine two background images into one with a blend mode.
 
 		Args:
@@ -271,11 +271,11 @@ class GameProcessor:
 		Returns:
 			Path to the combined image written into the rework folder.
 		"""
-		out_filename = f"{bg1.stem}_combined{bg1.suffix}"
+		out_filename = f"{image1.stem}_combined{image1.suffix}"
 		out_path = self.rework_dir / out_filename
 
-		img1 = Image.open(bg1).convert("RGBA")
-		img2 = Image.open(bg2).convert("RGBA")
+		img1 = Image.open(image1).convert("RGBA")
+		img2 = Image.open(image2).convert("RGBA")
 
 		if img2.size != img1.size:
 			img2 = img2.resize(img1.size, resample=Image.BILINEAR)
@@ -317,6 +317,14 @@ class GameProcessor:
 
 		return out_path
 
+	def combine_background_paths(self, current_background: Path, overlay_background: Path, mode:str="normal"):
+		# check overlay_background exists
+		if not overlay_background.exists():
+			print(f"File not found: {overlay_background} for game {self.game_key}")
+			raise SystemExit(1)
+		
+		return [self.combine_images(current_background, overlay_background, mode=mode)]
+	
 	def multiscreen_conversion(self) -> None:
 		"""Placeholder for multiscreen conversion logic for this game."""
 		updater = GamesPathUpdater()
