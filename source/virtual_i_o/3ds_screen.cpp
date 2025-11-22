@@ -152,8 +152,16 @@ void Virtual_Screen::load_visual(std::string path_segment
 
     // set color of fond
     if (is_mask){ curr_fond_color = SEGMENT_COLOR[0]; }
-    else {curr_fond_color = CLEAR_COLOR; }
+    else {curr_fond_color = g_settings.background_color; }
     already_load_game = true;
+}
+
+void Virtual_Screen::refresh_settings(){
+    // Update background color from settings (only if not using mask)
+    if (!is_mask) {
+        curr_fond_color = g_settings.background_color;
+    }
+    // Segment marking effect settings are already read from g_settings in update_screen()
 }
 
 
@@ -423,7 +431,7 @@ void Virtual_Screen::update_screen(){
             Mtx_Copy(&model_tmp, model_curr);
             Mtx_Translate(&model_tmp, 0, 0, -0.40f, true);
             C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &model_tmp);
-            change_alpha_color_environnement(0x101010, 0x04);
+            change_alpha_color_environnement(0x101010, g_settings.segment_marking_alpha);
             C3D_DrawArrays(GPU_TRIANGLES
                             , list_segment[index_segment_screen[curr_screen*2]].index_vertex
                             , 6*index_segment_screen[curr_screen*2+1]); 

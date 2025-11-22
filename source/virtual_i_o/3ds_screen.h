@@ -3,6 +3,7 @@
 #include <cstdint>
 #include "SM5XX/SM5XX.h"
 #include "std/segment.h"
+#include "std/settings.h"
 
 #include <3ds.h>
 #include <citro3d.h>
@@ -20,7 +21,7 @@ constexpr uint16_t nb_img_interface_max = 10;
 
 constexpr uint32_t SEGMENT_COLOR[5] {0x080908, /* classic black segment */
                         0x9992e7, 0x58b9a0, 0xff677c, 0x3db8e4 }; /* Color of 2 games watch color segment*/
-#define CLEAR_COLOR 0xdbe2bb
+// CLEAR_COLOR is now configurable via g_settings.background_color
 #define FOND_COLOR_MENU 0xe7eff6
 
 
@@ -54,6 +55,7 @@ class Virtual_Screen {
         const uint16_t* background_info;
         bool img_background = false;
         std::vector<uint16_t> background_ind_vertex;
+        bool need_redraw_bottom = false; // Flag to redraw bottom screen after settings
 
         uint32_t curr_fond_color;
         uint32_t curr_alpha_color;
@@ -92,6 +94,8 @@ class Virtual_Screen {
         void delete_all_img();
         void set_img(const std::string& path, const uint16_t* info
                         , int16_t x_pos, int16_t y_pos, uint8_t img_i);
+        void refresh_settings(); // Update visual settings from g_settings
+        bool is_double_in_one_screen() const { return double_in_one_screen; }
 
     private:
         void protect_blinking(Segment *seg, bool new_state);
