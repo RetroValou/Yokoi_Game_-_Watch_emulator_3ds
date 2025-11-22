@@ -10,6 +10,7 @@
 #include "std/timer.h"
 #include "std/load_file.h"
 #include "std/GW_ROM.h"
+#include "std/settings.h"
 
 #include "SM5XX/SM5XX.h"
 #include "SM5XX/SM510/SM510.h"
@@ -76,10 +77,8 @@ void update_credit(Virtual_Screen* v_screen){
 }
 
 
-void update_name_game(Virtual_Screen* v_screen, bool for_choose = true){
+void update_name_game_top(Virtual_Screen* v_screen, bool for_choose = true){
     std::string text = get_name(index_game); if(text.empty()) { text = "_not_valid_"; }
-    std::string path_console = get_path_console_img(index_game);
-    const uint16_t* info = get_info_console_img(index_game);
     std::string date = get_date(index_game); if(text.empty()) { text = "_not_valid_"; }
 
     v_screen->delete_all_text();
@@ -118,10 +117,23 @@ void update_name_game(Virtual_Screen* v_screen, bool for_choose = true){
 
     v_screen->set_text("L+R", 280, 228, 1, 1);
     v_screen->set_text("MENU", 276, 220, 1, 1);
+    
+    v_screen->set_text("ZL+ZR", 10, 228, 1, 1);
+    v_screen->set_text("SETTINGS", 2, 220, 1, 1);
+}
 
-    pos_x = (320 - info[4])/2;
-    pos_y = (240 - info[5])/2;
+void update_name_game_bottom(Virtual_Screen* v_screen){
+    std::string path_console = get_path_console_img(index_game);
+    const uint16_t* info = get_info_console_img(index_game);
+    
+    int16_t pos_x = (320 - info[4])/2;
+    int16_t pos_y = (240 - info[5])/2;
     v_screen->set_img(path_console, info, pos_x, pos_y, 0);
+}
+
+void update_name_game(Virtual_Screen* v_screen, bool for_choose = true){
+    update_name_game_top(v_screen, for_choose);
+    update_name_game_bottom(v_screen);
     
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     v_screen->update_img();
@@ -156,6 +168,42 @@ bool select_game(Virtual_Screen* v_screen){
         (kDown&KEY_Y) || (kDown&KEY_X) ) { return true; }
 
     return false;
+}
+
+// Returns: 0 = stay in menu, 1 = start game, 2 = go to settings
+int handle_menu_input(Virtual_Screen* v_screen){
+    hidScanInput();
+    u32 kHeld = hidKeysHeld();
+    u32 kDown = hidKeysDown();
+
+    if(kHeld&KEY_DRIGHT){
+        index_game = (index_game+1)%(get_nb_name()+1);
+
+        if(index_game >= get_nb_name()){ update_credit(v_screen); }
+        else { update_name_game(v_screen); }
+        sleep_us_p(300000);
+    }
+    else if(kHeld&KEY_DLEFT){
+        if(index_game == 0){ index_game = (get_nb_name()+1);}
+        index_game = index_game-1;
+
+        if(index_game >= get_nb_name()){ update_credit(v_screen); }
+        else { update_name_game(v_screen); }
+        sleep_us_p(300000);
+    }
+
+    // Settings accessed via ZL+ZR buttons (only on press, not held)
+    if((kDown & (KEY_ZL|KEY_ZR)) == (KEY_ZL|KEY_ZR)) {
+        return 2; // Go to settings
+    }
+
+    if(index_game >= get_nb_name()){ return 0; } // credit, stay in menu
+
+    // Use kDown for action buttons to only trigger once per press
+    if( (kDown&KEY_A) || (kDown&KEY_B) || (kDown&KEY_START) ||
+        (kDown&KEY_Y) || (kDown&KEY_X) ) { return 1; } // Start game
+
+    return 0; // Stay in menu
 }
 
 void input_get(Virtual_Input* v_input){
@@ -225,8 +273,126 @@ void init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
 
 enum GameState {
     STATE_MENU,
-    STATE_PLAY
+    STATE_PLAY,
+    STATE_SETTINGS
 };
+
+
+// Settings UI state
+int selected_setting = 0;
+int selected_bg_preset = 0;
+const int NUM_SETTINGS = 2; // Background color and segment marking alpha
+
+void update_settings_display(Virtual_Screen* v_screen) {
+    v_screen->delete_all_text();
+    v_screen->delete_all_img();
+
+    int text_offset_x = 20;
+    
+    // Title
+    v_screen->set_text("Settings", text_offset_x, 10, 0, 2);
+    
+    // Background Color setting
+    std::string bg_text = "Background Color: ";
+    for (int i = 0; i < NUM_BG_PRESETS; i++) {
+        if (g_settings.background_color == BACKGROUND_PRESETS[i].color) {
+            bg_text += BACKGROUND_PRESETS[i].name;
+            selected_bg_preset = i;
+            break;
+        }
+    }
+    if (selected_setting == 0) {
+        bg_text = "> " + bg_text + " <";
+    }
+    v_screen->set_text(bg_text, text_offset_x, 60, 0, 1);
+    
+    // Segment marking alpha setting
+    char alpha_str[32];
+    snprintf(alpha_str, sizeof(alpha_str), "Marking Effect: %d/255", g_settings.segment_marking_alpha);
+    std::string alpha_text = alpha_str;
+    if (selected_setting == 1) {
+        alpha_text = "> " + alpha_text + " <";
+    }
+    v_screen->set_text(alpha_text, text_offset_x, 90, 0, 1);
+    
+    // Instructions
+    v_screen->set_text("UP/DOWN: Select setting", text_offset_x, 150, 1, 1);
+    v_screen->set_text("LEFT/RIGHT: Change value", text_offset_x, 160, 1, 1);
+    v_screen->set_text("A: Save & Return", text_offset_x, 180, 1, 1);
+    v_screen->set_text("B: Cancel", text_offset_x, 190, 1, 1);
+    v_screen->set_text("X: Reset to defaults", text_offset_x, 200, 1, 1);
+    
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+    v_screen->update_text();
+    v_screen->update_img(false);
+    C3D_FrameEnd(0);
+}
+
+bool handle_settings_input(Virtual_Screen* v_screen) {
+    hidScanInput();
+    u32 kDown = hidKeysDown();
+    
+    // Navigate between settings
+    if (kDown & KEY_DUP) {
+        selected_setting = (selected_setting - 1 + NUM_SETTINGS) % NUM_SETTINGS;
+        update_settings_display(v_screen);
+        sleep_us_p(150000);
+    }
+    else if (kDown & KEY_DDOWN) {
+        selected_setting = (selected_setting + 1) % NUM_SETTINGS;
+        update_settings_display(v_screen);
+        sleep_us_p(150000);
+    }
+    
+    // Change values
+    else if (kDown & KEY_DRIGHT) {
+        if (selected_setting == 0) {
+            // Background color preset
+            selected_bg_preset = (selected_bg_preset + 1) % NUM_BG_PRESETS;
+            g_settings.background_color = BACKGROUND_PRESETS[selected_bg_preset].color;
+        }
+        else if (selected_setting == 1) {
+            // Segment marking alpha
+            g_settings.segment_marking_alpha = (g_settings.segment_marking_alpha + 1) % 256;
+        }
+        update_settings_display(v_screen);
+        sleep_us_p(100000);
+    }
+    else if (kDown & KEY_DLEFT) {
+        if (selected_setting == 0) {
+            // Background color preset
+            selected_bg_preset = (selected_bg_preset - 1 + NUM_BG_PRESETS) % NUM_BG_PRESETS;
+            g_settings.background_color = BACKGROUND_PRESETS[selected_bg_preset].color;
+        }
+        else if (selected_setting == 1) {
+            // Segment marking alpha
+            g_settings.segment_marking_alpha = (g_settings.segment_marking_alpha - 1 + 256) % 256;
+        }
+        update_settings_display(v_screen);
+        sleep_us_p(100000);
+    }
+    
+    // Save and return
+    if (kDown & KEY_A) {
+        save_settings();
+        return true; // Exit settings
+    }
+    
+    // Cancel (don't save)
+    if (kDown & KEY_B) {
+        load_settings(); // Reload original settings
+        return true; // Exit settings
+    }
+    
+    // Reset to defaults
+    if (kDown & KEY_X) {
+        reset_settings_to_default();
+        update_settings_display(v_screen);
+        sleep_us_p(200000);
+    }
+    
+    return false;
+}
 
 
 int main()
@@ -239,9 +405,14 @@ int main()
     v_screen.config_screen();
     v_sound.configure_sound();
 
+    // Load settings on startup
+    load_settings();
+
     uint32_t curr_rate = 0;
 
     GameState state = STATE_MENU;
+    GameState previous_state = STATE_MENU; // Track where we came from before settings
+    bool just_exited_settings = false; // Prevent immediate input after exiting settings
     update_name_game(&v_screen);
 
     while (aptMainLoop())
@@ -249,33 +420,87 @@ int main()
         switch (state)
         {
             case STATE_MENU:
-                if(select_game(&v_screen)){
-                    init_game(&cpu, &v_screen, &v_sound, &v_input);
-                    state = STATE_PLAY;
-                    curr_rate = 0; // for compense fractional step cpu
-                } 
-                C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-                C3D_FrameEnd(0);
+                {
+                    if(just_exited_settings) {
+                        // Skip input processing for one frame after exiting settings
+                        just_exited_settings = false;
+                    }
+                    else {
+                        int menu_result = handle_menu_input(&v_screen);
+                        if(menu_result == 1) {
+                            // Start game
+                            init_game(&cpu, &v_screen, &v_sound, &v_input);
+                            state = STATE_PLAY;
+                            curr_rate = 0; // for compense fractional step cpu
+                        }
+                        else if(menu_result == 2) {
+                            // Go to settings
+                            previous_state = STATE_MENU;
+                            state = STATE_SETTINGS;
+                            update_settings_display(&v_screen);
+                        }
+                    }
+                    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+                    C3D_FrameEnd(0);
+                }
                 break;
             case STATE_PLAY:
-                v_sound.play_sample();
-                input_get(v_input);
-                curr_rate += cpu->frequency;
-                uint32_t step = curr_rate/_3DS_FPS_SCREEN_;
-                curr_rate -= step*_3DS_FPS_SCREEN_;
+                {
+                    v_sound.play_sample();
+                    input_get(v_input);
+                    curr_rate += cpu->frequency;
+                    uint32_t step = curr_rate/_3DS_FPS_SCREEN_;
+                    curr_rate -= step*_3DS_FPS_SCREEN_;
 
-                while(step > 0) { 
-                    if(cpu->step()){ v_screen.update_buffer_video(cpu); }
-                    v_sound.update_sound(cpu); 
-                    step -= 1;
+                    while(step > 0) { 
+                        if(cpu->step()){ v_screen.update_buffer_video(cpu); }
+                        v_sound.update_sound(cpu); 
+                        step -= 1;
+                    }
+                    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+                    v_screen.update_screen();
+                    C3D_FrameEnd(0);
+
+                    if((hidKeysHeld()&(KEY_L|KEY_R)) == (KEY_L|KEY_R)){
+                        state = STATE_MENU;
+                        update_name_game(&v_screen);
+                    }
+                    else if((hidKeysHeld()&(KEY_ZL|KEY_ZR)) == (KEY_ZL|KEY_ZR)){
+                        // Go to settings from gameplay
+                        previous_state = STATE_PLAY;
+                        state = STATE_SETTINGS;
+                        update_settings_display(&v_screen);
+                        sleep_us_p(200000); // Debounce
+                    }
                 }
-                C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-                v_screen.update_screen();
-                C3D_FrameEnd(0);
+                break;
+            case STATE_SETTINGS:
+                {
+                    if(handle_settings_input(&v_screen)) {
+                        // Exit settings back to previous state
+                        state = previous_state;
+                        if(state == STATE_MENU) {
+                            just_exited_settings = true; // Prevent immediate input processing
+                            update_name_game(&v_screen);
+                        }
+                        else if(state == STATE_PLAY) {
+                            v_screen.delete_all_text();
+                            v_screen.delete_all_img();
 
-                if((hidKeysHeld()&(KEY_L|KEY_R)) == (KEY_L|KEY_R)){
-                    state = STATE_MENU;
-                    update_name_game(&v_screen);
+                            // Apply new settings
+                            v_screen.refresh_settings();
+                            // Clear settings UI and restore game display (only for single-screen games)
+                            if(v_screen.nb_screen == 1 || v_screen.is_double_in_one_screen()) {
+                                C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+                                update_name_game_bottom(&v_screen);
+                                v_screen.update_img();
+                                v_screen.update_text();
+                                C3D_FrameEnd(0);
+                            }
+                        }
+                    }
+                    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+                    C3D_FrameEnd(0);
                 }
                 break;
         }
