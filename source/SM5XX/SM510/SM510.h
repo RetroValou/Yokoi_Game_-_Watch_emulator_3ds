@@ -33,6 +33,8 @@ public:
     bool get_segments_state(uint8_t col, uint8_t line, uint8_t word) override;
     bool get_active_sound() override;
 
+    void set_time(uint8_t hour, uint8_t minute, uint8_t second) override;
+
     // Save/Load state
     bool save_state(FILE* file) override;
     bool load_state(FILE* file) override;

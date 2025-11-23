@@ -276,3 +276,8 @@ uint8_t SM511_2::debug_get_elem_ram(int col, int line) {
     uint8_t line_ = min(line, SM511_2_RAM_LINE-1);
     return ram[col_][line_]; 
 }
+
+// Empty set_time implementation for SM511_2 (required by base class).
+void SM511_2::set_time(uint8_t hour, uint8_t minute, uint8_t second) {
+
+}

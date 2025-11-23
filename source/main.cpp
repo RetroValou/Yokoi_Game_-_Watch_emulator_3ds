@@ -6,6 +6,8 @@
 #include "vshader_shbin.h"
 #include <vector>
 #include <malloc.h>
+#include <time.h>
+#include <stdio.h>
 
 #include "std/timer.h"
 #include "std/load_file.h"
@@ -45,6 +47,19 @@ bool get_cpu(SM5XX*& cpu, const uint8_t* rom, uint16_t size_rom){
 
 uint8_t index_game = 0;
 
+void set_time_cpu(SM5XX* cpu) {
+    if (!cpu->is_time_set()) {
+        // Get the current time from the 3DS RTC (Real-Time Clock)
+        time_t currentTime = time(NULL);
+        struct tm *timeStruct = localtime(&currentTime);
+
+        // Set the time on the emulated CPU
+        if (timeStruct != nullptr) {
+            cpu->set_time(timeStruct->tm_hour, timeStruct->tm_min, timeStruct->tm_sec);
+            cpu->time_set(true); // inform cpu that time is set
+        }
+    }
+}
 
 void update_credit(Virtual_Screen* v_screen){
     std::string text = "Credits";
@@ -256,11 +271,12 @@ void init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
         load_game_state(*cpu, index_game);
     }
 
-
     v_sound->initialize((*cpu)->frequency, (*cpu)->sound_divide_frequency, _3DS_FPS_SCREEN_);
     v_sound->play_sample();
 
     (*v_input) = get_input_config((*cpu), game->ref);
+
+    set_time_cpu(*cpu);
 }
 
 
@@ -413,6 +429,10 @@ int main()
     bool just_exited_settings = false; // Prevent immediate input after exiting settings
     update_name_game(&v_screen);
 
+    // Add a grace period for setting the time on CPU after game start
+    const int TIME_SET_GRACE_PERIOD = 500;
+    int time_set_grace_counter = TIME_SET_GRACE_PERIOD;
+
     while (aptMainLoop())
 	{
         switch (state)
@@ -433,6 +453,7 @@ int main()
                                 init_game(&cpu, &v_screen, &v_sound, &v_input, false);
                                 state = STATE_PLAY;
                                 curr_rate = 0;
+                                time_set_grace_counter = TIME_SET_GRACE_PERIOD; // Set time for first N cycles
                             }
                         }
                         else if(menu_result == 2) {
@@ -478,6 +499,7 @@ int main()
                         init_game(&cpu, &v_screen, &v_sound, &v_input, load_save);
                         state = STATE_PLAY;
                         curr_rate = 0;
+                        time_set_grace_counter = TIME_SET_GRACE_PERIOD; // Set time for first N cycles
                         restore_single_screen_console(&v_screen);
                     }
 
@@ -492,10 +514,21 @@ int main()
                     curr_rate -= step*_3DS_FPS_SCREEN_;
 
                     while(step > 0) { 
-                        if(cpu->step()){ v_screen.update_buffer_video(cpu); }
+                        if(cpu->step()) { 
+                            // Only set time for the first few cycles after game start, otherwise the CPU
+                            // won't set the correct initial time from the 3DS RTC.
+                            if (time_set_grace_counter > 0) {
+                                time_set_grace_counter--;
+                                // Call set_time_cpu to ensure time is set during the grace period
+                                cpu->time_set(false); // Reset time set flag so the call is forced
+                                set_time_cpu(cpu);
+                            }
+                            v_screen.update_buffer_video(cpu); 
+                        }
                         v_sound.update_sound(cpu); 
                         step -= 1;
                     }
+
                     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
                     v_screen.update_screen();
                     C3D_FrameEnd(0);
@@ -505,6 +538,7 @@ int main()
                         save_game_state(cpu, index_game);
                         state = STATE_MENU;
                         update_name_game(&v_screen);
+                        cpu->time_set(false); // Reset time set flag
                     }
                     else if((hidKeysHeld()&(KEY_ZL|KEY_ZR)) == (KEY_ZL|KEY_ZR)){
                         // Go to settings from gameplay
@@ -512,6 +546,7 @@ int main()
                         state = STATE_SETTINGS;
                         update_settings_display(&v_screen);
                         sleep_us_p(200000); // Debounce
+                        cpu->time_set(false); // Reset time set flag
                     }
                 }
                 break;

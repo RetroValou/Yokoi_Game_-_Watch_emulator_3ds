@@ -1,6 +1,7 @@
 #include "SM5XX/sm510/sm510.h"
 #include "std/timer.h"
 #include <cstring>
+#include <stdio.h>
 
 
 
@@ -206,3 +207,27 @@ uint8_t SM510::debug_get_elem_ram(int col, int line) {
     return ram[col_][line_]; 
 }
 
+void SM510::set_time(uint8_t hour, uint8_t minute, uint8_t second) {
+    if (is_time_set()) 
+        return; // only set time once
+/*
+    // Target columns used by the clock digits
+    const uint8_t target_col = 4;
+
+    // If the hour is greater than 12 then remove 12, and add 20
+    uint8_t hour_12h_value = hour;
+    uint8_t pm_bit = 0x00;
+    if (hour_12h_value > 12) {
+        hour_12h_value -= 12;
+        pm_bit = 0x02;
+    } // else keep the hour as-is for AM -> 
+
+    // Set the time digits in RAM
+    ram[target_col][4] = (hour_12h_value / 10) | pm_bit; // tens of hours + PM bit
+    ram[target_col][3] = hour_12h_value % 10;            // units of hours   
+    ram[target_col][2] = minute / 10;                    // tens of minutes
+    ram[target_col][1] = minute % 10;                    // units of minutes
+    ram[target_col][6] = second / 10;                    // tens of seconds
+    ram[target_col][5] = second % 10;                    // units of seconds
+    */
+}

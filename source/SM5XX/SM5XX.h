@@ -64,10 +64,15 @@ protected:
     uint64_t nb_group_cycle; // used for synchronisation of speed of cpu
     uint8_t flag_time_update_screen; // used for update screen in good time
 
+    bool time_set_state = false;
+
 public:
     bool step();
     void execute_cycle();
     void input_set(int group, int line, bool state);
+
+    void time_set(bool state){ time_set_state = state; }
+    bool is_time_set(){ return time_set_state; }
 
 private : 
     void adding_program_counter(const uint8_t* opcode);
@@ -105,6 +110,10 @@ public :
     virtual bool screen_is_on() = 0;
 
     virtual bool get_active_sound(){ return false; };
+
+    // Allow the frontend to set the current time on the emulated CPU.
+    // Pure virtual: derived classes must implement this (can be empty).
+    virtual void set_time(uint8_t hour, uint8_t minute, uint8_t second) = 0;
 
     // Save/Load state for save states
     virtual bool save_state(FILE* file) = 0;

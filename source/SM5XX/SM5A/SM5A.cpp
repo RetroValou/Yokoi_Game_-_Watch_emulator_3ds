@@ -174,3 +174,9 @@ uint8_t SM5A::debug_get_elem_ram(int col, int line) {
     uint8_t line_ = min(line, SM5A_RAM_LINE-1);
     return ram[col_][line_];
 }
+
+// Empty set_time implementation for SM5A (required by base class).
+// Derived CPUs can implement real behavior if needed.
+void SM5A::set_time(uint8_t hour, uint8_t minute, uint8_t second) {
+
+}
