@@ -33,6 +33,11 @@ public:
     bool get_segments_state(uint8_t col, uint8_t line, uint8_t word) override;
     bool get_active_sound() override;
 
+    // Save/Load state
+    bool save_state(FILE* file) override;
+    bool load_state(FILE* file) override;
+    uint8_t get_cpu_type_id() override { return 1; } // CPU_TYPE_SM510
+
 private:
     /// Variables / register /// 
     uint8_t ram[SM510_RAM_COL][SM510_RAM_LINE];

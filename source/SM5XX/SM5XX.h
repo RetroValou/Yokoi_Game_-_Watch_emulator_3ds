@@ -106,6 +106,11 @@ public :
 
     virtual bool get_active_sound(){ return false; };
 
+    // Save/Load state for save states
+    virtual bool save_state(FILE* file) = 0;
+    virtual bool load_state(FILE* file) = 0;
+    virtual uint8_t get_cpu_type_id() = 0; // Return CPU type identifier
+
 private :
     virtual void execute_curr_opcode() = 0; // switch case op_code function with curr hexa op_code value
 

@@ -11,6 +11,7 @@
 #include "std/load_file.h"
 #include "std/GW_ROM.h"
 #include "std/settings.h"
+#include "std/savestate.h"
 
 #include "SM5XX/SM5XX.h"
 #include "SM5XX/SM510/SM510.h"
@@ -243,9 +244,17 @@ void input_get(Virtual_Input* v_input){
     }
 }
 
+void restore_single_screen_console(Virtual_Screen* v_screen) {
+    if(v_screen->nb_screen == 1 || v_screen->is_double_in_one_screen()) {
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        update_name_game_bottom(v_screen);
+        v_screen->update_img();
+        v_screen->update_text();
+        C3D_FrameEnd(0);
+    }
+}
 
-
-void init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Virtual_Input** v_input){
+void init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Virtual_Input** v_input, bool load_save){
     v_screen->Quit_Game();
     v_sound->Quit_Game();
 
@@ -256,11 +265,19 @@ void init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
                         , game->segment, game->size_segment, game->segment_info
                         , game->path_background, game->background_info);
     v_screen->init_visual();
+    
+    // Reapply user settings after visual initialization
+    v_screen->refresh_settings();
 
     get_cpu(*cpu, game->rom, game->size_rom);
     (*cpu)->init();
     (*cpu)->load_rom(game->rom, game->size_rom);
     (*cpu)->load_rom_melody(game->melody, game->size_melody);
+
+    // Load saved state if requested
+    if(load_save) {
+        load_game_state(*cpu, index_game);
+    }
 
 
     v_sound->initialize((*cpu)->frequency, (*cpu)->sound_divide_frequency, _3DS_FPS_SCREEN_);
@@ -274,9 +291,10 @@ void init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
 enum GameState {
     STATE_MENU,
     STATE_PLAY,
-    STATE_SETTINGS
+    STATE_SETTINGS,
+    STATE_SAVE_PROMPT
 };
-
+ 
 
 // Settings UI state
 int selected_setting = 0;
@@ -428,10 +446,14 @@ int main()
                     else {
                         int menu_result = handle_menu_input(&v_screen);
                         if(menu_result == 1) {
-                            // Start game
-                            init_game(&cpu, &v_screen, &v_sound, &v_input);
-                            state = STATE_PLAY;
-                            curr_rate = 0; // for compense fractional step cpu
+                            // Check if save exists, if so go to prompt, otherwise start fresh
+                            if(save_state_exists(index_game)) {
+                                state = STATE_SAVE_PROMPT;
+                            } else {
+                                init_game(&cpu, &v_screen, &v_sound, &v_input, false);
+                                state = STATE_PLAY;
+                                curr_rate = 0;
+                            }
                         }
                         else if(menu_result == 2) {
                             // Go to settings
@@ -442,6 +464,43 @@ int main()
                     }
                     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
                     C3D_FrameEnd(0);
+                }
+                break;
+            case STATE_SAVE_PROMPT:
+                {
+                    // Display save state prompt
+                    v_screen.delete_all_text();
+                    v_screen.set_text("Load save state?", 80, 100, 1, 1);
+                    v_screen.set_text("A: Load save", 80, 130, 1, 1);
+                    v_screen.set_text("B: Start new game", 80, 150, 1, 1);
+                    
+                    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+                    v_screen.update_text();
+                    C3D_FrameEnd(0);
+                    
+                    hidScanInput();
+                    u32 kDown = hidKeysDown();
+
+                    bool should_start = false;
+                    bool load_save = false;
+                    
+                    if(kDown & KEY_A) {
+                        should_start = true;
+                        load_save = true;
+                    }
+                    else if(kDown & KEY_B) {
+                        should_start = true;
+                        load_save = false;
+                    }
+                    
+                    if(should_start) {
+                        v_screen.delete_all_text();
+                        init_game(&cpu, &v_screen, &v_sound, &v_input, load_save);
+                        state = STATE_PLAY;
+                        curr_rate = 0;
+                        restore_single_screen_console(&v_screen);
+                    }
+
                 }
                 break;
             case STATE_PLAY:
@@ -462,6 +521,8 @@ int main()
                     C3D_FrameEnd(0);
 
                     if((hidKeysHeld()&(KEY_L|KEY_R)) == (KEY_L|KEY_R)){
+                        // Save game state before exiting to menu
+                        save_game_state(cpu, index_game);
                         state = STATE_MENU;
                         update_name_game(&v_screen);
                     }
@@ -489,14 +550,7 @@ int main()
 
                             // Apply new settings
                             v_screen.refresh_settings();
-                            // Clear settings UI and restore game display (only for single-screen games)
-                            if(v_screen.nb_screen == 1 || v_screen.is_double_in_one_screen()) {
-                                C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-                                update_name_game_bottom(&v_screen);
-                                v_screen.update_img();
-                                v_screen.update_text();
-                                C3D_FrameEnd(0);
-                            }
+                            restore_single_screen_console(&v_screen);
                         }
                     }
                     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
