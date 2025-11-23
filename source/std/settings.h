@@ -6,12 +6,15 @@
 struct AppSettings {
     uint32_t background_color;      // CLEAR_COLOR
     uint8_t segment_marking_alpha;  // Alpha value for segment marking (0x00-0xFF)
+    char last_game_name[64];        // Name of the last selected game
     
     // Default values
     AppSettings() : 
         background_color(0xdbe2bb),     // Light yellowish (original default)
         segment_marking_alpha(0x05)     // Original alpha value
-    {}
+    {
+        last_game_name[0] = '\0';       // Empty string by default
+    }
 };
 
 // Predefined color presets for easy selection
@@ -38,3 +41,7 @@ extern AppSettings g_settings;
 void load_settings();
 void save_settings();
 void reset_settings_to_default();
+
+// Last game selection management
+void save_last_game(const std::string& game_name);
+uint8_t load_last_game_index();

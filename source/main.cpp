@@ -142,35 +142,6 @@ void update_name_game(Virtual_Screen* v_screen, bool for_choose = true){
     C3D_FrameEnd(0);
 }
 
-
-bool select_game(Virtual_Screen* v_screen){
-    hidScanInput();
-    u32 kDown = hidKeysHeld();
-
-    if(kDown&KEY_DRIGHT){
-        index_game = (index_game+1)%(get_nb_name()+1);
-
-        if(index_game >= get_nb_name()){ update_credit(v_screen); }
-        else { update_name_game(v_screen); }
-        sleep_us_p(300000);
-    }
-    else if(kDown&KEY_DLEFT){
-        if(index_game == 0){ index_game = (get_nb_name()+1);}
-        index_game = index_game-1;
-
-        if(index_game >= get_nb_name()){ update_credit(v_screen); }
-        else { update_name_game(v_screen); }
-        sleep_us_p(300000);
-    }
-
-    if(index_game >= get_nb_name()){ return false; } // credit
-
-    if( (kDown&KEY_A) || (kDown&KEY_B) || (kDown&KEY_START) ||
-        (kDown&KEY_Y) || (kDown&KEY_X) ) { return true; }
-
-    return false;
-}
-
 // Returns: 0 = stay in menu, 1 = start game, 2 = go to settings
 int handle_menu_input(Virtual_Screen* v_screen){
     hidScanInput();
@@ -181,7 +152,10 @@ int handle_menu_input(Virtual_Screen* v_screen){
         index_game = (index_game+1)%(get_nb_name()+1);
 
         if(index_game >= get_nb_name()){ update_credit(v_screen); }
-        else { update_name_game(v_screen); }
+        else { 
+            update_name_game(v_screen);
+            save_last_game(get_name(index_game)); // Save the selected game
+        }
         sleep_us_p(300000);
     }
     else if(kHeld&KEY_DLEFT){
@@ -189,7 +163,10 @@ int handle_menu_input(Virtual_Screen* v_screen){
         index_game = index_game-1;
 
         if(index_game >= get_nb_name()){ update_credit(v_screen); }
-        else { update_name_game(v_screen); }
+        else { 
+            update_name_game(v_screen);
+            save_last_game(get_name(index_game)); // Save the selected game
+        }
         sleep_us_p(300000);
     }
 
@@ -425,6 +402,9 @@ int main()
 
     // Load settings on startup
     load_settings();
+    
+    // Load the last selected game index
+    index_game = load_last_game_index();
 
     uint32_t curr_rate = 0;
 
