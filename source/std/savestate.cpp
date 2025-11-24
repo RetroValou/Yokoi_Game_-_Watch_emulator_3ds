@@ -20,10 +20,10 @@ static CPUType get_cpu_type(SM5XX* cpu) {
 // Get save file path for a game
 const char* get_save_path(uint8_t game_index) {
     static char path[256];
-    // Use game name (e.g. "Donkey_Kong_II") for readable filenames
+    // Use game ref as some game name cause file saving errors
     const GW_rom* game = load_game(game_index);
     if(game) {
-        snprintf(path, sizeof(path), "%s/%s.sav", SAVESTATE_DIR, game->name.c_str());
+        snprintf(path, sizeof(path), "%s/%s.sav", SAVESTATE_DIR, game->ref.c_str());
     } else {
         // Fallback to index-based name if game not found
         snprintf(path, sizeof(path), "%s/game_%02d.sav", SAVESTATE_DIR, game_index);
