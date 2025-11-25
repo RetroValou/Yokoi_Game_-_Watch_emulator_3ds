@@ -170,6 +170,12 @@ void SM5XX::set_time(uint8_t hour, uint8_t minute, uint8_t second) {
                 hour_12h_value -= 12;
                 pm_bit = time_addresses->pm_bit;
             }
+            else if (hour_12h_value == 12) {
+                pm_bit = time_addresses->pm_bit; // Noon case
+            }
+            else if (hour_12h_value == 0) {
+                hour_12h_value = 12; // Midnight case
+            }
         }
 
         // Set the time digits in RAM using per-digit (col, line)
