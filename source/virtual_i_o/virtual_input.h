@@ -768,6 +768,7 @@ class LP_57 : public Virtual_Input{
             switch (part) {
                 case PART_SETUP:
                     switch (button) {
+                        case BUTTON_TIME: cpu->input_set(1, 0, state); break;
                         case BUTTON_GAMEB: cpu->input_set(1, 1, state); break;
                         case BUTTON_GAMEA: cpu->input_set(1, 2, state); break;
                         default: break; } break;
