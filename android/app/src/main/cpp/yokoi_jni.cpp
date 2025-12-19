@@ -86,6 +86,7 @@ std::vector<Segment> g_segments;
 uint16_t g_segment_info[8] = {0};
 bool g_double_in_one_screen = false;
 uint8_t g_nb_screen = 1;
+bool g_split_two_screens_to_panels = false;
 
 bool g_emulation_running = false;
 int g_gamea_pulse_frames = 0;
@@ -422,17 +423,40 @@ static void rebuild_layout_from_game() {
         g_screen_off_y[1] = h0;
     }
 
-    // Build combined layout (top + bottom console) for aspect-correct fitting.
-    g_top_canvas_w = g_canvas_w;
-    g_top_canvas_h = g_canvas_h;
+    // Android layout policy:
+    // - Always render exactly two vertical panels.
+    // - Single-screen games: top = game screen, bottom = console.
+    // - Two-screen games that are "double_in_one_screen" (left/right): top = both screens combined, bottom = console.
+    // - Other two-screen games (clamshell top/bottom): top = screen0, bottom = screen1 (no console panel).
+    g_split_two_screens_to_panels = (g_nb_screen == 2) && (!g_double_in_one_screen);
 
-    g_bottom_canvas_w = 0.0f;
-    g_bottom_canvas_h = 0.0f;
-    if (g_game && g_game->console_info) {
-        uint16_t scale2 = g_segment_info[2] ? g_segment_info[2] : 1;
-        // console_info: [0]=texW [1]=texH [2]=u [3]=v [4]=w [5]=h
-        g_bottom_canvas_w = (float)g_game->console_info[4] / (float)scale2;
-        g_bottom_canvas_h = (float)g_game->console_info[5] / (float)scale2;
+    if (g_split_two_screens_to_panels) {
+        // Top panel is screen 0.
+        g_top_canvas_w = w0 > 1.0f ? w0 : 1.0f;
+        g_top_canvas_h = h0 > 1.0f ? h0 : 1.0f;
+        // Bottom panel is screen 1.
+        g_bottom_canvas_w = w1 > 1.0f ? w1 : 1.0f;
+        g_bottom_canvas_h = h1 > 1.0f ? h1 : 1.0f;
+
+        // For this mode we treat each screen as its own panel origin.
+        g_screen_off_x[0] = 0.0f;
+        g_screen_off_y[0] = 0.0f;
+        g_screen_off_x[1] = 0.0f;
+        g_screen_off_y[1] = 0.0f;
+    } else {
+        // Top panel holds the whole game canvas (1 screen or both combined).
+        g_top_canvas_w = g_canvas_w;
+        g_top_canvas_h = g_canvas_h;
+
+        // Bottom panel holds the console (if present).
+        g_bottom_canvas_w = 0.0f;
+        g_bottom_canvas_h = 0.0f;
+        if (g_game && g_game->console_info) {
+            uint16_t scale2 = g_segment_info[2] ? g_segment_info[2] : 1;
+            // console_info: [0]=texW [1]=texH [2]=u [3]=v [4]=w [5]=h
+            g_bottom_canvas_w = (float)g_game->console_info[4] / (float)scale2;
+            g_bottom_canvas_h = (float)g_game->console_info[5] / (float)scale2;
+        }
     }
 
     g_combined_canvas_w = std::max(g_top_canvas_w, g_bottom_canvas_w);
@@ -885,6 +909,21 @@ Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
         glDrawArrays(GL_TRIANGLES, 0, (GLsizei)verts.size());
     };
 
+    auto get_screen_base = [&](uint8_t screen, float& outX, float& outY) {
+        if (g_split_two_screens_to_panels) {
+            if (screen == 0) {
+                outX = g_top_off_x;
+                outY = 0.0f;
+            } else {
+                outX = g_bottom_off_x;
+                outY = g_bottom_off_y;
+            }
+        } else {
+            outX = g_top_off_x + g_screen_off_x[screen];
+            outY = g_screen_off_y[screen];
+        }
+    };
+
     // Aspect-correct fit: render the combined (top+bottom) canvas letterboxed into the device.
     float contentW = g_combined_canvas_w > 0.0f ? g_combined_canvas_w : 1.0f;
     float contentH = g_combined_canvas_h > 0.0f ? g_combined_canvas_h : 1.0f;
@@ -915,19 +954,15 @@ Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
     if (g_tex_white != 0) {
         glUniform4f(g_uMul, br, bgc, bb, 1.0f);
         std::vector<RenderVertex> fill_verts;
-        fill_verts.reserve(6);
-        append_quad_ndc_uv_canvas(
-            fill_verts,
-            contentW,
-            contentH,
-            g_top_off_x,
-            0.0f,
-            g_top_canvas_w,
-            g_top_canvas_h,
-            0.0f,
-            0.0f,
-            1.0f,
-            1.0f);
+        if (g_split_two_screens_to_panels) {
+            fill_verts.reserve(12);
+            // Fill both game panels.
+            append_quad_ndc_uv_canvas(fill_verts, contentW, contentH, g_top_off_x, 0.0f, g_top_canvas_w, g_top_canvas_h, 0.0f, 0.0f, 1.0f, 1.0f);
+            append_quad_ndc_uv_canvas(fill_verts, contentW, contentH, g_bottom_off_x, g_bottom_off_y, g_bottom_canvas_w, g_bottom_canvas_h, 0.0f, 0.0f, 1.0f, 1.0f);
+        } else {
+            fill_verts.reserve(6);
+            append_quad_ndc_uv_canvas(fill_verts, contentW, contentH, g_top_off_x, 0.0f, g_top_canvas_w, g_top_canvas_h, 0.0f, 0.0f, 1.0f, 1.0f);
+        }
         draw_vertices(g_tex_white, fill_verts);
     }
 
@@ -954,8 +989,9 @@ Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
             uint16_t scale = g_segment_info[2] ? g_segment_info[2] : 1;
             float dw = (float)g_segment_info[4 + screen * 2] / (float)scale;
             float dh = (float)g_segment_info[5 + screen * 2] / (float)scale;
-            float dx = g_top_off_x + g_screen_off_x[screen];
-            float dy = g_screen_off_y[screen];
+            float dx = 0.0f;
+            float dy = 0.0f;
+            get_screen_base(screen, dx, dy);
 
             append_quad_ndc_uv_canvas(bg_verts, contentW, contentH, dx, dy, dw, dh, u0, v0, u1, v1);
         }
@@ -977,12 +1013,17 @@ Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
                 continue;
             }
 
-            float sx = (float)seg.pos_scr[0] / (float)scale + g_screen_off_x[seg.screen];
-            float sy = (float)seg.pos_scr[1] / (float)scale + g_screen_off_y[seg.screen];
+            float base_x = 0.0f;
+            float base_y = 0.0f;
+            get_screen_base(seg.screen, base_x, base_y);
+
+            float sx = (float)seg.pos_scr[0] / (float)scale;
+            float sy = (float)seg.pos_scr[1] / (float)scale;
             float sw = (float)seg.size_tex[0] / (float)scale;
             float sh = (float)seg.size_tex[1] / (float)scale;
 
-            sx += g_top_off_x;
+            sx += base_x;
+            sy += base_y;
 
             float u0 = 0.0f;
             float v0 = 0.0f;
@@ -1017,7 +1058,7 @@ Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
     }
 
     // Console overlay layer (bottom).
-    if (kRenderConsoleOverlay && g_tex_console != 0 && g_game && g_game->console_info && g_tex_console_w > 0 && g_tex_console_h > 0) {
+    if (!g_split_two_screens_to_panels && kRenderConsoleOverlay && g_tex_console != 0 && g_game && g_game->console_info && g_tex_console_w > 0 && g_tex_console_h > 0) {
         glUniform4f(g_uMul, 1.0f, 1.0f, 1.0f, 1.0f);
         std::vector<RenderVertex> cs_verts;
         cs_verts.reserve(6);
