@@ -1,6 +1,8 @@
 package com.retrovalou.yokoi;
 
 import android.app.Activity;
+import android.app.Presentation;
+import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -12,10 +14,13 @@ import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
 import android.os.Bundle;
+import android.hardware.display.DisplayManager;
+import android.view.Display;
 import android.view.MotionEvent;
 
 import java.io.IOException;
 import java.io.InputStream;
+
 
 public final class MainActivity extends Activity {
     static {
@@ -37,7 +42,11 @@ public final class MainActivity extends Activity {
             int consoleTex, int consoleW, int consoleH);
     private static native void nativeResize(int width, int height);
     private static native void nativeRender();
+    private static native void nativeRenderPanel(int panel);
     private static native void nativeTouch(float x, float y, int action);
+    private static native void nativeSetTouchSurfaceSize(int width, int height);
+    private static native void nativeSetEmulationDriverPanel(int panel);
+    private static native int nativeGetTextureGeneration();
     private static native int nativeGetAudioSampleRate();
     private static native int nativeAudioRead(short[] pcm, int frames);
     private static native boolean nativeConsumeTextureReloadRequest();
@@ -45,6 +54,91 @@ public final class MainActivity extends Activity {
     private int lastSegTexId;
     private int lastBgTexId;
     private int lastCsTexId;
+
+    private DisplayManager displayManager;
+    private SecondScreenPresentation secondPresentation;
+    private GLSurfaceView secondGlView;
+    private volatile boolean dualDisplayEnabled;
+
+    private final class SecondScreenPresentation extends Presentation {
+        private int secondTextureGeneration;
+
+        SecondScreenPresentation(Context outerContext, Display display) {
+            super(outerContext, display);
+        }
+
+        @Override
+        protected void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            secondGlView = new GLSurfaceView(getContext());
+            secondGlView.setEGLContextClientVersion(3);
+            secondGlView.setEGLConfigChooser(8, 8, 8, 8, 16, 0);
+            secondGlView.setPreserveEGLContextOnPause(true);
+            secondGlView.setRenderer(new GLSurfaceView.Renderer() {
+                @Override
+                public void onSurfaceCreated(javax.microedition.khronos.opengles.GL10 gl, javax.microedition.khronos.egl.EGLConfig config) {
+                    nativeInit();
+
+                    // Load textures in this GL context too (dual-display devices commonly do NOT share textures).
+                    String[] names = nativeGetTextureAssetNames();
+                    String segName = (names != null && names.length > 0) ? names[0] : "";
+                    String bgName = (names != null && names.length > 1) ? names[1] : "";
+                    String csName = (names != null && names.length > 2) ? names[2] : "";
+
+                    TextureInfo seg = loadTextureFromAsset(segName);
+                    TextureInfo bg = loadTextureFromAsset(bgName);
+                    TextureInfo cs = loadTextureFromAsset(csName);
+
+                    nativeSetTextures(
+                            seg.id, seg.width, seg.height,
+                            bg.id, bg.width, bg.height,
+                            cs.id, cs.width, cs.height);
+
+                    secondTextureGeneration = nativeGetTextureGeneration();
+                }
+
+                @Override
+                public void onSurfaceChanged(javax.microedition.khronos.opengles.GL10 gl, int width, int height) {
+                    nativeResize(width, height);
+                }
+
+                @Override
+                public void onDrawFrame(javax.microedition.khronos.opengles.GL10 gl) {
+                    if (!dualDisplayEnabled) {
+                        return;
+                    }
+                    int gen = nativeGetTextureGeneration();
+                    if (gen != secondTextureGeneration) {
+                        // Reload textures in this context.
+                        String[] names = nativeGetTextureAssetNames();
+                        String segName = (names != null && names.length > 0) ? names[0] : "";
+                        String bgName = (names != null && names.length > 1) ? names[1] : "";
+                        String csName = (names != null && names.length > 2) ? names[2] : "";
+
+                        TextureInfo seg = loadTextureFromAsset(segName);
+                        TextureInfo bg = loadTextureFromAsset(bgName);
+                        TextureInfo cs = loadTextureFromAsset(csName);
+
+                        nativeSetTextures(
+                                seg.id, seg.width, seg.height,
+                                bg.id, bg.width, bg.height,
+                                cs.id, cs.width, cs.height);
+                        secondTextureGeneration = gen;
+                    }
+
+                    // Secondary (physical top) display: render the TOP panel.
+                    nativeRenderPanel(0);
+                }
+            });
+            setContentView(secondGlView);
+        }
+
+        @Override
+        public void onDisplayRemoved() {
+            super.onDisplayRemoved();
+            dualDisplayEnabled = false;
+        }
+    }
 
     private static final class TextureInfo {
         final int id;
@@ -111,10 +205,15 @@ public final class MainActivity extends Activity {
         nativeSetAssetManager(getAssets());
         nativeSetStorageRoot(getFilesDir().getAbsolutePath());
 
+        displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+
         glView = new GLSurfaceView(this);
         glView.setEGLContextClientVersion(3);
+        glView.setEGLConfigChooser(8, 8, 8, 8, 16, 0);
         glView.setPreserveEGLContextOnPause(true);
         glView.setRenderer(new GLSurfaceView.Renderer() {
+            private int textureGeneration;
+
             @Override
             public void onSurfaceCreated(javax.microedition.khronos.opengles.GL10 gl, javax.microedition.khronos.egl.EGLConfig config) {
                 nativeInit();
@@ -129,21 +228,34 @@ public final class MainActivity extends Activity {
                 TextureInfo bg = loadTextureFromAsset(bgName);
                 TextureInfo cs = loadTextureFromAsset(csName);
 
+                lastSegTexId = seg.id;
+                lastBgTexId = bg.id;
+                lastCsTexId = cs.id;
+
                 nativeSetTextures(
                         seg.id, seg.width, seg.height,
                         bg.id, bg.width, bg.height,
                         cs.id, cs.width, cs.height);
                 startAudioIfNeeded();
+
+                textureGeneration = nativeGetTextureGeneration();
+
+                // Attempt to start a second physical display if present.
+                    runOnUiThread(() -> {
+                        tryStartSecondDisplay();
+                    });
             }
 
             @Override
             public void onSurfaceChanged(javax.microedition.khronos.opengles.GL10 gl, int width, int height) {
                 nativeResize(width, height);
+                nativeSetTouchSurfaceSize(width, height);
             }
 
             @Override
             public void onDrawFrame(javax.microedition.khronos.opengles.GL10 gl) {
-                if (nativeConsumeTextureReloadRequest()) {
+                int gen = nativeGetTextureGeneration();
+                if (gen != textureGeneration) {
                     int[] ids = new int[]{lastSegTexId, lastBgTexId, lastCsTexId};
                     for (int id : ids) {
                         if (id != 0) {
@@ -175,8 +287,16 @@ public final class MainActivity extends Activity {
 
                     stopAudio();
                     startAudioIfNeeded();
+
+                    textureGeneration = gen;
                 }
-                nativeRender();
+
+                if (dualDisplayEnabled) {
+                    // Default (physical bottom / touch) display: render the BOTTOM panel.
+                    nativeRenderPanel(1);
+                } else {
+                    nativeRender();
+                }
             }
         });
 
@@ -186,6 +306,59 @@ public final class MainActivity extends Activity {
         });
 
         setContentView(glView);
+    }
+
+    private void tryStartSecondDisplay() {
+        if (displayManager == null || secondPresentation != null) {
+            return;
+        }
+        Display defaultDisplay = getWindowManager().getDefaultDisplay();
+        int defaultId = defaultDisplay != null ? defaultDisplay.getDisplayId() : Display.DEFAULT_DISPLAY;
+
+        Display candidate = null;
+        for (Display d : displayManager.getDisplays()) {
+            if (d != null && d.getDisplayId() != defaultId) {
+                candidate = d;
+                break;
+            }
+        }
+
+        if (candidate == null) {
+            dualDisplayEnabled = false;
+            return;
+        }
+
+        secondPresentation = new SecondScreenPresentation(this, candidate);
+        try {
+            secondPresentation.show();
+            dualDisplayEnabled = true;
+            // Main (touch) display renders panel 1 in dual-display mode, so make it the emulation driver.
+            nativeSetEmulationDriverPanel(1);
+        } catch (RuntimeException e) {
+            // If the display cannot be used, fall back to single-screen combined layout.
+            dualDisplayEnabled = false;
+            secondPresentation = null;
+            nativeSetEmulationDriverPanel(0);
+        }
+    }
+
+    private void stopSecondDisplay() {
+        dualDisplayEnabled = false;
+        nativeSetEmulationDriverPanel(0);
+        if (secondGlView != null) {
+            try {
+                secondGlView.onPause();
+            } catch (RuntimeException ignored) {
+            }
+            secondGlView = null;
+        }
+        if (secondPresentation != null) {
+            try {
+                secondPresentation.dismiss();
+            } catch (RuntimeException ignored) {
+            }
+            secondPresentation = null;
+        }
     }
 
     private void stopAudio() {
@@ -336,6 +509,9 @@ public final class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         glView.onPause();
+        if (secondGlView != null) {
+            secondGlView.onPause();
+        }
         stopAudio();
     }
 
@@ -343,5 +519,16 @@ public final class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         glView.onResume();
+        if (secondGlView != null) {
+            secondGlView.onResume();
+        } else {
+            tryStartSecondDisplay();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        stopSecondDisplay();
+        super.onDestroy();
     }
 }

@@ -3,6 +3,7 @@
 #include <android/log.h>
 #include <android/asset_manager_jni.h>
 #include <GLES3/gl3.h>
+#include <EGL/egl.h>
 
 #include <time.h>
 
@@ -45,28 +46,37 @@ void logi_str(const std::string& s) {
 
 int g_width = 0;
 int g_height = 0;
+int g_touch_width = 0;
+int g_touch_height = 0;
 bool g_core_inited = false;
 
-GLuint g_program = 0;
-GLuint g_vao = 0;
-GLuint g_vbo = 0;
-GLint g_uColor = -1;
+struct GlResources {
+    EGLContext ctx = EGL_NO_CONTEXT;
+    int width = 0;
+    int height = 0;
 
-GLint g_uTex = -1;
-GLint g_uMul = -1;
-GLint g_uScale = -1;
+    GLuint program = 0;
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    GLint uTex = -1;
+    GLint uMul = -1;
+    GLint uScale = -1;
+    GLuint tex_white = 0;
 
-GLuint g_tex_segments = 0;
-GLuint g_tex_background = 0;
-GLuint g_tex_console = 0;
-int g_tex_segments_w = 0;
-int g_tex_segments_h = 0;
-int g_tex_background_w = 0;
-int g_tex_background_h = 0;
-int g_tex_console_w = 0;
-int g_tex_console_h = 0;
+    GLuint tex_segments = 0;
+    GLuint tex_background = 0;
+    GLuint tex_console = 0;
+    int tex_segments_w = 0;
+    int tex_segments_h = 0;
+    int tex_background_w = 0;
+    int tex_background_h = 0;
+    int tex_console_w = 0;
+    int tex_console_h = 0;
+};
 
-GLuint g_tex_white = 0;
+std::mutex g_gl_mutex;
+std::vector<GlResources> g_gl;
+std::mutex g_render_mutex;
 
 AAssetManager* g_asset_manager = nullptr;
 
@@ -96,7 +106,10 @@ bool g_right_action_down = false;
 std::atomic<int> g_pending_game_delta{0};
 std::atomic<bool> g_start_requested{false};
 std::atomic<int> g_action_mask{0}; // bit0=left action, bit1=right action
-std::atomic<bool> g_texture_reload_requested{false};
+std::atomic<uint32_t> g_texture_generation{1};
+// Which panel renderer is responsible for advancing emulation.
+// -1 = combined renderer only, 0 = panel0 renderer, 1 = panel1 renderer.
+std::atomic<int> g_emulation_driver_panel{0};
 uint8_t g_game_index = 0;
 
 // Virtual canvas (in "segment pixels") we map to NDC.
@@ -201,16 +214,25 @@ static void audio_update_step(SM5XX* cpu) {
 static GLuint compile_shader(GLenum type, const char* src);
 static GLuint link_program(GLuint vs, GLuint fs);
 
-static void init_gl_resources() {
+static GlResources* get_or_create_gl_for_current_context();
+
+static void init_gl_resources(GlResources& r) {
     // If the GL context was lost (rotation/background), object IDs from the old context
-    // are not valid anymore. Recreate everything unconditionally.
-    g_program = 0;
-    g_vao = 0;
-    g_vbo = 0;
-    g_uTex = -1;
-    g_uMul = -1;
-    g_uScale = -1;
-    g_tex_white = 0;
+    // are not valid anymore. Recreate everything for this context.
+    r.program = 0;
+    r.vao = 0;
+    r.vbo = 0;
+    r.uTex = -1;
+    r.uMul = -1;
+    r.uScale = -1;
+    r.tex_white = 0;
+
+    r.tex_segments = 0;
+    r.tex_background = 0;
+    r.tex_console = 0;
+    r.tex_segments_w = r.tex_segments_h = 0;
+    r.tex_background_w = r.tex_background_h = 0;
+    r.tex_console_w = r.tex_console_h = 0;
 
     const char* vs_src =
         "#version 300 es\n"
@@ -237,21 +259,21 @@ static void init_gl_resources() {
     if (!vs || !fs) {
         return;
     }
-    g_program = link_program(vs, fs);
+    r.program = link_program(vs, fs);
     glDeleteShader(vs);
     glDeleteShader(fs);
-    if (!g_program) {
+    if (!r.program) {
         return;
     }
 
-    g_uTex = glGetUniformLocation(g_program, "uTex");
-    g_uMul = glGetUniformLocation(g_program, "uMul");
-    g_uScale = glGetUniformLocation(g_program, "uScale");
+    r.uTex = glGetUniformLocation(r.program, "uTex");
+    r.uMul = glGetUniformLocation(r.program, "uMul");
+    r.uScale = glGetUniformLocation(r.program, "uScale");
 
-    glGenVertexArrays(1, &g_vao);
-    glGenBuffers(1, &g_vbo);
-    glBindVertexArray(g_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
+    glGenVertexArrays(1, &r.vao);
+    glGenBuffers(1, &r.vbo);
+    glBindVertexArray(r.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, r.vbo);
     glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(RenderVertex), (void*)0);
@@ -263,14 +285,34 @@ static void init_gl_resources() {
     glDisable(GL_CULL_FACE);
 
     // Fallback 1x1 white texture.
-    glGenTextures(1, &g_tex_white);
-    glBindTexture(GL_TEXTURE_2D, g_tex_white);
+    glGenTextures(1, &r.tex_white);
+    glBindTexture(GL_TEXTURE_2D, r.tex_white);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     const uint8_t white_px[4] = {255, 255, 255, 255};
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white_px);
+}
+
+static GlResources* get_or_create_gl_for_current_context() {
+    EGLContext ctx = eglGetCurrentContext();
+    if (ctx == EGL_NO_CONTEXT) {
+        return nullptr;
+    }
+
+    std::lock_guard<std::mutex> lock(g_gl_mutex);
+    for (auto& r : g_gl) {
+        if (r.ctx == ctx) {
+            return &r;
+        }
+    }
+
+    GlResources r;
+    r.ctx = ctx;
+    init_gl_resources(r);
+    g_gl.push_back(r);
+    return &g_gl.back();
 }
 
 static void set_time_cpu(SM5XX* cpu) {
@@ -513,14 +555,6 @@ static void reset_runtime_state_for_new_game() {
     g_action_mask.store(0);
     g_start_requested.store(false);
     g_rate_accu = 0;
-
-    // Drop textures until Java reloads the correct atlases.
-    g_tex_segments = 0;
-    g_tex_background = 0;
-    g_tex_console = 0;
-    g_tex_segments_w = g_tex_segments_h = 0;
-    g_tex_background_w = g_tex_background_h = 0;
-    g_tex_console_w = g_tex_console_h = 0;
 }
 
 static void load_game_by_index_and_init(uint8_t idx) {
@@ -560,7 +594,7 @@ static void load_game_by_index_and_init(uint8_t idx) {
     }
 
     reset_runtime_state_for_new_game();
-    g_texture_reload_requested.store(true);
+    g_texture_generation.fetch_add(1);
 
     __android_log_print(ANDROID_LOG_INFO, kLogTag, "Loaded game: %s (%s)", g_game->name.c_str(), g_game->ref.c_str());
 }
@@ -711,8 +745,8 @@ Java_com_retrovalou_yokoi_MainActivity_nativeSetStorageRoot(JNIEnv* env, jclass,
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_retrovalou_yokoi_MainActivity_nativeInit(JNIEnv*, jclass) {
-    // Always (re)create GL resources on surface creation.
-    init_gl_resources();
+    // Always ensure GL resources exist for the current GL context.
+    (void)get_or_create_gl_for_current_context();
 
     if (!g_core_inited) {
         // Settings/saves will land in Context.getFilesDir().
@@ -725,6 +759,12 @@ Java_com_retrovalou_yokoi_MainActivity_nativeInit(JNIEnv*, jclass) {
         load_game0_and_init_cpu();
         g_core_inited = true;
     }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeSetTouchSurfaceSize(JNIEnv*, jclass, jint width, jint height) {
+    g_touch_width = (int)width;
+    g_touch_height = (int)height;
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -800,116 +840,176 @@ Java_com_retrovalou_yokoi_MainActivity_nativeSetTextures(
         jint segmentTex, jint segmentW, jint segmentH,
         jint backgroundTex, jint backgroundW, jint backgroundH,
         jint consoleTex, jint consoleW, jint consoleH) {
-    g_tex_segments = (GLuint)segmentTex;
-    g_tex_segments_w = (int)segmentW;
-    g_tex_segments_h = (int)segmentH;
+    GlResources* r = get_or_create_gl_for_current_context();
+    if (!r) {
+        return;
+    }
 
-    g_tex_background = (GLuint)backgroundTex;
-    g_tex_background_w = (int)backgroundW;
-    g_tex_background_h = (int)backgroundH;
+    r->tex_segments = (GLuint)segmentTex;
+    r->tex_segments_w = (int)segmentW;
+    r->tex_segments_h = (int)segmentH;
 
-    g_tex_console = (GLuint)consoleTex;
-    g_tex_console_w = (int)consoleW;
-    g_tex_console_h = (int)consoleH;
+    r->tex_background = (GLuint)backgroundTex;
+    r->tex_background_w = (int)backgroundW;
+    r->tex_background_h = (int)backgroundH;
+
+    r->tex_console = (GLuint)consoleTex;
+    r->tex_console_w = (int)consoleW;
+    r->tex_console_h = (int)consoleH;
 
     // Prefer actual texture sizes for UV normalization if provided.
-    if (g_tex_segments_w > 0 && g_tex_segments_h > 0) {
-        g_segment_info[0] = (uint16_t)g_tex_segments_w;
-        g_segment_info[1] = (uint16_t)g_tex_segments_h;
+    if (r->tex_segments_w > 0 && r->tex_segments_h > 0) {
+        g_segment_info[0] = (uint16_t)r->tex_segments_w;
+        g_segment_info[1] = (uint16_t)r->tex_segments_h;
     }
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_retrovalou_yokoi_MainActivity_nativeResize(JNIEnv*, jclass, jint width, jint height) {
-    g_width = width;
-    g_height = height;
-    glViewport(0, 0, g_width, g_height);
+    GlResources* r = get_or_create_gl_for_current_context();
+    if (!r) {
+        return;
+    }
+    r->width = (int)width;
+    r->height = (int)height;
+    glViewport(0, 0, r->width, r->height);
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
+static void render_frame(GlResources& r, int panel) {
     // Always clear to black so letterbox/pillarbox areas are black.
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    if (!g_cpu || !g_program) {
+    if (!g_cpu || r.program == 0) {
         return;
     }
 
-    // Apply queued game switches on the GL thread (avoids races with the renderer).
-    int delta = g_pending_game_delta.exchange(0);
-    if (delta != 0) {
-        size_t n = get_nb_name();
-        if (n > 0) {
-            int cur = (int)g_game_index;
-            int next = cur + delta;
-            while (next < 0) next += (int)n;
-            next = next % (int)n;
-            load_game_by_index_and_init((uint8_t)next);
+    std::lock_guard<std::mutex> lock(g_render_mutex);
+
+    const bool is_combined = (panel < 0);
+    const bool is_panel0 = (panel == 0);
+    const bool is_panel1 = (panel == 1);
+
+    const int driver = g_emulation_driver_panel.load();
+    const bool is_driver_panel = (driver == 0 && is_panel0) || (driver == 1 && is_panel1);
+
+    // Only the combined renderer or the configured driver panel advances emulation.
+    if (is_combined || is_driver_panel) {
+        // Apply queued game switches on the GL thread (avoids races with the renderer).
+        int delta = g_pending_game_delta.exchange(0);
+        if (delta != 0) {
+            size_t n = get_nb_name();
+            if (n > 0) {
+                int cur = (int)g_game_index;
+                int next = cur + delta;
+                while (next < 0) next += (int)n;
+                next = next % (int)n;
+                load_game_by_index_and_init((uint8_t)next);
+            }
         }
-    }
 
-    // Start gameplay only when requested (middle tap).
-    if (g_start_requested.exchange(false) && !g_emulation_running) {
-        g_emulation_running = true;
-        g_gamea_pulse_frames = 8; // ~130ms at 60fps
-        if (g_input) {
-            g_input->set_input(PART_SETUP, BUTTON_GAMEA, true);
-        } else {
-            g_cpu->input_set(0, 2, true);
-        }
-    }
-
-    // Apply action presses (used during gameplay).
-    apply_action_mask(g_action_mask.load());
-
-    // Release the short GAME A press after a few frames (press length is frame-based,
-    // not cycle-based, so it remains stable regardless of CPU step count).
-    if (g_gamea_pulse_frames > 0 && g_emulation_running) {
-        g_gamea_pulse_frames--;
-        if (g_gamea_pulse_frames == 0) {
+        // Start gameplay only when requested (middle tap).
+        if (g_start_requested.exchange(false) && !g_emulation_running) {
+            g_emulation_running = true;
+            g_gamea_pulse_frames = 8; // ~130ms at 60fps
             if (g_input) {
-                g_input->set_input(PART_SETUP, BUTTON_GAMEA, false);
+                g_input->set_input(PART_SETUP, BUTTON_GAMEA, true);
             } else {
-                // Fallback for early SM5A titles (Ball/Fire/Vermin) where GAME A is often (0,2).
-                g_cpu->input_set(0, 2, false);
+                g_cpu->input_set(0, 2, true);
+            }
+        }
+
+        // Apply action presses (used during gameplay).
+        apply_action_mask(g_action_mask.load());
+
+        // Release the short GAME A press after a few frames.
+        if (g_gamea_pulse_frames > 0 && g_emulation_running) {
+            g_gamea_pulse_frames--;
+            if (g_gamea_pulse_frames == 0) {
+                if (g_input) {
+                    g_input->set_input(PART_SETUP, BUTTON_GAMEA, false);
+                } else {
+                    g_cpu->input_set(0, 2, false);
+                }
+            }
+        }
+
+        // Run CPU for this frame only after the first touch.
+        if (g_emulation_running) {
+            g_rate_accu += g_cpu->frequency;
+            uint32_t steps = (uint32_t)(g_rate_accu / kTargetFps);
+            g_rate_accu -= (uint32_t)(steps * kTargetFps);
+            while (steps > 0) {
+                if (g_cpu->step()) {
+                    update_segments_from_cpu(g_cpu.get());
+                }
+                audio_update_step(g_cpu.get());
+                steps--;
             }
         }
     }
 
-    // Run CPU for this frame only after the first touch.
-    if (g_emulation_running) {
-        g_rate_accu += g_cpu->frequency;
-        uint32_t steps = (uint32_t)(g_rate_accu / kTargetFps);
-        g_rate_accu -= (uint32_t)(steps * kTargetFps);
-        while (steps > 0) {
-            if (g_cpu->step()) {
-                update_segments_from_cpu(g_cpu.get());
-            }
-            audio_update_step(g_cpu.get());
-            steps--;
-        }
-    }
-
-    glUseProgram(g_program);
-    glBindVertexArray(g_vao);
+    glUseProgram(r.program);
+    glBindVertexArray(r.vao);
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
-    // Android Bitmaps are typically premultiplied-alpha.
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     auto draw_vertices = [&](GLuint tex, const std::vector<RenderVertex>& verts) {
         if (tex == 0 || verts.empty()) return;
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, tex);
-        glUniform1i(g_uTex, 0);
-        glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
+        glUniform1i(r.uTex, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, r.vbo);
         glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(verts.size() * sizeof(RenderVertex)), verts.data(), GL_DYNAMIC_DRAW);
         glDrawArrays(GL_TRIANGLES, 0, (GLsizei)verts.size());
     };
 
-    auto get_screen_base = [&](uint8_t screen, float& outX, float& outY) {
+    // Determine which slice of the combined canvas we are drawing.
+    float panel_x = 0.0f;
+    float panel_y = 0.0f;
+    float panel_w = g_combined_canvas_w;
+    float panel_h = g_combined_canvas_h;
+
+    if (!is_combined) {
+        if (is_panel0) {
+            panel_x = g_top_off_x;
+            panel_y = 0.0f;
+            panel_w = g_top_canvas_w;
+            panel_h = g_top_canvas_h;
+        } else if (is_panel1) {
+            panel_x = g_bottom_off_x;
+            panel_y = g_bottom_off_y;
+            panel_w = g_bottom_canvas_w;
+            panel_h = g_bottom_canvas_h;
+        }
+    }
+
+    if (panel_w <= 0.0f) panel_w = 1.0f;
+    if (panel_h <= 0.0f) panel_h = 1.0f;
+
+    float contentW = panel_w;
+    float contentH = panel_h;
+    float contentAspect = contentW / contentH;
+    float viewAspect = 1.0f;
+    if (r.width > 0 && r.height > 0) {
+        viewAspect = (float)r.width / (float)r.height;
+    }
+
+    float sx = 1.0f;
+    float sy = 1.0f;
+    if (viewAspect > contentAspect) {
+        sx = contentAspect / viewAspect;
+    } else {
+        sy = viewAspect / contentAspect;
+    }
+    glUniform2f(r.uScale, sx, sy);
+
+    auto to_local_x = [&](float gx) { return gx - panel_x; };
+    auto to_local_y = [&](float gy) { return gy - panel_y; };
+
+    auto get_screen_base_global = [&](uint8_t screen, float& outX, float& outY) {
         if (g_split_two_screens_to_panels) {
             if (screen == 0) {
                 outX = g_top_off_x;
@@ -924,59 +1024,41 @@ Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
         }
     };
 
-    // Aspect-correct fit: render the combined (top+bottom) canvas letterboxed into the device.
-    float contentW = g_combined_canvas_w > 0.0f ? g_combined_canvas_w : 1.0f;
-    float contentH = g_combined_canvas_h > 0.0f ? g_combined_canvas_h : 1.0f;
-    float contentAspect = contentW / contentH;
-    float viewAspect = 1.0f;
-    if (g_width > 0 && g_height > 0) {
-        viewAspect = (float)g_width / (float)g_height;
-    }
-
-    float sx = 1.0f;
-    float sy = 1.0f;
-    if (viewAspect > contentAspect) {
-        // Wider viewport -> pillarbox.
-        sx = contentAspect / viewAspect;
-    } else {
-        // Taller viewport -> letterbox.
-        sy = viewAspect / contentAspect;
-    }
-    glUniform2f(g_uScale, sx, sy);
-
-    // Fill the top game screen area with the LCD background color.
-    // This provides the intended yellow/blue tint regardless of background PNG content.
     uint32_t bg = g_settings.background_color;
     float br = ((bg >> 16) & 0xFF) / 255.0f;
     float bgc = ((bg >> 8) & 0xFF) / 255.0f;
     float bb = (bg & 0xFF) / 255.0f;
 
-    if (g_tex_white != 0) {
-        glUniform4f(g_uMul, br, bgc, bb, 1.0f);
+    const bool panel_is_game = is_combined || is_panel0 || (g_split_two_screens_to_panels && is_panel1);
+
+    if (panel_is_game && r.tex_white != 0) {
+        glUniform4f(r.uMul, br, bgc, bb, 1.0f);
         std::vector<RenderVertex> fill_verts;
-        if (g_split_two_screens_to_panels) {
-            fill_verts.reserve(12);
-            // Fill both game panels.
-            append_quad_ndc_uv_canvas(fill_verts, contentW, contentH, g_top_off_x, 0.0f, g_top_canvas_w, g_top_canvas_h, 0.0f, 0.0f, 1.0f, 1.0f);
-            append_quad_ndc_uv_canvas(fill_verts, contentW, contentH, g_bottom_off_x, g_bottom_off_y, g_bottom_canvas_w, g_bottom_canvas_h, 0.0f, 0.0f, 1.0f, 1.0f);
-        } else {
-            fill_verts.reserve(6);
-            append_quad_ndc_uv_canvas(fill_verts, contentW, contentH, g_top_off_x, 0.0f, g_top_canvas_w, g_top_canvas_h, 0.0f, 0.0f, 1.0f, 1.0f);
-        }
-        draw_vertices(g_tex_white, fill_verts);
+        fill_verts.reserve(6);
+        append_quad_ndc_uv_canvas(fill_verts, contentW, contentH, 0.0f, 0.0f, contentW, contentH, 0.0f, 0.0f, 1.0f, 1.0f);
+        draw_vertices(r.tex_white, fill_verts);
     }
 
-    // Background layer (top).
-    if (g_tex_background != 0 && g_game && g_game->background_info && g_tex_background_w > 0 && g_tex_background_h > 0) {
-        glUniform4f(g_uMul, 1.0f, 1.0f, 1.0f, 1.0f);
+    // Background layer.
+    if (panel_is_game && r.tex_background != 0 && g_game && g_game->background_info && r.tex_background_w > 0 && r.tex_background_h > 0) {
+        glUniform4f(r.uMul, 1.0f, 1.0f, 1.0f, 1.0f);
         std::vector<RenderVertex> bg_verts;
         bg_verts.reserve(g_nb_screen * 6);
 
         const uint16_t* bi = g_game->background_info;
-        float texW = (float)g_tex_background_w;
-        float texH = (float)g_tex_background_h;
+        float texW = (float)r.tex_background_w;
+        float texH = (float)r.tex_background_h;
 
         for (uint8_t screen = 0; screen < g_nb_screen; screen++) {
+            if (!is_combined) {
+                if (!g_split_two_screens_to_panels && is_panel1) {
+                    continue;
+                }
+                if (g_split_two_screens_to_panels && (int)screen != panel) {
+                    continue;
+                }
+            }
+
             uint16_t id = (uint16_t)(2 + screen * 4);
             float u = (float)bi[id + 0];
             float v = (float)bi[id + 1];
@@ -989,18 +1071,21 @@ Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
             uint16_t scale = g_segment_info[2] ? g_segment_info[2] : 1;
             float dw = (float)g_segment_info[4 + screen * 2] / (float)scale;
             float dh = (float)g_segment_info[5 + screen * 2] / (float)scale;
-            float dx = 0.0f;
-            float dy = 0.0f;
-            get_screen_base(screen, dx, dy);
+
+            float gx = 0.0f;
+            float gy = 0.0f;
+            get_screen_base_global(screen, gx, gy);
+            float dx = to_local_x(gx);
+            float dy = to_local_y(gy);
 
             append_quad_ndc_uv_canvas(bg_verts, contentW, contentH, dx, dy, dw, dh, u0, v0, u1, v1);
         }
 
-        draw_vertices(g_tex_background, bg_verts);
+        draw_vertices(r.tex_background, bg_verts);
     }
 
-    // Segments layer (top).
-    if (g_segment_info[0] > 0 && g_segment_info[1] > 0) {
+    // Segments layer.
+    if (panel_is_game && g_segment_info[0] > 0 && g_segment_info[1] > 0) {
         std::vector<RenderVertex> seg_verts;
         seg_verts.reserve(g_segments.size() * 6);
 
@@ -1012,60 +1097,62 @@ Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
             if (!seg.buffer_state) {
                 continue;
             }
+            if (!is_combined) {
+                if (!g_split_two_screens_to_panels && is_panel1) {
+                    continue;
+                }
+                if (g_split_two_screens_to_panels && (int)seg.screen != panel) {
+                    continue;
+                }
+            }
 
-            float base_x = 0.0f;
-            float base_y = 0.0f;
-            get_screen_base(seg.screen, base_x, base_y);
+            float base_gx = 0.0f;
+            float base_gy = 0.0f;
+            get_screen_base_global(seg.screen, base_gx, base_gy);
 
-            float sx = (float)seg.pos_scr[0] / (float)scale;
-            float sy = (float)seg.pos_scr[1] / (float)scale;
+            float sx2 = (float)seg.pos_scr[0] / (float)scale + base_gx;
+            float sy2 = (float)seg.pos_scr[1] / (float)scale + base_gy;
             float sw = (float)seg.size_tex[0] / (float)scale;
             float sh = (float)seg.size_tex[1] / (float)scale;
 
-            sx += base_x;
-            sy += base_y;
+            float sx_local = to_local_x(sx2);
+            float sy_local = to_local_y(sy2);
 
             float u0 = 0.0f;
             float v0 = 0.0f;
             float u1 = 1.0f;
             float v1 = 1.0f;
 
-            if (g_tex_segments != 0) {
+            if (r.tex_segments != 0) {
                 float u = (float)seg.pos_tex[0];
                 float v = (float)seg.pos_tex[1];
                 float w = (float)seg.size_tex[0];
                 float h = (float)seg.size_tex[1];
-
                 calc_uv_rect(texW, texH, u, v, w, h, u0, v0, u1, v1);
             }
 
-            append_quad_ndc_uv_canvas(seg_verts, contentW, contentH, sx, sy, sw, sh, u0, v0, u1, v1);
+            append_quad_ndc_uv_canvas(seg_verts, contentW, contentH, sx_local, sy_local, sw, sh, u0, v0, u1, v1);
         }
 
-        // Derive a dark segment tint from the LCD background color.
-        // The segment PNGs are treated as an alpha mask; this controls the final "ink" color.
         float seg_r = br * 0.12f;
         float seg_g = bgc * 0.12f;
         float seg_b = bb * 0.12f;
 
-        if (g_tex_segments != 0) {
-            glUniform4f(g_uMul, seg_r, seg_g, seg_b, 1.0f);
-            draw_vertices(g_tex_segments, seg_verts);
-        } else {
-            glUniform4f(g_uMul, seg_r, seg_g, seg_b, 1.0f);
-            draw_vertices(g_tex_white, seg_verts);
-        }
+        GLuint seg_tex = (r.tex_segments != 0) ? r.tex_segments : r.tex_white;
+        glUniform4f(r.uMul, seg_r, seg_g, seg_b, 1.0f);
+        draw_vertices(seg_tex, seg_verts);
     }
 
-    // Console overlay layer (bottom).
-    if (!g_split_two_screens_to_panels && kRenderConsoleOverlay && g_tex_console != 0 && g_game && g_game->console_info && g_tex_console_w > 0 && g_tex_console_h > 0) {
-        glUniform4f(g_uMul, 1.0f, 1.0f, 1.0f, 1.0f);
+    // Console overlay.
+    const bool want_console = (!g_split_two_screens_to_panels) && (is_combined || is_panel1);
+    if (want_console && kRenderConsoleOverlay && r.tex_console != 0 && g_game && g_game->console_info && r.tex_console_w > 0 && r.tex_console_h > 0) {
+        glUniform4f(r.uMul, 1.0f, 1.0f, 1.0f, 1.0f);
         std::vector<RenderVertex> cs_verts;
         cs_verts.reserve(6);
 
         const uint16_t* ci = g_game->console_info;
-        float texW = (float)g_tex_console_w;
-        float texH = (float)g_tex_console_h;
+        float texW = (float)r.tex_console_w;
+        float texH = (float)r.tex_console_h;
 
         float u = (float)ci[2];
         float v = (float)ci[3];
@@ -1079,15 +1166,40 @@ Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
         float dst_w = w / (float)scale;
         float dst_h = h / (float)scale;
 
-        float dx = g_bottom_off_x;
-        float dy = g_bottom_off_y;
-
-        // Draw console in the bottom area of the combined canvas (no stretching).
+        float dx = to_local_x(g_bottom_off_x);
+        float dy = to_local_y(g_bottom_off_y);
         append_quad_ndc_uv_canvas(cs_verts, contentW, contentH, dx, dy, dst_w, dst_h, u0, v0, u1, v1);
-        draw_vertices(g_tex_console, cs_verts);
+        draw_vertices(r.tex_console, cs_verts);
     }
 
     glBindVertexArray(0);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeSetEmulationDriverPanel(JNIEnv*, jclass, jint panel) {
+    // Clamp to {-1,0,1}.
+    int p = (int)panel;
+    if (p < -1) p = -1;
+    if (p > 1) p = 1;
+    g_emulation_driver_panel.store(p);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
+    GlResources* r = get_or_create_gl_for_current_context();
+    if (!r) {
+        return;
+    }
+    render_frame(*r, -1);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeRenderPanel(JNIEnv*, jclass, jint panel) {
+    GlResources* r = get_or_create_gl_for_current_context();
+    if (!r) {
+        return;
+    }
+    render_frame(*r, (int)panel);
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -1098,7 +1210,7 @@ Java_com_retrovalou_yokoi_MainActivity_nativeTouch(JNIEnv*, jclass, jfloat x, jf
         return;
     }
 
-    const float w = (g_width > 0) ? (float)g_width : 1.0f;
+    const float w = (g_touch_width > 0) ? (float)g_touch_width : 1.0f;
     const float xf = x / w;
     const bool left_third = xf < (1.0f / 3.0f);
     const bool right_third = xf > (2.0f / 3.0f);
@@ -1143,5 +1255,18 @@ Java_com_retrovalou_yokoi_MainActivity_nativeTouch(JNIEnv*, jclass, jfloat x, jf
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_retrovalou_yokoi_MainActivity_nativeConsumeTextureReloadRequest(JNIEnv*, jclass) {
-    return g_texture_reload_requested.exchange(false) ? JNI_TRUE : JNI_FALSE;
+    // Deprecated in favor of nativeGetTextureGeneration(); keep for compatibility.
+    static std::atomic<uint32_t> last_seen{0};
+    uint32_t cur = g_texture_generation.load();
+    uint32_t prev = last_seen.load();
+    if (cur != prev) {
+        last_seen.store(cur);
+        return JNI_TRUE;
+    }
+    return JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeGetTextureGeneration(JNIEnv*, jclass) {
+    return (jint)g_texture_generation.load();
 }
