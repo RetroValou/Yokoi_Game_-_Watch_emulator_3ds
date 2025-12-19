@@ -9,11 +9,16 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <mutex>
+#include <algorithm>
+#include <atomic>
 
 #include "std/GW_ROM.h"
 #include "std/platform_paths.h"
 #include "std/settings.h"
 #include "std/load_file.h"
+
+#include "virtual_i_o/virtual_input.h"
 
 #include "SM5XX/SM5XX.h"
 #include "SM5XX/SM5A/SM5A.h"
@@ -75,10 +80,23 @@ struct RenderVertex {
 std::unique_ptr<SM5XX> g_cpu;
 const GW_rom* g_game = nullptr;
 
+std::unique_ptr<Virtual_Input> g_input;
+
 std::vector<Segment> g_segments;
 uint16_t g_segment_info[8] = {0};
 bool g_double_in_one_screen = false;
 uint8_t g_nb_screen = 1;
+
+bool g_emulation_running = false;
+int g_gamea_pulse_frames = 0;
+bool g_left_action_down = false;
+bool g_right_action_down = false;
+
+std::atomic<int> g_pending_game_delta{0};
+std::atomic<bool> g_start_requested{false};
+std::atomic<int> g_action_mask{0}; // bit0=left action, bit1=right action
+std::atomic<bool> g_texture_reload_requested{false};
+uint8_t g_game_index = 0;
 
 // Virtual canvas (in "segment pixels") we map to NDC.
 float g_canvas_w = 1.0f;
@@ -99,6 +117,85 @@ float g_bottom_off_y = 0.0f;
 
 constexpr float kTargetFps = 60.0f;
 uint32_t g_rate_accu = 0;
+
+// ---------------------------
+// Audio (very minimal buzzer)
+// ---------------------------
+std::mutex g_audio_mutex;
+std::vector<int16_t> g_audio_ring;
+size_t g_audio_r = 0;
+size_t g_audio_w = 0;
+int g_audio_sample_rate = 0;
+uint16_t g_audio_wait = 0;
+bool g_audio_curr_value = false;
+
+static void audio_reset_locked() {
+    std::fill(g_audio_ring.begin(), g_audio_ring.end(), 0);
+    g_audio_r = 0;
+    g_audio_w = 0;
+    g_audio_wait = 0;
+    g_audio_curr_value = false;
+}
+
+static void audio_reconfigure_from_cpu(SM5XX* cpu) {
+    if (!cpu) {
+        return;
+    }
+    uint16_t div = cpu->sound_divide_frequency ? (uint16_t)cpu->sound_divide_frequency : (uint16_t)1;
+    int rate = (int)(cpu->frequency / (uint32_t)div);
+    if (rate <= 0) {
+        rate = 32768;
+    }
+
+    std::lock_guard<std::mutex> lock(g_audio_mutex);
+    g_audio_sample_rate = rate;
+    // ~2 seconds of audio in ring buffer.
+    g_audio_ring.assign((size_t)g_audio_sample_rate * 2u, 0);
+    audio_reset_locked();
+}
+
+static void audio_push_sample(int16_t s) {
+    if (g_audio_ring.empty()) {
+        return;
+    }
+
+    g_audio_ring[g_audio_w] = s;
+    size_t next_w = g_audio_w + 1;
+    if (next_w >= g_audio_ring.size()) {
+        next_w = 0;
+    }
+    // Overwrite oldest if full.
+    if (next_w == g_audio_r) {
+        size_t next_r = g_audio_r + 1;
+        if (next_r >= g_audio_ring.size()) {
+            next_r = 0;
+        }
+        g_audio_r = next_r;
+    }
+    g_audio_w = next_w;
+}
+
+static void audio_update_step(SM5XX* cpu) {
+    if (!cpu) {
+        return;
+    }
+
+    uint16_t div = cpu->sound_divide_frequency ? (uint16_t)cpu->sound_divide_frequency : (uint16_t)1;
+    g_audio_wait += 1;
+    g_audio_curr_value = g_audio_curr_value || cpu->get_active_sound();
+    if (g_audio_wait < div) {
+        return;
+    }
+    g_audio_wait = 0;
+
+    // Square wave amplitude (matches 3DS behavior: on/off sample stream).
+    constexpr float kLimit = 0.8f;
+    int16_t sample = g_audio_curr_value ? (int16_t)(32767.0f * kLimit) : (int16_t)0;
+    g_audio_curr_value = false;
+
+    std::lock_guard<std::mutex> lock(g_audio_mutex);
+    audio_push_sample(sample);
+}
 
 static GLuint compile_shader(GLenum type, const char* src);
 static GLuint link_program(GLuint vs, GLuint fs);
@@ -352,10 +449,61 @@ static void rebuild_layout_from_game() {
     g_bottom_off_y = g_top_canvas_h;
 }
 
-static void load_game0_and_init_cpu() {
-    g_game = load_game(0);
+static uint8_t find_game_index_by_ref(const std::string& ref) {
+    size_t n = get_nb_name();
+    if (n > 255) n = 255;
+    for (size_t i = 0; i < n; i++) {
+        const GW_rom* g = load_game((uint8_t)i);
+        if (g && g->ref == ref) {
+            return (uint8_t)i;
+        }
+    }
+    return 0;
+}
+
+static void apply_action_mask(int mask) {
+    bool want_left = (mask & 0x01) != 0;
+    bool want_right = (mask & 0x02) != 0;
+
+    if (g_input) {
+        if (g_left_action_down != want_left) {
+            g_input->set_input(PART_LEFT, BUTTON_ACTION, want_left);
+            g_left_action_down = want_left;
+        }
+        if (g_right_action_down != want_right) {
+            g_input->set_input(PART_RIGHT, BUTTON_ACTION, want_right);
+            g_right_action_down = want_right;
+        }
+    } else {
+        // No mapping available; clear any prior state.
+        g_left_action_down = false;
+        g_right_action_down = false;
+    }
+}
+
+static void reset_runtime_state_for_new_game() {
+    g_emulation_running = false;
+    g_gamea_pulse_frames = 0;
+    g_left_action_down = false;
+    g_right_action_down = false;
+    g_action_mask.store(0);
+    g_start_requested.store(false);
+    g_rate_accu = 0;
+
+    // Drop textures until Java reloads the correct atlases.
+    g_tex_segments = 0;
+    g_tex_background = 0;
+    g_tex_console = 0;
+    g_tex_segments_w = g_tex_segments_h = 0;
+    g_tex_background_w = g_tex_background_h = 0;
+    g_tex_console_w = g_tex_console_h = 0;
+}
+
+static void load_game_by_index_and_init(uint8_t idx) {
+    g_game_index = idx;
+    g_game = load_game(idx);
     if (!g_game) {
-        __android_log_write(ANDROID_LOG_ERROR, kLogTag, "load_game(0) failed");
+        __android_log_write(ANDROID_LOG_ERROR, kLogTag, "load_game(index) failed");
         return;
     }
 
@@ -369,7 +517,8 @@ static void load_game0_and_init_cpu() {
     g_cpu->load_rom_melody(g_game->melody, g_game->size_melody);
     g_cpu->load_rom_time_addresses(g_game->ref);
 
-    // Copy segments (sorted by screen like 3DS code, but stable layout isn't critical here).
+    g_input.reset(get_input_config(g_cpu.get(), g_game->ref));
+
     g_segments.clear();
     if (g_game->segment && g_game->size_segment > 0) {
         g_segments.assign(g_game->segment, g_game->segment + g_game->size_segment);
@@ -377,15 +526,26 @@ static void load_game0_and_init_cpu() {
 
     rebuild_layout_from_game();
     set_time_cpu(g_cpu.get());
+    audio_reconfigure_from_cpu(g_cpu.get());
 
-    // Warm up so we don't start with a completely blank frame.
+    // Warm up so we don't start with a blank frame.
     for (int i = 0; i < 2000; i++) {
         if (g_cpu->step() && g_cpu->segments_state_are_update) {
             g_cpu->segments_state_are_update = false;
         }
     }
 
+    reset_runtime_state_for_new_game();
+    g_texture_reload_requested.store(true);
+
     __android_log_print(ANDROID_LOG_INFO, kLogTag, "Loaded game: %s (%s)", g_game->name.c_str(), g_game->ref.c_str());
+}
+
+static void load_game0_and_init_cpu() {
+    // Default game for Android: Donkey Kong II.
+    // (Ball is index 0; we keep that as the safe fallback.)
+    uint8_t idx = find_game_index_by_ref("JR_55");
+    load_game_by_index_and_init(idx);
 }
 
 static void update_segments_from_cpu(SM5XX* cpu) {
@@ -543,6 +703,55 @@ Java_com_retrovalou_yokoi_MainActivity_nativeInit(JNIEnv*, jclass) {
     }
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeGetAudioSampleRate(JNIEnv*, jclass) {
+    // Prefer configured value; fall back to CPU-derived rate.
+    if (g_audio_sample_rate > 0) {
+        return (jint)g_audio_sample_rate;
+    }
+    if (g_cpu) {
+        uint16_t div = g_cpu->sound_divide_frequency ? (uint16_t)g_cpu->sound_divide_frequency : (uint16_t)1;
+        int rate = (int)(g_cpu->frequency / (uint32_t)div);
+        return (jint)(rate > 0 ? rate : 32768);
+    }
+    return (jint)32768;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeAudioRead(JNIEnv* env, jclass, jshortArray pcm, jint frames) {
+    if (!pcm || frames <= 0) {
+        return 0;
+    }
+
+    jsize len = env->GetArrayLength(pcm);
+    if (len < frames) {
+        frames = len;
+    }
+
+    static thread_local std::vector<jshort> tmp;
+    if ((int)tmp.size() < frames) {
+        tmp.resize((size_t)frames);
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(g_audio_mutex);
+        for (int i = 0; i < frames; i++) {
+            if (!g_audio_ring.empty() && g_audio_r != g_audio_w) {
+                tmp[(size_t)i] = (jshort)g_audio_ring[g_audio_r];
+                g_audio_r++;
+                if (g_audio_r >= g_audio_ring.size()) {
+                    g_audio_r = 0;
+                }
+            } else {
+                tmp[(size_t)i] = 0;
+            }
+        }
+    }
+
+    env->SetShortArrayRegion(pcm, 0, frames, tmp.data());
+    return frames;
+}
+
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_retrovalou_yokoi_MainActivity_nativeGetTextureAssetNames(JNIEnv* env, jclass) {
     jclass stringClass = env->FindClass("java/lang/String");
@@ -603,15 +812,59 @@ Java_com_retrovalou_yokoi_MainActivity_nativeRender(JNIEnv*, jclass) {
         return;
     }
 
-    // Run CPU for this frame.
-    g_rate_accu += g_cpu->frequency;
-    uint32_t steps = (uint32_t)(g_rate_accu / kTargetFps);
-    g_rate_accu -= (uint32_t)(steps * kTargetFps);
-    while (steps > 0) {
-        if (g_cpu->step()) {
-            update_segments_from_cpu(g_cpu.get());
+    // Apply queued game switches on the GL thread (avoids races with the renderer).
+    int delta = g_pending_game_delta.exchange(0);
+    if (delta != 0) {
+        size_t n = get_nb_name();
+        if (n > 0) {
+            int cur = (int)g_game_index;
+            int next = cur + delta;
+            while (next < 0) next += (int)n;
+            next = next % (int)n;
+            load_game_by_index_and_init((uint8_t)next);
         }
-        steps--;
+    }
+
+    // Start gameplay only when requested (middle tap).
+    if (g_start_requested.exchange(false) && !g_emulation_running) {
+        g_emulation_running = true;
+        g_gamea_pulse_frames = 8; // ~130ms at 60fps
+        if (g_input) {
+            g_input->set_input(PART_SETUP, BUTTON_GAMEA, true);
+        } else {
+            g_cpu->input_set(0, 2, true);
+        }
+    }
+
+    // Apply action presses (used during gameplay).
+    apply_action_mask(g_action_mask.load());
+
+    // Release the short GAME A press after a few frames (press length is frame-based,
+    // not cycle-based, so it remains stable regardless of CPU step count).
+    if (g_gamea_pulse_frames > 0 && g_emulation_running) {
+        g_gamea_pulse_frames--;
+        if (g_gamea_pulse_frames == 0) {
+            if (g_input) {
+                g_input->set_input(PART_SETUP, BUTTON_GAMEA, false);
+            } else {
+                // Fallback for early SM5A titles (Ball/Fire/Vermin) where GAME A is often (0,2).
+                g_cpu->input_set(0, 2, false);
+            }
+        }
+    }
+
+    // Run CPU for this frame only after the first touch.
+    if (g_emulation_running) {
+        g_rate_accu += g_cpu->frequency;
+        uint32_t steps = (uint32_t)(g_rate_accu / kTargetFps);
+        g_rate_accu -= (uint32_t)(steps * kTargetFps);
+        while (steps > 0) {
+            if (g_cpu->step()) {
+                update_segments_from_cpu(g_cpu.get());
+            }
+            audio_update_step(g_cpu.get());
+            steps--;
+        }
     }
 
     glUseProgram(g_program);
@@ -800,6 +1053,54 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_retrovalou_yokoi_MainActivity_nativeTouch(JNIEnv*, jclass, jfloat x, jfloat y, jint action) {
     (void)x;
     (void)y;
-    (void)action;
-    // TODO: hook for touch -> virtual buttons mapping.
+    if (!g_cpu) {
+        return;
+    }
+
+    const float w = (g_width > 0) ? (float)g_width : 1.0f;
+    const float xf = x / w;
+    const bool left_third = xf < (1.0f / 3.0f);
+    const bool right_third = xf > (2.0f / 3.0f);
+    const bool left_half = xf < 0.5f;
+
+    switch (action) {
+        case 0: // MotionEvent.ACTION_DOWN
+        case 5: // MotionEvent.ACTION_POINTER_DOWN
+            if (!g_emulation_running) {
+                // Pre-game controls: left=previous, middle=start, right=next.
+                if (left_third) {
+                    g_pending_game_delta.fetch_sub(1);
+                } else if (right_third) {
+                    g_pending_game_delta.fetch_add(1);
+                } else {
+                    g_start_requested.store(true);
+                }
+                // Ensure gameplay buttons aren't stuck.
+                g_action_mask.store(0);
+            } else {
+                // Gameplay controls: touch halves map to left/right action.
+                g_action_mask.store(left_half ? 0x01 : 0x02);
+            }
+            break;
+
+        case 2: // MotionEvent.ACTION_MOVE
+            if (g_emulation_running) {
+                g_action_mask.store(left_half ? 0x01 : 0x02);
+            }
+            break;
+
+        case 1: // MotionEvent.ACTION_UP
+        case 6: // MotionEvent.ACTION_POINTER_UP
+        case 3: // MotionEvent.ACTION_CANCEL
+            g_action_mask.store(0);
+            break;
+
+        default:
+            break;
+    }
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeConsumeTextureReloadRequest(JNIEnv*, jclass) {
+    return g_texture_reload_requested.exchange(false) ? JNI_TRUE : JNI_FALSE;
 }

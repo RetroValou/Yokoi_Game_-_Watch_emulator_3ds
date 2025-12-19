@@ -4,6 +4,10 @@ import android.app.Activity;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioAttributes;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
@@ -19,6 +23,9 @@ public final class MainActivity extends Activity {
     }
 
     private GLSurfaceView glView;
+    private AudioTrack audioTrack;
+    private Thread audioThread;
+    private volatile boolean audioRunning;
 
     private static native void nativeSetAssetManager(AssetManager assetManager);
     private static native void nativeSetStorageRoot(String path);
@@ -31,6 +38,13 @@ public final class MainActivity extends Activity {
     private static native void nativeResize(int width, int height);
     private static native void nativeRender();
     private static native void nativeTouch(float x, float y, int action);
+    private static native int nativeGetAudioSampleRate();
+    private static native int nativeAudioRead(short[] pcm, int frames);
+    private static native boolean nativeConsumeTextureReloadRequest();
+
+    private int lastSegTexId;
+    private int lastBgTexId;
+    private int lastCsTexId;
 
     private static final class TextureInfo {
         final int id;
@@ -119,6 +133,7 @@ public final class MainActivity extends Activity {
                         seg.id, seg.width, seg.height,
                         bg.id, bg.width, bg.height,
                         cs.id, cs.width, cs.height);
+                startAudioIfNeeded();
             }
 
             @Override
@@ -128,6 +143,39 @@ public final class MainActivity extends Activity {
 
             @Override
             public void onDrawFrame(javax.microedition.khronos.opengles.GL10 gl) {
+                if (nativeConsumeTextureReloadRequest()) {
+                    int[] ids = new int[]{lastSegTexId, lastBgTexId, lastCsTexId};
+                    for (int id : ids) {
+                        if (id != 0) {
+                            int[] t = new int[]{id};
+                            GLES30.glDeleteTextures(1, t, 0);
+                        }
+                    }
+                    lastSegTexId = 0;
+                    lastBgTexId = 0;
+                    lastCsTexId = 0;
+
+                    String[] names = nativeGetTextureAssetNames();
+                    String segName = (names != null && names.length > 0) ? names[0] : "";
+                    String bgName = (names != null && names.length > 1) ? names[1] : "";
+                    String csName = (names != null && names.length > 2) ? names[2] : "";
+
+                    TextureInfo seg = loadTextureFromAsset(segName);
+                    TextureInfo bg = loadTextureFromAsset(bgName);
+                    TextureInfo cs = loadTextureFromAsset(csName);
+
+                    lastSegTexId = seg.id;
+                    lastBgTexId = bg.id;
+                    lastCsTexId = cs.id;
+
+                    nativeSetTextures(
+                            seg.id, seg.width, seg.height,
+                            bg.id, bg.width, bg.height,
+                            cs.id, cs.width, cs.height);
+
+                    stopAudio();
+                    startAudioIfNeeded();
+                }
                 nativeRender();
             }
         });
@@ -140,10 +188,155 @@ public final class MainActivity extends Activity {
         setContentView(glView);
     }
 
+    private void stopAudio() {
+        audioRunning = false;
+        if (audioThread != null) {
+            try {
+                audioThread.join(500);
+            } catch (InterruptedException ignored) {
+            }
+            audioThread = null;
+        }
+        if (audioTrack != null) {
+            try {
+                audioTrack.pause();
+                audioTrack.flush();
+                audioTrack.stop();
+            } catch (IllegalStateException ignored) {
+            }
+            audioTrack.release();
+            audioTrack = null;
+        }
+    }
+
+    private void startAudioIfNeeded() {
+        if (audioTrack != null || audioThread != null) {
+            return;
+        }
+
+        final int sourceRate = Math.max(1, nativeGetAudioSampleRate());
+
+        int sampleRate = sourceRate;
+        int minBytes = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT);
+        if (minBytes <= 0) {
+            // Fallback rates are widely supported.
+            sampleRate = 48000;
+            minBytes = AudioTrack.getMinBufferSize(
+                    sampleRate,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT);
+            if (minBytes <= 0) {
+                sampleRate = 44100;
+                minBytes = AudioTrack.getMinBufferSize(
+                        sampleRate,
+                        AudioFormat.CHANNEL_OUT_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT);
+            }
+            if (minBytes <= 0) {
+                // Give up quietly.
+                return;
+            }
+        }
+        int bufferBytes = Math.max(minBytes, sampleRate / 2); // ~0.5s
+
+        audioTrack = new AudioTrack(
+                new AudioAttributes.Builder()
+                        .setLegacyStreamType(AudioManager.STREAM_MUSIC)
+                        .setUsage(AudioAttributes.USAGE_GAME)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                new AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build(),
+                bufferBytes,
+                AudioTrack.MODE_STREAM,
+                AudioManager.AUDIO_SESSION_ID_GENERATE);
+
+        if (audioTrack.getState() != AudioTrack.STATE_INITIALIZED) {
+            audioTrack.release();
+            audioTrack = null;
+            return;
+        }
+
+        audioTrack.play();
+        audioRunning = true;
+
+        final int outputRate = sampleRate;
+        final int framesPerWrite = 256;
+        audioThread = new Thread(() -> {
+            short[] pcm = new short[framesPerWrite];
+
+            // If outputRate != sourceRate, resample a mono PCM stream with linear interpolation.
+            final boolean needResample = outputRate != sourceRate;
+            final float step = needResample ? (sourceRate / (float) outputRate) : 1.0f;
+            float srcPos = 0.0f;
+            final short[] src = needResample ? new short[512] : null;
+            int srcCount = 0;
+            int srcIndex = 0;
+
+            if (needResample) {
+                srcCount = nativeAudioRead(src, src.length);
+                srcIndex = 0;
+                srcPos = 0.0f;
+            }
+
+            while (audioRunning) {
+                if (!needResample) {
+                    nativeAudioRead(pcm, framesPerWrite);
+                } else {
+                    for (int i = 0; i < framesPerWrite; i++) {
+                        int i0 = srcIndex + (int) srcPos;
+                        float frac = srcPos - (int) srcPos;
+                        // Ensure we have i0 and i0+1.
+                        while (i0 + 1 >= srcCount) {
+                            // Shift remaining samples down.
+                            int remain = Math.max(0, srcCount - srcIndex);
+                            if (remain > 0) {
+                                System.arraycopy(src, srcIndex, src, 0, remain);
+                            }
+                            int got = nativeAudioRead(src, src.length - remain);
+                            srcCount = remain + Math.max(0, got);
+                            srcIndex = 0;
+                            srcPos = 0.0f;
+                            i0 = 0;
+                            frac = 0.0f;
+                            if (srcCount <= 1) {
+                                break;
+                            }
+                        }
+                        short s0 = (srcCount > 0) ? src[i0] : 0;
+                        short s1 = (srcCount > 1) ? src[i0 + 1] : s0;
+                        pcm[i] = (short) (s0 + (s1 - s0) * frac);
+                        srcPos += step;
+                        int adv = (int) srcPos;
+                        if (adv > 0) {
+                            srcIndex += adv;
+                            srcPos -= adv;
+                        }
+                    }
+                }
+                int wrote = audioTrack.write(pcm, 0, framesPerWrite);
+                if (wrote <= 0) {
+                    try {
+                        Thread.sleep(5);
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+            }
+        }, "yokoi-audio");
+        audioThread.setDaemon(true);
+        audioThread.start();
+    }
     @Override
     protected void onPause() {
         super.onPause();
         glView.onPause();
+        stopAudio();
     }
 
     @Override
