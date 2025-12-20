@@ -50,6 +50,24 @@ int g_touch_width = 0;
 int g_touch_height = 0;
 bool g_core_inited = false;
 
+// Controller mask (Android physical controller) that mirrors the 3DS mapping.
+// Bits are defined below; Java sends the full held-state bitmask.
+std::atomic<uint32_t> g_controller_mask{0};
+
+enum ControllerBits : uint32_t {
+    CTL_DPAD_UP = 1u << 0,
+    CTL_DPAD_DOWN = 1u << 1,
+    CTL_DPAD_LEFT = 1u << 2,
+    CTL_DPAD_RIGHT = 1u << 3,
+    CTL_A = 1u << 4,
+    CTL_B = 1u << 5,
+    CTL_X = 1u << 6,
+    CTL_Y = 1u << 7,
+    CTL_START = 1u << 8,
+    CTL_SELECT = 1u << 9,
+    CTL_L1 = 1u << 10,
+};
+
 struct GlResources {
     EGLContext ctx = EGL_NO_CONTEXT;
     int width = 0;
@@ -532,18 +550,87 @@ static void apply_action_mask(int mask) {
     bool want_right = (mask & 0x02) != 0;
 
     if (g_input) {
-        if (g_left_action_down != want_left) {
-            g_input->set_input(PART_LEFT, BUTTON_ACTION, want_left);
-            g_left_action_down = want_left;
+        // Only apply touch-based ACTION presses to parts that are configured as an ACTION button.
+        if (g_input->left_configuration == CONF_1_BUTTON_ACTION) {
+            if (g_left_action_down != want_left) {
+                g_input->set_input(PART_LEFT, BUTTON_ACTION, want_left);
+                g_left_action_down = want_left;
+            }
         }
-        if (g_right_action_down != want_right) {
-            g_input->set_input(PART_RIGHT, BUTTON_ACTION, want_right);
-            g_right_action_down = want_right;
+        if (g_input->right_configuration == CONF_1_BUTTON_ACTION) {
+            if (g_right_action_down != want_right) {
+                g_input->set_input(PART_RIGHT, BUTTON_ACTION, want_right);
+                g_right_action_down = want_right;
+            }
         }
     } else {
         // No mapping available; clear any prior state.
         g_left_action_down = false;
         g_right_action_down = false;
+    }
+}
+
+static void apply_controller_mask(uint32_t ctl_mask, int touch_action_mask) {
+    if (!g_input) {
+        return;
+    }
+
+    const bool d_up = (ctl_mask & CTL_DPAD_UP) != 0;
+    const bool d_down = (ctl_mask & CTL_DPAD_DOWN) != 0;
+    const bool d_left = (ctl_mask & CTL_DPAD_LEFT) != 0;
+    const bool d_right = (ctl_mask & CTL_DPAD_RIGHT) != 0;
+
+    const bool a = (ctl_mask & CTL_A) != 0;
+    const bool b = (ctl_mask & CTL_B) != 0;
+    const bool x = (ctl_mask & CTL_X) != 0;
+    const bool y = (ctl_mask & CTL_Y) != 0;
+
+    const bool start = (ctl_mask & CTL_START) != 0;
+    const bool select = (ctl_mask & CTL_SELECT) != 0;
+    const bool l1 = (ctl_mask & CTL_L1) != 0;
+
+    const bool touch_left = (touch_action_mask & 0x01) != 0;
+    const bool touch_right = (touch_action_mask & 0x02) != 0;
+
+    // Match 3DS mapping from source/main.cpp::input_get()
+    // Setup buttons.
+    g_input->set_input(PART_SETUP, BUTTON_TIME, l1);
+    g_input->set_input(PART_SETUP, BUTTON_GAMEA, start);
+    g_input->set_input(PART_SETUP, BUTTON_GAMEB, select);
+
+    // Left controls.
+    if (g_input->left_configuration == CONF_1_BUTTON_ACTION) {
+        bool check = false;
+        if (g_input->right_configuration == CONF_1_BUTTON_ACTION) {
+            check = d_up || d_down || d_left || y;
+        } else {
+            check = d_up || d_down || d_left || d_right;
+        }
+        check = check || touch_left;
+        g_input->set_input(PART_LEFT, BUTTON_ACTION, check);
+    } else {
+        g_input->set_input(PART_LEFT, BUTTON_LEFT, d_left);
+        g_input->set_input(PART_LEFT, BUTTON_RIGHT, d_right);
+        g_input->set_input(PART_LEFT, BUTTON_UP, d_up);
+        g_input->set_input(PART_LEFT, BUTTON_DOWN, d_down);
+    }
+
+    // Right controls.
+    if (g_input->right_configuration == CONF_1_BUTTON_ACTION) {
+        bool check = false;
+        if (g_input->left_configuration == CONF_1_BUTTON_ACTION) {
+            check = a || b || x || d_right;
+        } else {
+            check = a || b || x || y;
+        }
+        check = check || touch_right;
+        g_input->set_input(PART_RIGHT, BUTTON_ACTION, check);
+    } else {
+        // Note: 3DS maps right-side directions to face buttons.
+        g_input->set_input(PART_RIGHT, BUTTON_LEFT, y);
+        g_input->set_input(PART_RIGHT, BUTTON_RIGHT, a);
+        g_input->set_input(PART_RIGHT, BUTTON_UP, x);
+        g_input->set_input(PART_RIGHT, BUTTON_DOWN, b);
     }
 }
 
@@ -767,6 +854,11 @@ Java_com_retrovalou_yokoi_MainActivity_nativeSetTouchSurfaceSize(JNIEnv*, jclass
     g_touch_height = (int)height;
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeSetControllerMask(JNIEnv*, jclass, jint mask) {
+    g_controller_mask.store((uint32_t)mask);
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_com_retrovalou_yokoi_MainActivity_nativeGetAudioSampleRate(JNIEnv*, jclass) {
     // Prefer configured value; fall back to CPU-derived rate.
@@ -895,6 +987,11 @@ static void render_frame(GlResources& r, int panel) {
 
     // Only the combined renderer or the configured driver panel advances emulation.
     if (is_combined || is_driver_panel) {
+        static uint32_t prev_ctl_mask = 0;
+        uint32_t ctl_mask = g_controller_mask.load();
+        uint32_t ctl_down = ctl_mask & ~prev_ctl_mask;
+        prev_ctl_mask = ctl_mask;
+
         // Apply queued game switches on the GL thread (avoids races with the renderer).
         int delta = g_pending_game_delta.exchange(0);
         if (delta != 0) {
@@ -905,6 +1002,22 @@ static void render_frame(GlResources& r, int panel) {
                 while (next < 0) next += (int)n;
                 next = next % (int)n;
                 load_game_by_index_and_init((uint8_t)next);
+            }
+        }
+
+        // Controller pre-game behavior mirrors 3DS menu:
+        // - DPAD left/right changes game
+        // - A/B/X/Y/START starts gameplay
+        if (!g_emulation_running) {
+            if (ctl_down & CTL_DPAD_RIGHT) {
+                g_pending_game_delta.fetch_add(1);
+            }
+            if (ctl_down & CTL_DPAD_LEFT) {
+                g_pending_game_delta.fetch_sub(1);
+            }
+
+            if (ctl_down & (CTL_A | CTL_B | CTL_X | CTL_Y | CTL_START)) {
+                g_start_requested.store(true);
             }
         }
 
@@ -919,8 +1032,16 @@ static void render_frame(GlResources& r, int panel) {
             }
         }
 
-        // Apply action presses (used during gameplay).
-        apply_action_mask(g_action_mask.load());
+        // Apply inputs every frame so releases are propagated.
+        // This mirrors the 3DS mapping and also ORs in touch ACTION halves.
+        // Important: even if ctl_mask becomes 0, we still apply it to clear any
+        // previously-pressed directions/buttons.
+        int touch_mask = g_action_mask.load();
+        if (g_input) {
+            apply_controller_mask(ctl_mask, touch_mask);
+        } else {
+            apply_action_mask(touch_mask);
+        }
 
         // Release the short GAME A press after a few frames.
         if (g_gamea_pulse_frames > 0 && g_emulation_running) {

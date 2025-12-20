@@ -16,6 +16,8 @@ import android.opengl.GLUtils;
 import android.os.Bundle;
 import android.hardware.display.DisplayManager;
 import android.view.Display;
+import android.view.InputDevice;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 
 import java.io.IOException;
@@ -46,6 +48,7 @@ public final class MainActivity extends Activity {
     private static native void nativeTouch(float x, float y, int action);
     private static native void nativeSetTouchSurfaceSize(int width, int height);
     private static native void nativeSetEmulationDriverPanel(int panel);
+    private static native void nativeSetControllerMask(int mask);
     private static native int nativeGetTextureGeneration();
     private static native int nativeGetAudioSampleRate();
     private static native int nativeAudioRead(short[] pcm, int frames);
@@ -59,6 +62,64 @@ public final class MainActivity extends Activity {
     private SecondScreenPresentation secondPresentation;
     private GLSurfaceView secondGlView;
     private volatile boolean dualDisplayEnabled;
+
+    // Controller bitmask must match native ControllerBits in yokoi_jni.cpp
+    private static final int CTL_DPAD_UP = 1 << 0;
+    private static final int CTL_DPAD_DOWN = 1 << 1;
+    private static final int CTL_DPAD_LEFT = 1 << 2;
+    private static final int CTL_DPAD_RIGHT = 1 << 3;
+    private static final int CTL_A = 1 << 4;
+    private static final int CTL_B = 1 << 5;
+    private static final int CTL_X = 1 << 6;
+    private static final int CTL_Y = 1 << 7;
+    private static final int CTL_START = 1 << 8;
+    private static final int CTL_SELECT = 1 << 9;
+    private static final int CTL_L1 = 1 << 10;
+
+    private int controllerMask;
+    private long lastDpadKeyEventUptimeMs;
+
+    private static float getCenteredAxis(MotionEvent event, InputDevice device, int axis) {
+        if (device == null) {
+            return 0.0f;
+        }
+        InputDevice.MotionRange range = device.getMotionRange(axis, event.getSource());
+        if (range == null) {
+            return 0.0f;
+        }
+        float value = event.getAxisValue(axis);
+        float flat = range.getFlat();
+        if (Math.abs(value) <= flat) {
+            return 0.0f;
+        }
+        return value;
+    }
+
+    private void setControllerBit(int bit, boolean down) {
+        int newMask = down ? (controllerMask | bit) : (controllerMask & ~bit);
+        if (newMask != controllerMask) {
+            controllerMask = newMask;
+            nativeSetControllerMask(controllerMask);
+        }
+    }
+
+    private static boolean isControllerEvent(KeyEvent event) {
+        if (event == null) {
+            return false;
+        }
+        int src = event.getSource();
+        return ((src & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD)
+                || ((src & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK)
+                || ((src & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD);
+    }
+
+    private static boolean isJoystickEvent(MotionEvent event) {
+        if (event == null) {
+            return false;
+        }
+        int src = event.getSource();
+        return ((src & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK);
+    }
 
     private final class SecondScreenPresentation extends Presentation {
         private int secondTextureGeneration;
@@ -300,12 +361,110 @@ public final class MainActivity extends Activity {
             }
         });
 
+        glView.setFocusableInTouchMode(true);
+        glView.requestFocus();
+
         glView.setOnTouchListener((v, event) -> {
             nativeTouch(event.getX(), event.getY(), event.getActionMasked());
             return true;
         });
 
         setContentView(glView);
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (isControllerEvent(event)) {
+            int action = event.getAction();
+            boolean down = action == KeyEvent.ACTION_DOWN;
+            int keyCode = event.getKeyCode();
+            switch (keyCode) {
+                case KeyEvent.KEYCODE_DPAD_UP:
+                    lastDpadKeyEventUptimeMs = android.os.SystemClock.uptimeMillis();
+                    setControllerBit(CTL_DPAD_UP, down);
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    lastDpadKeyEventUptimeMs = android.os.SystemClock.uptimeMillis();
+                    setControllerBit(CTL_DPAD_DOWN, down);
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                    lastDpadKeyEventUptimeMs = android.os.SystemClock.uptimeMillis();
+                    setControllerBit(CTL_DPAD_LEFT, down);
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    lastDpadKeyEventUptimeMs = android.os.SystemClock.uptimeMillis();
+                    setControllerBit(CTL_DPAD_RIGHT, down);
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_A:
+                    setControllerBit(CTL_A, down);
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_B:
+                    setControllerBit(CTL_B, down);
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_X:
+                    setControllerBit(CTL_X, down);
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_Y:
+                    setControllerBit(CTL_Y, down);
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_START:
+                    setControllerBit(CTL_START, down);
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_SELECT:
+                    setControllerBit(CTL_SELECT, down);
+                    return true;
+                case KeyEvent.KEYCODE_BUTTON_L1:
+                case KeyEvent.KEYCODE_BUTTON_L2:
+                    setControllerBit(CTL_L1, down);
+                    return true;
+                default:
+                    break;
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        if (isJoystickEvent(event)) {
+            // If the device provides DPAD KeyEvents, prefer those; some controllers also emit
+            // joystick hat values that can get "stuck" or noisy.
+            long now = android.os.SystemClock.uptimeMillis();
+            if (now - lastDpadKeyEventUptimeMs < 200) {
+                return true;
+            }
+
+            final float dead = 0.35f;
+            InputDevice dev = event.getDevice();
+
+            float x = getCenteredAxis(event, dev, MotionEvent.AXIS_HAT_X);
+            float y = getCenteredAxis(event, dev, MotionEvent.AXIS_HAT_Y);
+
+            // Some devices don't provide HAT axes; fall back to left stick.
+            if (x == 0.0f && y == 0.0f) {
+                x = getCenteredAxis(event, dev, MotionEvent.AXIS_X);
+                y = getCenteredAxis(event, dev, MotionEvent.AXIS_Y);
+            }
+
+            boolean left = x < -dead;
+            boolean right = x > dead;
+            boolean up = y < -dead;
+            boolean down = y > dead;
+
+            // Update the DPAD bits from axes.
+            int newMask = controllerMask;
+            newMask = left ? (newMask | CTL_DPAD_LEFT) : (newMask & ~CTL_DPAD_LEFT);
+            newMask = right ? (newMask | CTL_DPAD_RIGHT) : (newMask & ~CTL_DPAD_RIGHT);
+            newMask = up ? (newMask | CTL_DPAD_UP) : (newMask & ~CTL_DPAD_UP);
+            newMask = down ? (newMask | CTL_DPAD_DOWN) : (newMask & ~CTL_DPAD_DOWN);
+
+            if (newMask != controllerMask) {
+                controllerMask = newMask;
+                nativeSetControllerMask(controllerMask);
+            }
+            return true;
+        }
+        return super.onGenericMotionEvent(event);
     }
 
     private void tryStartSecondDisplay() {
@@ -512,6 +671,9 @@ public final class MainActivity extends Activity {
         if (secondGlView != null) {
             secondGlView.onPause();
         }
+        // Avoid stuck controller bits if a device disconnects or stops sending events.
+        controllerMask = 0;
+        nativeSetControllerMask(0);
         stopAudio();
     }
 
