@@ -159,7 +159,7 @@ enum AppMode : int {
 };
 
 std::atomic<int> g_app_mode{MODE_MENU_SELECT};
-std::atomic<int> g_menu_load_choice{0}; // 0=fresh, 1=load savestate
+std::atomic<int> g_menu_load_choice{1}; // 0=fresh, 1=load savestate
 
 std::atomic<int> g_pending_game_delta{0};
 std::atomic<bool> g_start_requested{false};
@@ -1044,6 +1044,10 @@ static uint8_t get_default_game_index_for_android() {
     return idx;
 }
 
+static int get_default_menu_load_choice_for_game(uint8_t idx) {
+    return save_state_exists(idx) ? 1 : 0;
+}
+
 static void start_game_from_menu(bool load_state) {
     const uint8_t idx = g_game_index;
     load_game_by_index_and_init(idx);
@@ -1377,7 +1381,7 @@ Java_com_retrovalou_yokoi_MainActivity_nativeInit(JNIEnv*, jclass) {
 
         // Start in menu mode like the 3DS app.
         g_app_mode.store(MODE_MENU_SELECT);
-        g_menu_load_choice.store(0);
+        g_menu_load_choice.store(get_default_menu_load_choice_for_game(get_default_game_index_for_android()));
         uint8_t idx = get_default_game_index_for_android();
         menu_select_game_by_index(idx);
         g_core_inited = true;
@@ -1660,7 +1664,7 @@ static void render_frame(GlResources& r, int panel) {
                 g_pending_game_delta.fetch_sub(1);
             }
             if (ctl_down & CTL_A) {
-                g_menu_load_choice.store(0);
+                g_menu_load_choice.store(get_default_menu_load_choice_for_game(g_game_index));
                 g_app_mode.store(MODE_MENU_LOAD_PROMPT);
             }
         } else if (mode == MODE_MENU_LOAD_PROMPT) {
@@ -2110,7 +2114,7 @@ Java_com_retrovalou_yokoi_MainActivity_nativeTouch(JNIEnv*, jclass, jfloat x, jf
                     g_pending_game_delta.fetch_add(1);
                 } else {
                     // Center tap on lower screen: open load prompt.
-                    g_menu_load_choice.store(0);
+                    g_menu_load_choice.store(get_default_menu_load_choice_for_game(g_game_index));
                     g_app_mode.store(MODE_MENU_LOAD_PROMPT);
                 }
                 break;
