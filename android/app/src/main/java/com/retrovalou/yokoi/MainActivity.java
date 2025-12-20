@@ -62,6 +62,7 @@ public final class MainActivity extends Activity {
         private static native String[] nativeGetSelectedGameInfo();
         private static native void nativeAutoSaveState();
         private static native void nativeReturnToMenu();
+        private static native void nativeSetPaused(boolean paused);
     private static native void nativeResize(int width, int height);
     private static native void nativeRender();
     private static native void nativeRenderPanel(int panel);
@@ -179,6 +180,10 @@ public final class MainActivity extends Activity {
         final int mode = nativeGetAppMode();
         final boolean inGame = (mode == MODE_GAME);
 
+        if (inGame) {
+            nativeSetPaused(true);
+        }
+
         final int initialAlpha = clampInt(nativeGetSegmentMarkingAlpha(), 0, 255);
         final int initialBg = nativeGetBackgroundColor() & 0x00FFFFFF;
 
@@ -292,7 +297,13 @@ public final class MainActivity extends Activity {
         b.setCancelable(true);
 
         settingsDialog = b.create();
-        settingsDialog.setOnDismissListener(dlg -> settingsDialog = null);
+        settingsDialog.setOnDismissListener(dlg -> {
+            settingsDialog = null;
+            // Resume emulation if we dismissed the menu while still in-game.
+            if (nativeGetAppMode() == MODE_GAME) {
+                nativeSetPaused(false);
+            }
+        });
         settingsDialog.show();
     }
 
@@ -1058,10 +1069,11 @@ public final class MainActivity extends Activity {
         if (secondGlView != null) {
             secondGlView.onPause();
         }
-        // If we're leaving for good, immediately dismiss the second display Presentation
+        // Always dismiss the second display Presentation when backgrounding (Home/recents)
         // so it doesn't linger showing the last frame.
-        if (isFinishing()) {
-            stopSecondDisplay();
+        stopSecondDisplay();
+        if (settingsDialog != null && settingsDialog.isShowing()) {
+            settingsDialog.dismiss();
         }
         // Avoid stuck controller bits if a device disconnects or stops sending events.
         controllerMask = 0;

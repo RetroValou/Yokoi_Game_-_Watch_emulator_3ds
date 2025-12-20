@@ -121,6 +121,7 @@ uint8_t g_nb_screen = 1;
 bool g_split_two_screens_to_panels = false;
 
 bool g_emulation_running = false;
+std::atomic<bool> g_emulation_paused{false};
 int g_gamea_pulse_frames = 0;
 int g_gameb_pulse_frames = 0;
 bool g_left_action_down = false;
@@ -698,6 +699,7 @@ static void apply_controller_mask(uint32_t ctl_mask, int touch_action_mask) {
 
 static void reset_runtime_state_for_new_game() {
     g_emulation_running = false;
+    g_emulation_paused.store(false);
     g_gamea_pulse_frames = 0;
     g_gameb_pulse_frames = 0;
     g_left_action_down = false;
@@ -807,6 +809,7 @@ static void start_game_from_menu(bool load_state) {
     // 3DS behavior: once loaded, the CPU runs (segments/time work) but the user still has to
     // press GameA/GameB to start a game mode.
     g_emulation_running = true;
+    g_emulation_paused.store(false);
     g_gamea_pulse_frames = 0;
     g_gameb_pulse_frames = 0;
 
@@ -832,6 +835,7 @@ static void return_to_menu_from_game() {
     }
 
     g_emulation_running = false;
+    g_emulation_paused.store(false);
     g_action_mask.store(0);
     g_start_requested.store(false);
     g_gamea_pulse_frames = 0;
@@ -1191,6 +1195,11 @@ Java_com_retrovalou_yokoi_MainActivity_nativeReturnToMenu(JNIEnv*, jclass) {
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeSetPaused(JNIEnv*, jclass, jboolean paused) {
+    g_emulation_paused.store(paused == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_retrovalou_yokoi_MainActivity_nativeResize(JNIEnv*, jclass, jint width, jint height) {
     GlResources* r = get_or_create_gl_for_current_context();
     if (!r) {
@@ -1290,7 +1299,7 @@ static void render_frame(GlResources& r, int panel) {
             }
 
             // Run CPU.
-            if (g_emulation_running) {
+            if (g_emulation_running && !g_emulation_paused.load()) {
                 g_rate_accu += g_cpu->frequency;
                 uint32_t steps = (uint32_t)(g_rate_accu / kTargetFps);
                 g_rate_accu -= (uint32_t)(steps * kTargetFps);
