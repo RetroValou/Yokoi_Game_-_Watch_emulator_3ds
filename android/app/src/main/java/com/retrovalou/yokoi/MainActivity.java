@@ -944,6 +944,7 @@ public final class MainActivity extends Activity {
         }
 
         final int sourceRate = Math.max(1, nativeGetAudioSampleRate());
+        final int framesPerWrite = 256;
 
         int sampleRate = sourceRate;
         int minBytes = AudioTrack.getMinBufferSize(
@@ -969,22 +970,27 @@ public final class MainActivity extends Activity {
                 return;
             }
         }
-        int bufferBytes = Math.max(minBytes, sampleRate / 2); // ~0.5s
+        // Keep the buffer small to reduce latency (the previous ~0.5s buffer adds noticeable lag).
+        // Use a small multiple of minBytes and ensure it's at least a few writes worth.
+        int bytesPerFrame = 2; // mono, PCM_16
+        int minForWrites = framesPerWrite * bytesPerFrame * 4; // ~4 callbacks worth
+        int bufferBytes = Math.max(minBytes * 2, minForWrites);
 
-        audioTrack = new AudioTrack(
-                new AudioAttributes.Builder()
-                        .setLegacyStreamType(AudioManager.STREAM_MUSIC)
-                        .setUsage(AudioAttributes.USAGE_GAME)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build(),
-                new AudioFormat.Builder()
-                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                        .setSampleRate(sampleRate)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                        .build(),
-                bufferBytes,
-                AudioTrack.MODE_STREAM,
-                AudioManager.AUDIO_SESSION_ID_GENERATE);
+        audioTrack = new AudioTrack.Builder()
+            .setAudioAttributes(new AudioAttributes.Builder()
+                .setLegacyStreamType(AudioManager.STREAM_MUSIC)
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build())
+            .setAudioFormat(new AudioFormat.Builder()
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setSampleRate(sampleRate)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build())
+            .setTransferMode(AudioTrack.MODE_STREAM)
+            .setBufferSizeInBytes(bufferBytes)
+            .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+            .build();
 
         if (audioTrack.getState() != AudioTrack.STATE_INITIALIZED) {
             audioTrack.release();
@@ -996,7 +1002,6 @@ public final class MainActivity extends Activity {
         audioRunning = true;
 
         final int outputRate = sampleRate;
-        final int framesPerWrite = 256;
         audioThread = new Thread(() -> {
             short[] pcm = new short[framesPerWrite];
 

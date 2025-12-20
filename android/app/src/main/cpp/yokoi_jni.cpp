@@ -77,6 +77,7 @@ struct GlResources {
     GLuint program = 0;
     GLuint vao = 0;
     GLuint vbo = 0;
+    size_t vbo_capacity_bytes = 0;
     GLint uTex = -1;
     GLint uMul = -1;
     GLint uScale = -1;
@@ -196,8 +197,10 @@ static void audio_reconfigure_from_cpu(SM5XX* cpu) {
 
     std::lock_guard<std::mutex> lock(g_audio_mutex);
     g_audio_sample_rate = rate;
-    // ~2 seconds of audio in ring buffer.
-    g_audio_ring.assign((size_t)g_audio_sample_rate * 2u, 0);
+    // Keep ring buffer relatively small to avoid building up noticeable latency.
+    // We still overwrite on full (dropping oldest) to favor "latest" audio.
+    const size_t target = (size_t)g_audio_sample_rate / 2u; // ~0.5s
+    g_audio_ring.assign(std::max<size_t>(target, 2048u), 0);
     audio_reset_locked();
 }
 
@@ -255,6 +258,7 @@ static void init_gl_resources(GlResources& r) {
     r.program = 0;
     r.vao = 0;
     r.vbo = 0;
+    r.vbo_capacity_bytes = 0;
     r.uTex = -1;
     r.uMul = -1;
     r.uScale = -1;
@@ -1334,7 +1338,13 @@ static void render_frame(GlResources& r, int panel) {
         glBindTexture(GL_TEXTURE_2D, tex);
         glUniform1i(r.uTex, 0);
         glBindBuffer(GL_ARRAY_BUFFER, r.vbo);
-        glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(verts.size() * sizeof(RenderVertex)), verts.data(), GL_DYNAMIC_DRAW);
+        const size_t bytes = verts.size() * sizeof(RenderVertex);
+        if (bytes > r.vbo_capacity_bytes) {
+            glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)bytes, verts.data(), GL_DYNAMIC_DRAW);
+            r.vbo_capacity_bytes = bytes;
+        } else {
+            glBufferSubData(GL_ARRAY_BUFFER, 0, (GLsizeiptr)bytes, verts.data());
+        }
         glDrawArrays(GL_TRIANGLES, 0, (GLsizei)verts.size());
     };
 
@@ -1409,7 +1419,8 @@ static void render_frame(GlResources& r, int panel) {
         const bool want_ui = is_combined || is_panel0;
         if (want_ui) {
             glUniform4f(r.uMul, 1.0f, 1.0f, 1.0f, 1.0f);
-            std::vector<RenderVertex> ui_verts;
+            static thread_local std::vector<RenderVertex> ui_verts;
+            ui_verts.clear();
             ui_verts.reserve(6);
 
             float u0 = 0.0f, u1 = 1.0f;
@@ -1434,7 +1445,8 @@ static void render_frame(GlResources& r, int panel) {
 
     if (panel_is_game && r.tex_white != 0) {
         glUniform4f(r.uMul, br, bgc, bb, 1.0f);
-        std::vector<RenderVertex> fill_verts;
+        static thread_local std::vector<RenderVertex> fill_verts;
+        fill_verts.clear();
         fill_verts.reserve(6);
         append_quad_ndc_uv_canvas(fill_verts, contentW, contentH, 0.0f, 0.0f, contentW, contentH, 0.0f, 0.0f, 1.0f, 1.0f);
         draw_vertices(r.tex_white, fill_verts);
@@ -1451,7 +1463,8 @@ static void render_frame(GlResources& r, int panel) {
         if (want_bg_shadow) {
             // Faint shadow like the 3DS renderer.
             glUniform4f(r.uMul, 0.0f, 0.0f, 0.0f, (float)0x24 / 255.0f);
-            std::vector<RenderVertex> bg_shadow_verts;
+            static thread_local std::vector<RenderVertex> bg_shadow_verts;
+            bg_shadow_verts.clear();
             bg_shadow_verts.reserve(g_nb_screen * 6);
 
             float texW = (float)r.tex_background_w;
@@ -1494,7 +1507,8 @@ static void render_frame(GlResources& r, int panel) {
 
         // Main background.
         glUniform4f(r.uMul, 1.0f, 1.0f, 1.0f, 1.0f);
-        std::vector<RenderVertex> bg_verts;
+        static thread_local std::vector<RenderVertex> bg_verts;
+        bg_verts.clear();
         bg_verts.reserve(g_nb_screen * 6);
         float texW = (float)r.tex_background_w;
         float texH = (float)r.tex_background_h;
@@ -1538,15 +1552,21 @@ static void render_frame(GlResources& r, int panel) {
     if (panel_is_game && g_segment_info[0] > 0 && g_segment_info[1] > 0) {
         const bool is_mask = (g_segment_info[3] & 0x01) != 0;
 
-        std::vector<RenderVertex> seg_verts;
+        static thread_local std::vector<RenderVertex> seg_verts;
+        seg_verts.clear();
         seg_verts.reserve(g_segments.size() * 6);
 
         // 3DS-style segment marking/shadow passes are only for non-mask segment atlases.
-        std::vector<RenderVertex> seg_mark_verts;
-        std::vector<RenderVertex> seg_shadow_verts;
+        static thread_local std::vector<RenderVertex> seg_mark_verts;
+        static thread_local std::vector<RenderVertex> seg_shadow_verts;
         if (!is_mask) {
+            seg_mark_verts.clear();
+            seg_shadow_verts.clear();
             seg_mark_verts.reserve(g_segments.size() * 6);
             seg_shadow_verts.reserve(g_segments.size() * 6);
+        } else {
+            seg_mark_verts.clear();
+            seg_shadow_verts.clear();
         }
 
         uint16_t scale = g_segment_info[2] ? g_segment_info[2] : 1;
