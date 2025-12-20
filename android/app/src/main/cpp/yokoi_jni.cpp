@@ -709,6 +709,11 @@ static void reset_runtime_state_for_new_game() {
 
 static void update_segments_from_cpu(SM5XX* cpu);
 
+// Some games overwrite their clock RAM during early startup.
+// The 3DS implementation works around this by re-applying the host time for a short grace period.
+static constexpr int kTimeSetGracePeriod = 500;
+static int g_time_set_grace_counter = 0;
+
 static void load_game_by_index_and_init(uint8_t idx) {
     g_game_index = idx;
     g_game = load_game(idx);
@@ -727,6 +732,12 @@ static void load_game_by_index_and_init(uint8_t idx) {
     g_cpu->load_rom_melody(g_game->melody, g_game->size_melody);
     g_cpu->load_rom_time_addresses(g_game->ref);
 
+    // Set time early (before warmup). Some titles (notably Donkey Kong I/II) copy the
+    // clock digits from internal RAM to display RAM during their startup sequence.
+    // If we set time only *after* warmup, they may have already latched the default time.
+    g_cpu->time_set(false);
+    set_time_cpu(g_cpu.get());
+
     g_input.reset(get_input_config(g_cpu.get(), g_game->ref));
 
     g_segments.clear();
@@ -735,14 +746,30 @@ static void load_game_by_index_and_init(uint8_t idx) {
     }
 
     rebuild_layout_from_game();
-    set_time_cpu(g_cpu.get());
     audio_reconfigure_from_cpu(g_cpu.get());
 
     // Warm up so we don't start with a blank frame.
+    // Also mimic the 3DS "time set grace" during warmup, because startup code can
+    // overwrite / latch the clock digits.
+    int warmup_time_grace = kTimeSetGracePeriod;
     for (int i = 0; i < 2000; i++) {
-        if (g_cpu->step() && g_cpu->segments_state_are_update) {
-            g_cpu->segments_state_are_update = false;
+        if (g_cpu->step()) {
+            if (warmup_time_grace > 0) {
+                warmup_time_grace--;
+                g_cpu->time_set(false);
+                set_time_cpu(g_cpu.get());
+            }
+            if (g_cpu->segments_state_are_update) {
+                g_cpu->segments_state_are_update = false;
+            }
         }
+    }
+
+    // Apply the current host time *after* warmup, since some games overwrite the clock RAM
+    // during their init routine.
+    if (g_cpu) {
+        g_cpu->time_set(false);
+        set_time_cpu(g_cpu.get());
     }
 
     // Ensure we display a valid initial frame immediately after load.
@@ -750,6 +777,7 @@ static void load_game_by_index_and_init(uint8_t idx) {
     update_segments_from_cpu(g_cpu.get());
 
     reset_runtime_state_for_new_game();
+    g_time_set_grace_counter = kTimeSetGracePeriod;
     g_texture_generation.fetch_add(1);
 
     __android_log_print(ANDROID_LOG_INFO, kLogTag, "Loaded game: %s (%s)", g_game->name.c_str(), g_game->ref.c_str());
@@ -792,6 +820,9 @@ static void start_game_from_menu(bool load_state) {
             }
         }
     }
+
+    // Re-apply time for a short grace period after game start.
+    g_time_set_grace_counter = kTimeSetGracePeriod;
 }
 
 static void return_to_menu_from_game() {
@@ -1240,6 +1271,13 @@ static void render_frame(GlResources& r, int panel) {
                 g_rate_accu -= (uint32_t)(steps * kTargetFps);
                 while (steps > 0) {
                     if (g_cpu->step()) {
+                        // Match 3DS behavior: for a short period after game start, repeatedly
+                        // re-apply the host time because some games stomp their clock RAM.
+                        if (g_time_set_grace_counter > 0) {
+                            g_time_set_grace_counter--;
+                            g_cpu->time_set(false);
+                            set_time_cpu(g_cpu.get());
+                        }
                         update_segments_from_cpu(g_cpu.get());
                     }
                     audio_update_step(g_cpu.get());
