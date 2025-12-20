@@ -87,6 +87,7 @@ struct GlResources {
     size_t vbo_capacity_bytes = 0;
     GLint uTex = -1;
     GLint uMul = -1;
+    GLint uAlphaOnly = -1;
     GLint uScale = -1;
     GLuint tex_white = 0;
 
@@ -485,6 +486,7 @@ static void init_gl_resources(GlResources& r) {
     r.vbo_capacity_bytes = 0;
     r.uTex = -1;
     r.uMul = -1;
+    r.uAlphaOnly = -1;
     r.uScale = -1;
     r.tex_white = 0;
 
@@ -512,8 +514,17 @@ static void init_gl_resources(GlResources& r) {
         "in vec2 vUv;\n"
         "uniform sampler2D uTex;\n"
         "uniform vec4 uMul;\n"
+        "uniform float uAlphaOnly;\n"
         "out vec4 fragColor;\n"
-        "void main() { fragColor = texture(uTex, vUv) * uMul; }\n";
+        "void main() {\n"
+        "  vec4 t = texture(uTex, vUv);\n"
+        "  if (uAlphaOnly > 0.5) {\n"
+        "    float m = max(t.a, max(t.r, max(t.g, t.b)));\n"
+        "    fragColor = vec4(uMul.rgb, m * uMul.a);\n"
+        "  } else {\n"
+        "    fragColor = t * uMul;\n"
+        "  }\n"
+        "}\n";
 
     GLuint vs = compile_shader(GL_VERTEX_SHADER, vs_src);
     GLuint fs = compile_shader(GL_FRAGMENT_SHADER, fs_src);
@@ -529,6 +540,7 @@ static void init_gl_resources(GlResources& r) {
 
     r.uTex = glGetUniformLocation(r.program, "uTex");
     r.uMul = glGetUniformLocation(r.program, "uMul");
+    r.uAlphaOnly = glGetUniformLocation(r.program, "uAlphaOnly");
     r.uScale = glGetUniformLocation(r.program, "uScale");
 
     glGenVertexArrays(1, &r.vao);
@@ -1696,6 +1708,11 @@ static void render_frame(GlResources& r, int panel) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    // Default shader mode: multiply sampled RGBA by uMul (legacy behavior).
+    if (r.uAlphaOnly >= 0) {
+        glUniform1f(r.uAlphaOnly, 0.0f);
+    }
+
     auto draw_vertices = [&](GLuint tex, const std::vector<RenderVertex>& verts) {
         if (tex == 0 || verts.empty()) return;
         glActiveTexture(GL_TEXTURE0);
@@ -1770,7 +1787,11 @@ static void render_frame(GlResources& r, int panel) {
         }
     };
 
-    uint32_t bg = g_settings.background_color;
+    // Match 3DS: for mask segment atlases, the "fond" color is the classic dark segment color.
+    // (See 3DS: Virtual_Screen::load_visual -> if (is_mask){ curr_fond_color = SEGMENT_COLOR[0]; })
+    constexpr uint32_t kMaskFondRgb = 0x080908;
+    const bool is_mask_game = (!is_menu && ((g_segment_info[3] & 0x01) != 0));
+    uint32_t bg = is_mask_game ? kMaskFondRgb : g_settings.background_color;
     float br = ((bg >> 16) & 0xFF) / 255.0f;
     float bgc = ((bg >> 8) & 0xFF) / 255.0f;
     float bb = (bg & 0xFF) / 255.0f;
@@ -1808,6 +1829,9 @@ static void render_frame(GlResources& r, int panel) {
     }
 
     if (panel_is_game && r.tex_white != 0) {
+        if (r.uAlphaOnly >= 0) {
+            glUniform1f(r.uAlphaOnly, 0.0f);
+        }
         glUniform4f(r.uMul, br, bgc, bb, 1.0f);
         static thread_local std::vector<RenderVertex> fill_verts;
         fill_verts.clear();
@@ -1825,6 +1849,9 @@ static void render_frame(GlResources& r, int panel) {
         // 3DS-style background shadow (optional per-title flag in background_info).
         // Draw first, slightly offset and dark with low alpha.
         if (want_bg_shadow) {
+            if (r.uAlphaOnly >= 0) {
+                glUniform1f(r.uAlphaOnly, 0.0f);
+            }
             // Faint shadow like the 3DS renderer.
             glUniform4f(r.uMul, 0.0f, 0.0f, 0.0f, (float)0x24 / 255.0f);
             static thread_local std::vector<RenderVertex> bg_shadow_verts;
@@ -1870,6 +1897,9 @@ static void render_frame(GlResources& r, int panel) {
         }
 
         // Main background.
+        if (r.uAlphaOnly >= 0) {
+            glUniform1f(r.uAlphaOnly, 0.0f);
+        }
         glUniform4f(r.uMul, 1.0f, 1.0f, 1.0f, 1.0f);
         static thread_local std::vector<RenderVertex> bg_verts;
         bg_verts.clear();
@@ -2000,6 +2030,7 @@ static void render_frame(GlResources& r, int panel) {
             }
         }
 
+        // Default segment tint uses the current background color (classic LCD look).
         float seg_r = br * 0.12f;
         float seg_g = bgc * 0.12f;
         float seg_b = bb * 0.12f;
@@ -2024,13 +2055,33 @@ static void render_frame(GlResources& r, int panel) {
         }
 
         // Pass 3: main lit segments.
-        glUniform4f(r.uMul, seg_r, seg_g, seg_b, 1.0f);
+        if (is_mask) {
+            // Match 3DS: mask segment atlases are meant to be drawn with their own RGB.
+            // Do NOT apply the LCD tint multiplier (which would turn them "colored").
+            if (r.uAlphaOnly >= 0) {
+                glUniform1f(r.uAlphaOnly, 0.0f);
+            }
+            glUniform4f(r.uMul, 1.0f, 1.0f, 1.0f, 1.0f);
+        } else {
+            if (r.uAlphaOnly >= 0) {
+                glUniform1f(r.uAlphaOnly, 0.0f);
+            }
+            glUniform4f(r.uMul, seg_r, seg_g, seg_b, 1.0f);
+        }
         draw_vertices(seg_tex, seg_verts);
+
+        // Restore default for subsequent layers.
+        if (r.uAlphaOnly >= 0) {
+            glUniform1f(r.uAlphaOnly, 0.0f);
+        }
     }
 
     // Console overlay.
     const bool want_console = (!g_split_two_screens_to_panels) && (is_combined || is_panel1);
     if (want_console && kRenderConsoleOverlay && r.tex_console != 0 && g_game && g_game->console_info && r.tex_console_w > 0 && r.tex_console_h > 0) {
+        if (r.uAlphaOnly >= 0) {
+            glUniform1f(r.uAlphaOnly, 0.0f);
+        }
         glUniform4f(r.uMul, 1.0f, 1.0f, 1.0f, 1.0f);
         std::vector<RenderVertex> cs_verts;
         cs_verts.reserve(6);
