@@ -737,8 +737,29 @@ static void render_frame(GlResources& r, int panel) {
     if (panel_is_game && g_segment_info[0] > 0 && g_segment_info[1] > 0) {
         const bool is_mask = (g_segment_info[3] & 0x01) != 0;
 
+        // Matches 3DS SEGMENT_COLOR[] palette (see source/virtual_i_o/3ds_screen.h).
+        // Used by a couple of "Game & Watch Color" titles where Segment::color_index > 0.
+        static constexpr uint32_t kSegmentColorRgb[5] = {
+            0x080908u, // classic black segment
+            0x9992e7u,
+            0x58b9a0u,
+            0xff677cu,
+            0x3db8e4u,
+        };
+
         static thread_local std::vector<RenderVertex> seg_verts;
         seg_verts.clear();
+
+        // For non-mask segment atlases, some games tag certain segments with a color index.
+        // We batch lit segments by color index and draw them as alpha masks with a constant RGB.
+        static thread_local std::vector<RenderVertex> seg_color_verts[5];
+        bool has_colored_segments = false;
+        if (!is_mask) {
+            for (auto& v : seg_color_verts) {
+                v.clear();
+            }
+        }
+
         std::shared_ptr<const std::vector<Segment>> meta;
         std::shared_ptr<std::vector<uint8_t>> on;
         {
@@ -749,6 +770,11 @@ static void render_frame(GlResources& r, int panel) {
 
         const size_t seg_count = meta ? meta->size() : 0;
         seg_verts.reserve(seg_count * 6);
+        if (!is_mask) {
+            for (auto& v : seg_color_verts) {
+                v.reserve(seg_count * 6);
+            }
+        }
 
         // 3DS-style segment marking/shadow passes are only for non-mask segment atlases.
         static thread_local std::vector<RenderVertex> seg_mark_verts;
@@ -817,7 +843,12 @@ static void render_frame(GlResources& r, int panel) {
 
             // Main lit segments.
             if (seg_on) {
-                append_quad_ndc_uv_canvas(seg_verts, contentW, contentH, sx_local, sy_local, sw, sh, u0, v0, u1, v1);
+                if (!is_mask && seg.color_index > 0 && seg.color_index < 5) {
+                    has_colored_segments = true;
+                    append_quad_ndc_uv_canvas(seg_color_verts[seg.color_index], contentW, contentH, sx_local, sy_local, sw, sh, u0, v0, u1, v1);
+                } else {
+                    append_quad_ndc_uv_canvas(seg_verts, contentW, contentH, sx_local, sy_local, sw, sh, u0, v0, u1, v1);
+                }
             }
         }
 
@@ -860,6 +891,30 @@ static void render_frame(GlResources& r, int panel) {
             glUniform4f(r.uMul, seg_r, seg_g, seg_b, 1.0f);
         }
         draw_vertices(seg_tex, seg_verts);
+
+        // Extra pass: color-indexed segments (non-mask atlases only).
+        // This mirrors the 3DS behavior (Virtual_Screen::update_screen) where the segment color
+        // is selected via SEGMENT_COLOR[seg.color_index].
+        if (!is_mask && has_colored_segments) {
+            if (r.uAlphaOnly >= 0) {
+                glUniform1f(r.uAlphaOnly, 1.0f);
+            }
+            for (uint32_t ci = 1; ci < 5; ci++) {
+                if (seg_color_verts[ci].empty()) {
+                    continue;
+                }
+                const uint32_t rgb = kSegmentColorRgb[ci];
+                const float cr = (float)((rgb >> 16) & 0xFF) / 255.0f;
+                const float cg = (float)((rgb >> 8) & 0xFF) / 255.0f;
+                const float cb = (float)(rgb & 0xFF) / 255.0f;
+                glUniform4f(r.uMul, cr, cg, cb, 1.0f);
+                draw_vertices(seg_tex, seg_color_verts[ci]);
+            }
+            // Restore default for subsequent layers.
+            if (r.uAlphaOnly >= 0) {
+                glUniform1f(r.uAlphaOnly, 0.0f);
+            }
+        }
 
         // Restore default for subsequent layers.
         if (r.uAlphaOnly >= 0) {
