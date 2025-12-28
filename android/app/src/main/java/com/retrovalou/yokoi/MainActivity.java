@@ -236,6 +236,8 @@ public final class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        // Pause the native emulation loop when the app is not visible.
+        YokoiNative.nativeSetPaused(true);
         YokoiNative.nativeAutoSaveState();
         glView.onPause();
         // Always dismiss the second display Presentation when backgrounding (Home/recents)
@@ -254,6 +256,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        YokoiNative.nativeSetPaused(false);
         glView.onResume();
         if (secondScreenController != null) {
             secondScreenController.onResume();

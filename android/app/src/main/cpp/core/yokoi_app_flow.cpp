@@ -31,7 +31,7 @@ void yokoi_start_game_from_menu(bool load_state) {
     g_app_mode.store(MODE_GAME);
     // 3DS behavior: once loaded, the CPU runs (segments/time work) but the user still has to
     // press GameA/GameB to start a game mode.
-    g_emulation_running = true;
+    g_emulation_running.store(true);
     g_emulation_paused.store(false);
     g_gamea_pulse_frames.store(0);
     g_gameb_pulse_frames.store(0);
@@ -60,7 +60,7 @@ void yokoi_return_to_menu_from_game() {
         save_game_state(g_cpu.get(), g_game_index);
     }
 
-    g_emulation_running = false;
+    g_emulation_running.store(false);
     g_emulation_paused.store(false);
     g_action_mask.store(0);
     g_start_requested.store(false);

@@ -19,11 +19,16 @@ void emu_thread_main() {
     auto next = clock::now();
 
     while (!g_emu_quit.load()) {
-        const bool can_run = (g_app_mode.load() == 2 /* MODE_GAME */) && g_emulation_running && !g_emulation_paused.load();
+        const bool can_run = (g_app_mode.load() == 2 /* MODE_GAME */) && g_emulation_running.load() && !g_emulation_paused.load();
         if (!can_run) {
             yokoi_audio_set_can_run(false);
             std::unique_lock<std::mutex> lk(g_emu_sleep_mutex);
-            g_emu_cv.wait_for(lk, std::chrono::milliseconds(10));
+            g_emu_cv.wait(lk, [] {
+                if (g_emu_quit.load()) {
+                    return true;
+                }
+                return (g_app_mode.load() == 2 /* MODE_GAME */) && g_emulation_running.load() && !g_emulation_paused.load();
+            });
             next = clock::now();
             continue;
         }

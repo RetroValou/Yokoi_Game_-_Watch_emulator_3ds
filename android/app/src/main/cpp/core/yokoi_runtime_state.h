@@ -55,7 +55,7 @@ extern bool g_double_in_one_screen;
 extern uint8_t g_nb_screen;
 extern bool g_split_two_screens_to_panels;
 
-extern bool g_emulation_running;
+extern std::atomic<bool> g_emulation_running;
 extern std::atomic<bool> g_emulation_paused;
 extern std::atomic<int> g_gamea_pulse_frames;
 extern std::atomic<int> g_gameb_pulse_frames;

@@ -48,7 +48,7 @@ uint8_t find_game_index_by_ref(const std::string& ref) {
 }
 
 void reset_runtime_state_for_new_game() {
-    g_emulation_running = false;
+    g_emulation_running.store(false);
     g_emulation_paused.store(false);
     g_gamea_pulse_frames.store(0);
     g_gameb_pulse_frames.store(0);

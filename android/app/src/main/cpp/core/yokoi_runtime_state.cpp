@@ -52,7 +52,7 @@ bool g_double_in_one_screen = false;
 uint8_t g_nb_screen = 1;
 bool g_split_two_screens_to_panels = false;
 
-bool g_emulation_running = false;
+std::atomic<bool> g_emulation_running{false};
 std::atomic<bool> g_emulation_paused{false};
 std::atomic<int> g_gamea_pulse_frames{0};
 std::atomic<int> g_gameb_pulse_frames{0};
