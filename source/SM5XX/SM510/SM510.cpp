@@ -1,6 +1,8 @@
+#include "SM5XX/SM510/SM510.h"
 #include "SM5XX/sm510/sm510.h"
 #include "std/timer.h"
 #include <cstring>
+#include <stdio.h>
 
 
 
@@ -116,6 +118,11 @@ void SM510::write_ram_value(uint8_t value){
     ram[col][line] = value & 0x0F; // 4 bit RAM
 }
 
+void SM510::set_ram_value(uint8_t col, uint8_t line, uint8_t value) {
+    if (col >= SM510_RAM_COL || line >= SM510_RAM_LINE) 
+        return; 
+    ram[col][line] = value;
+}
 
 /////////////////////////// Wake up //////////////////////////////////////////////////////
 

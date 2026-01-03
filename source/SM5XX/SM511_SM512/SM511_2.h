@@ -44,6 +44,11 @@ public:
     bool get_segments_state(uint8_t col, uint8_t line, uint8_t word) override;
     bool get_active_sound() override;
 
+    // Save/Load state
+    bool save_state(FILE* file) override;
+    bool load_state(FILE* file) override;
+    uint8_t get_cpu_type_id() override { return 2; } // CPU_TYPE_SM511_2
+
 private:
     /// Variables / register /// 
     uint8_t ram[SM511_2_RAM_COL][SM511_2_RAM_LINE];
@@ -95,6 +100,7 @@ private:
     uint8_t read_rom_value() override;
     uint8_t read_ram_value() override;
     void write_ram_value(uint8_t value) override;
+    void set_ram_value(uint8_t col, uint8_t line, uint8_t value) override;
 
 private:
     uint8_t segment_on_value_sp_bs(int curr_line);

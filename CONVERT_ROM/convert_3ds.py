@@ -1,21 +1,24 @@
 import os
+import glob
 import shutil
 from PIL import Image, ImageEnhance
 import numpy as np
 from rectpack import newPacker
+from multiprocessing import Pool
+import functools
 
 from source import convert_svg as cs
 from source import img_manipulation as im
 
 
 
-INKSCAPE_PATH = r"D:\Program Files\Inkscape\bin\inkscape.exe"
+INKSCAPE_PATH = r"C:\Program Files\Inkscape\bin\inkscape.exe"
 
 destination_file = r"..\source\std\GW_ALL.h"
 destination_game_file = r"..\source\std\GW_ROM"
 destination_graphique_file = "../gfx/"
 
-reset_img_svg = False
+reset_img_svg = False  # default; can be overridden via CLI
 resolution_up = [400, 240]
 resolution_down = [320, 240]
 demi_resolution_up = [200, 240]
@@ -31,719 +34,7 @@ default_fond_bright = 1.35
 default_rotate = False
 default_console = r'.\rom\default.png'
 
-
-
-games_path = {
-              "ball" :
-                    { "ref" : "ac-01"
-                    , "display_name" : "Ball"
-                    , "Rom" : r'.\rom\ball\ac-01'
-                    , "Visual" : [r'.\rom\ball\gnw_ball.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\ball\Background2NS.png']
-                    , "transform_visual" : [[[2242, 121, 121], [1449, 69, 88]]]
-                    , "date" : "1980-04-28"
-                    , "console" : r'.\rom\ball\gnw_ball.png'
-                }
-              
-            , "Flagman" :
-                    { "ref" : "fl-02"
-                    , "display_name" : "Flagman"
-                    , "Rom" : r'.\rom\gnw_flagman\fl-02'
-                    , "Visual" : [r'.\rom\gnw_flagman\gnw_flagman.svg'] # list of screen visual
-                    #, "transform_visual" : [[[1266, 28, 18], [835, 8, 32]]]}
-                    , "transform_visual" : [[[1266, 28, 18], [900, 8, 32]]]
-                    , "date" : "1980-06-05"
-                    , "console" : r'.\rom\gnw_flagman\gnw_flagman.png'
-                }
-                              
-            , "Vermin" :
-                    { "ref" : "mt-03"
-                    , "display_name" : "Vermin"
-                    , "Rom" : r'.\rom\gnw_vermin\mt-03'
-                    , "Visual" : [r'.\rom\gnw_vermin\gnw_vermin.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_vermin\Background2NS.png']
-                    , "transform_visual" : [[[2329, 145, 184], [1505, 88, 125]]]
-                    , "date" : "1980-07-10"
-                    , "console" : r'.\rom\gnw_vermin\gnw_vermin.png'
-                    }
-              
-            , "Fire" :
-                    { "ref" : "rc-04"
-                    , "display_name" : "Fire"
-                    , "Rom" : r'.\rom\gnw_fires\rc-04'
-                    , "Visual" : [r'.\rom\gnw_fires\gnw_fires.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_fires\Background2NS.png']
-                    , "transform_visual" : [[[2300, 150, 150], [1510, 125, 93]]]
-                    , "date" : "1980-07-31"
-                    , "console" : r'.\rom\gnw_fires\gnw_fires.png'
-                    }
-              
-            , "Judge" :
-                    { "ref" : "ip-05"
-                    , "display_name" : "Judge"
-                    , "Rom" : r'.\rom\gnw_judge\ip-05'
-                    , "Visual" : [r'.\rom\gnw_judge\gnw_judge.svg'] # list of screen visual
-                    , "transform_visual" : [[[2359, 176, 183], [1548, 90, 166]]]
-                    , "date" : "1980-10-04"
-                    , "console" : r'.\rom\gnw_judge\gnw_judge.png'
-                    }
-                      
-            , "Manhole" :
-                    { "ref" : "MH_06"
-                    , "display_name" : "Manhole"
-                    , "Rom" : r'.\rom\gnw_manholeg\mh-06'
-                    , "Visual" : [r'.\rom\gnw_manholeg\gnw_manholeg.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_manholeg\BackgroundNSM.png']
-                    , "transform_visual" : [[[2396, 200, 160], [1607, 140, 130]]]
-                    , "date" : "1981-01-27"
-                    , "console" : r'.\rom\gnw_manholeg\gnw_manholeg.png'
-                    }
-              
-            , "Helmet" :
-                    { "ref" : "cn-17"
-                    , "display_name" : "Helmet"
-                    , "Rom" : r'.\rom\gnw_helmet\cn-17'
-                    , "Visual" : [r'.\rom\gnw_helmet\gnw_helmet.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_helmet\BackgroundNS.png']
-                    , "transform_visual" : [[[1145, 86, 101], [747, 58, 66]]]
-                    , "date" : "1981-02-21"
-                    , "console" : r'.\rom\gnw_helmet\gnw_helmet.png'
-                    }
-              
-            , "Lion" :
-                    { "ref" : "LN_08"
-                    , "display_name" : "Lion"
-                    , "Rom" : r'.\rom\gnw_lion\ln-08'
-                    , "Visual" : [r'.\rom\gnw_lion\gnw_lion.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_lion\BackgroundNS.png']
-                    , "transform_visual" : [[[2361, 146, 179], [1627, 145, 145]]]
-                    , "date" : "1981-04-27"
-                    , "console" : r'.\rom\gnw_lion\gnw_lion.png'
-                    }
-              
-            , "Parachute" :
-                    { "ref" : "pr-21"
-                    , "display_name" : "Parachute"
-                    , "Rom" : r'.\rom\gnw_pchute\pr-21'
-                    , "Visual" : [r'.\rom\gnw_pchute\gnw_pchute.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_pchute\BackgroundNS.png']
-                    , "transform_visual" : [[[1026, 25, 38], [699, 44, 40]]]
-                    , "date" : "1981-06-16"
-                    , "console" : r'.\rom\gnw_pchute\gnw_pchute.png'
-                    }
-              
-            , "octopus" :
-                    { "ref" : "OC_22"
-                    , "display_name" : "Octopus"
-                    , "Rom" : r'.\rom\gnw_octopus\oc-22'
-                    , "Visual" : [r'.\rom\gnw_octopus\gnw_octopus.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_octopus\BackgroundNS.png']
-                    , "transform_visual" : [[[1026, 25, 38], [699, 44, 40]]]
-                    , "date" : "1981-07-16"
-                    , "console" : r'.\rom\gnw_octopus\gnw_octopus.png'
-                    }
-              
-             , "Popeye" :
-                    { "ref" : "PP-23"
-                    , "display_name" : "Popeye"
-                    , "Rom" : r'.\rom\gnw_popeye\pp-23'
-                    , "Visual" : [r'.\rom\gnw_popeye\gnw_popeye.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_popeye\BackgroundNS.png']
-                    , "transform_visual" : [[[1317, 46, 48], [904, 60, 62]]]
-                    , "date" : "1981-08-05"
-                    , "console" : r'.\rom\gnw_popeye\gnw_popeye.png'
-                    }
-              
-            , "Chef" :
-                    { "ref" : "fp-24"
-                    , "display_name" : "Chef"
-                    , "Rom" : r'.\rom\gnw_chef\fp-24'
-                    , "Visual" : [r'.\rom\gnw_chef\gnw_chef.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_chef\BackgroundNS.png']
-                    , "transform_visual" : [[[1282, 17, 14], [831, 23, 9]]]
-                    , "date" : "1981-09-08"
-                    , "console" : r'.\rom\gnw_chef\gnw_chef.png'
-                    }
-              
-             , "Mickey_Mouse" :
-                    { "ref" : "MC_25"
-                    , "display_name" : "Mickey Mouse"
-                    , "Rom" : r'.\rom\gnw_mmouse\mc-25'
-                    , "Visual" : [r'.\rom\gnw_mmouse\gnw_mmouse.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_mmouse\BackgroundNS.png']
-                    , "transform_visual" : [[[1405, 70, 90], [906, 60, 50]]]
-                    , "date" : "1981-10-09"
-                    , "console" : r'.\rom\gnw_mmouse\gnw_mmouse.png'
-                    }
-              
-             , "Egg" :
-                    { "ref" : "EG_26"
-                    , "display_name" : "Egg"
-                    , "Rom" : r'.\rom\gnw_egg\mc-25'
-                    , "Visual" : [r'.\rom\gnw_egg\gnw_egg.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_egg\BackgroundNS.png']
-                    , "transform_visual" : [[[1415, 75, 95], [901, 55, 50]]]
-                    , "date" : "1981-10-09"
-                    , "console" : r'.\rom\gnw_egg\gnw_egg.png'
-                    }
-              
-            , "Fire_wide_screen" :
-                    { "ref" : "fr-27"
-                    , "display_name" : "Fire"
-                    , "Rom" : r'.\rom\gnw_fire\fr-27'
-                    , "Visual" : [r'.\rom\gnw_fire\gnw_fire.svg'] # list of screen visual
-                    , "Background" : [r'.\rom\gnw_fire\BackgroundNS.png']
-                    , "transform_visual" : [[[1315, 26, 44], [875, 40, 39]]]
-                    , "date" : "1981-12-04"
-                    , "console" : r'.\rom\gnw_fire\gnw_fire.png'
-                    }
-              
-            , "Turtle_Bridge" :
-                    { "ref" : "tl-28"
-                    , "display_name" : "Turtle Bridge"
-                    , "Rom" : r'.\rom\gnw_tbridge\tl-28'
-                    , "Visual" : [r'.\rom\gnw_tbridge\gnw_tbridge.svg'] # list of screen visual
-                    , "Background" : [r'.\rom\gnw_tbridge\BackgroundNS.png']
-                    , "alpha_bright" : 1.2
-                    , "fond_bright" : 1.3
-                    , "transform_visual" : [[[1286, 22, 51], [875, 53, 20]]]
-                    , "date" : "1982-02-01"
-                    , "console" : r'.\rom\gnw_tbridge\gnw_tbridge.png'
-                    }
-              
-            , "Fire_Attack" :
-                    { "ref" : "id-29"
-                    , "display_name" : "Fire Attack"
-                    , "Rom" : r'.\rom\gnw_fireatk\id-29'
-                    , "Visual" : [r'.\rom\gnw_fireatk\gnw_fireatk.svg'] # list of screen visual
-                    , "Background" : [r'.\rom\gnw_fireatk\BackgroundNS.png']
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
-                    , "shadow" : False
-                    , "transform_visual" : [[[1350, 62, 67], [885, 50, 54]]]
-                    , "date" : "1982-03-26"
-                    , "console" : r'.\rom\gnw_fireatk\gnw_fireatk.png'
-                    }
-              
-            , "Snoopy_Tennis" :
-                    { "ref" : "sp-30"
-                    , "display_name" : "Snoopy Tennis"
-                    , "Rom" : r'.\rom\gnw_stennis\sp-30'
-                    , "Visual" : [r'.\rom\gnw_stennis\gnw_stennis.svg'] # list of screen visual
-                    , "Background" : [r'.\rom\gnw_stennis\BackgroundNS.png']
-                    , "transform_visual" : [[[1294, 42, 39], [883, 49, 63]]]
-                    , "date" : "1982-04-28"
-                    , "console" : r'.\rom\gnw_stennis\gnw_stennis.png'
-                }
-
-            ,"Oil_Panic" :
-                    { "ref" : "op-51"
-                    , "display_name" : "Oil Panic"
-                    , "date" : "1982-05-28"
-                    , "Rom" : r'.\rom\gnw_opanic\op-51'
-                    , "Visual" : [r'.\rom\gnw_opanic\gnw_opanic_top.svg'
-                                    , r'.\rom\gnw_opanic\gnw_opanic_bottom.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_opanic\Screen-TopNS.png'
-                                    , r'.\rom\gnw_opanic\Screen-BottomNS.png']
-                    , "size_visual" : [resolution_up, [330, 240]]
-                    , "alpha_bright" : 1.2
-                    , "fond_bright" : 1.3
-                    , "transform_visual" : [[[1349, 33, 22], [899, 24, 58]], [[1371, 46, 51], [878, -18, 79]]]
-                    , "console" : r'.\rom\gnw_opanic\gnw_opanic.png'
-                }
-              
-            ,"Donkey_kong" :
-                    { "ref" : "dk-52"
-                    , "display_name" : "Donkey Kong"
-                    , "date" : "1982-06-03"
-                    , "Rom" : r'.\rom\gnw_dkong\dk-52'
-                    , "Visual" : [r'.\rom\gnw_dkong\gnw_dkong_top.svg'
-                                    , r'.\rom\gnw_dkong\gnw_dkong_bottom.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_dkong\Screen-TopNS.png'
-                                    , r'.\rom\gnw_dkong\Screen-BottomNS.png']
-                    , "size_visual" : [[330, 240], [330, 240]]
-                    , "transform_visual" : [[[1339, 16, 27], [870, 18, 35]], [[1319, 8, 15], [854, 11, 26]]]
-                    , "console" : r'.\rom\gnw_dkong\gnw_dkong.png'
-                }
-
-            , "Donkey_Kong_JR" :
-                    { "ref" : "dj-101"
-                    , "display_name" : "Donkey Kong JR"
-                    , "Rom" : r'.\rom\gnw_dkjr\dj-101'
-                    , "Visual" : [r'.\rom\gnw_dkjr\gnw_dkjr.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_dkjr\BackgroundNS.png']
-                    , "transform_visual" : [[[1216, 1, 6], [798, 5, -5]]]
-                    , "date" : "1982-10-26"
-                    , "console" : r'.\rom\gnw_dkjr\gnw_dkjr.png'
-                    }
-              
-            ,"Mickey_Donald" :
-                    { "ref" : "dm-53"
-                    , "display_name" : "Mickey Donald"
-                    , "date" : "1982-11-12"
-                    , "Rom" : r'.\rom\gnw_mickdon\dm-53_565'
-                    , "Visual" : [r'.\rom\gnw_mickdon\gnw_mickdon_top.svg'
-                                    , r'.\rom\gnw_mickdon\gnw_mickdon_bottom.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_mickdon\Screen-TopNS.png'
-                                    , r'.\rom\gnw_mickdon\Screen-BottomNS.png']
-                    , "size_visual" : [[350, 240], [350, 240]]
-                    , "transform_visual" : [[[1288, -8, 0], [844, 1, 26]], [[1273, -24, 1], [802, 13, -28]]]
-                    , "console" : r'.\rom\gnw_mickdon\gnw_mickdon.png'
-                }
-              
-            ,"Green_House" :
-                    { "ref" : "GH_54"
-                    , "display_name" : "Green House"
-                    , "date" : "1982-12-06"
-                    , "Rom" : r'.\rom\gnw_ghouse\gh-54'
-                    , "Visual" : [r'.\rom\gnw_ghouse\gnw_ghouse_top.svg'
-                                    , r'.\rom\gnw_ghouse\gnw_ghouse_bottom.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_ghouse\Screen-TopNS.png'
-                                    , r'.\rom\gnw_ghouse\Screen-BottomNS.png']
-                    , "size_visual" : [[360, 240], [360, 240]]
-                    , "transform_visual" : [[[1330, 16+6, 18+6], [886, 28, 41]], [[1329, 16, 17], [864, 14, 33]]]
-                    , "console" : r'.\rom\gnw_ghouse\gnw_ghouse.png'
-                }
-
-            ,"Donkey_Kong_2" :
-                    { "ref" : "jr-55"
-                    , "display_name" : "Donkey Kong 2"
-                    , "date" : "1983-03-07"
-                    , "Rom" : r'.\rom\gnw_dkong2\jr-55_560'
-                    , "Visual" : [r'.\rom\gnw_dkong2\gnw_dkong2_top.svg'
-                                    , r'.\rom\gnw_dkong2\gnw_dkong2_bottom.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_dkong2\Screen-TopNS.png'
-                                    , r'.\rom\gnw_dkong2\Screen-BottomNS.png']
-                    , "size_visual" : [[344, 240], [344, 240]]
-                    , "transform_visual" : [[[1319, 0, 23], [827, 15, -5]], [[1314, 8, 10], [825, 3, 5]]]
-                    , "console" : r'.\rom\gnw_dkong2\gnw_dkong2.png'
-                }
-              
-            ,"Mario_Bros" :
-                    { "ref" : "mw-56"
-                    , "display_name" : "Mario Bros"
-                    , "date" : "1983-03-14"
-                    , "Rom" : r'.\rom\gnw_mario\mw-56'
-                    , "Visual" : [r'.\rom\gnw_mario\rework\gnw_mario_left.svg'
-                                    , r'.\rom\gnw_mario\rework\gnw_mario_right.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_mario\rework\Screen-LeftNS.png'
-                                    , r'.\rom\gnw_mario\rework\Screen-RightNS.png']
-                    , "size_visual" : [[234, 240], [234, 240]]
-                    , "2_in_one_screen" : True
-                    , "shadow" : False
-                    , "transform_visual" : [[[1248, 17, 17], [782, 6, 0]], [[1217, 1, 2], [785, 3+10, 6-10]]]
-                    , "console" : r'.\rom\gnw_mario\Backdrop_2.png'
-                }
-              
-            , "Mario_Cement_Factory_panorama" :
-                    { "ref" : "cm-72"
-                    , "display_name" : "Mario Cement Factory"
-                    , "date" : "1983-04-28"
-                    , "Rom" : r'.\rom\gnw_mariocmt\cm-72.program'
-                    , "Visual" : [r'.\rom\gnw_mariocmt\gnw_mariocmt.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_mariocmt\cm-72.melody'
-                    , "Background" : [r'.\rom\gnw_mariocmt\background2.png']
-                    , "mask" : True
-                    , "transform_visual" : [[[2074, -74, -80], [1240, -56, -80]]]
-                    , "console" : r'.\rom\gnw_mariocmt\gnw_mariocmt.png'
-                }
-              
-            , "Mario_Cement_Factory" :
-                    { "ref" : "ml-102"
-                    , "display_name" : "Mario Cement Factory"
-                    , "Rom" : r'.\rom\gnw_mariocm\ml-102_577'
-                    , "Visual" : [r'.\rom\gnw_mariocm\gnw_mariocm.svg'] # list of screen visual
-                    , "Background" : [r'.\rom\gnw_mariocm\BackgroundNS.png']
-                    , "transform_visual" : [[[1227, 8, 3], [816, 25, -7]]]
-                    , "date" : "1983-06-16"
-                    , "console" : r'.\rom\gnw_mariocm\gnw_mariocm.png'
-                }
-
-            ,"Rain_Shower" :
-                    { "ref" : "lp-57"
-                    , "display_name" : "Rain Shower"
-                    , "date" : "1983-08-10"
-                    , "Rom" : r'.\rom\gnw_rshower\lp-57'
-                    , "Visual" : [r'.\rom\gnw_rshower\gnw_rshower_left.svg'
-                                    , r'.\rom\gnw_rshower\gnw_rshower_right.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_rshower\Screen-LeftNS.png'
-                                    , r'.\rom\gnw_rshower\Screen-RightNS.png']
-                    , "size_visual" : [[200, 240], [200, 240]]
-                    , "2_in_one_screen" : True
-                    , "shadow" : False
-                    , "alpha_bright" : 1.3
-                    , "fond_bright" : 1.3
-                    , "transform_visual" : [[[1280, 19, 47], [855, 47, 19]], [[1300, 48, 38], [853, 65, 12]]]
-                    , "console" : r'.\rom\gnw_rshower\Backdrop_2.png'
-                }
-              
-            , "Manhole_wide_screen" :
-                    { "ref" : "NH_103"
-                    , "display_name" : "Manhole"
-                    , "Rom" : r'.\rom\gnw_manhole\nh-103'
-                    , "Visual" : [r'.\rom\gnw_manhole\gnw_manhole.svg'] # list of screen visual
-                    , "Background" : [r'.\rom\gnw_manhole\BackgroundNS.png']
-                    , "transform_visual" : [[[1290, 37, 36], [900, 56, 45]]]
-                    , "date" : "1983-08-24"
-                    , "console" : r'.\rom\gnw_manhole\gnw_manhole.png'
-                }
-              
-            , "Snoopy_Table_Top" :
-                    { "ref" : "sm-91"
-                    , "display_name" : "Snoopy"
-                    , "date" : "1983-08-30"
-                    , "Rom" : r'.\rom\gnw_snoopyp\sm-91.program'
-                    , "Visual" : [r'.\rom\gnw_snoopyp\gnw_snoopyp.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_snoopyp\sm-91.melody'
-                    , "Background" : [r'.\rom\gnw_snoopyp\Background.png']
-                    , "mask" : True
-                    , "transform_visual" : [[[1328, 0, 0], [703, -9, -9]]]
-                    , "console" : r'.\rom\gnw_snoopyp\gnw_snoopyp.png'
-                }
-
-            , "Popeye_Table_Top" :
-                    { "ref" : "PG_92"
-                    , "display_name" : "Popeye"
-                    , "date" : "1983-08-30"
-                    , "Rom" : r'.\rom\gnw_popeyep\pg-92.program'
-                    , "Visual" : [r'.\rom\gnw_popeyep\gnw_popeyep.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_popeyep\pg-92.melody'
-                    , "Background" : [r'.\rom\gnw_popeyep\Background.png']
-                    , "mask" : True
-                    , "transform_visual" : [[[1328, 0, 0], [721, 0, 0]]]
-                    , "console" : r'.\rom\gnw_popeyep\gnw_popeyep.png'
-            }
-              
-            , "Donkey_Kong_Circus" :
-                    { "ref" : "dc-95"
-                    , "display_name" : "Donkey Kong Circus"
-                    , "date" : "1983-09-06"
-                    , "Rom" : r'.\rom\gnw_mmousep\dc-95.program'
-                    , "Visual" : [r'.\rom\gnw_dkcirc\gnw_dkcirc.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_mmousep\dc-95.melody'
-                    , "Background" : [r'.\rom\gnw_dkcirc\Background.png']
-                    , "mask" : True
-                    , "transform_visual" : [[[1620, 42, 25], [880, 37, 34]]]
-                    , "console" : r'.\rom\gnw_dkcirc\gnw_dkcirc.png'
-                }
-              
-            , "DK_JR_panorama" :
-                    { "ref" : "cj-93"
-                    , "display_name" : "Donkey Kong JR"
-                    , "date" : "1983-10-07"
-                    , "Rom" : r'.\rom\gnw_dkjrp\cj-93.program'
-                    , "Visual" : [r'.\rom\gnw_dkjrp\gnw_dkjrp.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_dkjrp\cj-93.melody'
-                    , "Background" : [r'.\rom\gnw_dkjrp\Background.png']
-                    , "mask" : True
-                    , "transform_visual" : [[[1650, 0, 0], [886, 0, 0]]]
-                    , "console" : r'.\rom\gnw_dkjrp\gnw_dkjrp.png'
-                }
-              
-              
-            ,"Life_Boat" :
-                    { "ref" : "tc-58"
-                    , "display_name" : "Life Boat"
-                    , "date" : "1983-10-25"
-                    , "Rom" : r'.\rom\gnw_lboat\tc-58'
-                    , "Visual" : [r'.\rom\gnw_lboat\rework\gnw_lboat_left.svg'
-                                    , r'.\rom\gnw_lboat\rework\gnw_lboat_right.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\gnw_lboat\rework\Screen-LeftNS.png'
-                                    , r'.\rom\gnw_lboat\rework\Screen-RightNS.png']
-                    , "size_visual" : [[234, 240], [234, 240]]
-                    , "2_in_one_screen" : True
-                    , "shadow" : False
-                    , "alpha_bright" : 1.2
-                    , "transform_visual" : [[[1244, 18, 12], [836, 39, 21]], [[1273, 32, 27], [882, 86, 20]]]
-                    , "console" : r'.\rom\gnw_lboat\Backdrop_2.png'
-                }
-              
-            , "Mario_Bombs_Away" :
-                    { "ref" : "tb-94"
-                    , "display_name" : "Mario Bombs Away"
-                    , "date" : "1983-11-10"
-                    , "Rom" : r'.\rom\gnw_mbaway\tb-94.program'
-                    , "Visual" : [r'.\rom\gnw_mbaway\gnw_mbaway.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_mbaway\tb-94.melody'
-                    , "Background" : [r'.\rom\gnw_mbaway\background.png']
-                    , "mask" : True
-                    , "transform_visual" : [[[1650, 0, 0], [886, 0, 0]]]
-                    , "console" : r'.\rom\gnw_mbaway\gnw_mbaway.png'
-                }
-              
-            ,"Pinball" :
-                    { "ref" : "PB_59"
-                    , "display_name" : "Pinball"
-                    , "date" : "1983-12-02"
-                    , "Rom" : r'.\rom\gnw_pinball\pb-59.program'
-                    , "Visual" : [r'.\rom\gnw_pinball\gnw_pinball_top.svg'
-                                    , r'.\rom\gnw_pinball\gnw_pinball_bottom.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_pinball\pb-59.melody'
-                    , "Background" : [r'.\rom\gnw_pinball\Screen-TopNS.png'
-                                    , r'.\rom\gnw_pinball\Screen-BottomNS.png']
-                    , "size_visual" : [[326, 240], [326, 240]]
-                    , "transform_visual" : [[[1425, 64, 65], [928, 31, 80]], [[1438, 71, 71], [955, 31, 108]]]
-                    , "console" : r'.\rom\gnw_pinball\gnw_pinball.png'
-                }
-              
-            , "Mickey_Mouse_panorama" :
-                    { "ref" : "dc-95"
-                    , "display_name" : "Mickey Mouse"
-                    , "date" : "1984-02-XX"
-                    , "Rom" : r'.\rom\gnw_mmousep\dc-95.program'
-                    , "Visual" : [r'.\rom\gnw_mmousep\gnw_mmousep.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_mmousep\dc-95.melody'
-                    , "Background" : [r'.\rom\gnw_mmousep\Backgroundnew.png']
-                    , "mask" : True
-                    , "transform_visual" : [[[1701, 34, 41], [984, 50, 22]]]
-                    , "console" : r'.\rom\gnw_mmousep\gnw_mmousep.png'
-                }
-              
-            , "crab_grab" :
-                    { "ref" : "ud-202"
-                    , "display_name" : "Crab Grab"
-                    , "date" : "1984-02-07"
-                    , "Rom" : r'.\rom\gnw_cgrab\ud-202'
-                    , "Visual" : [r'.\rom\gnw_cgrab\rework\gnw_cgrab_up.svg'
-                                  , r'.\rom\gnw_cgrab\rework\gnw_cgrab_down.svg'] # up = 48% / down = 52%
-                    , "Background" :[r'.\rom\gnw_cgrab\rework\background_up.png'
-                                     , r'.\rom\gnw_cgrab\rework\background_down.png']
-                    , "size_visual" : [resolution_down, resolution_down]
-                    , "color_segment" : True
-                    , "shadow" : False
-                    , "alpha_bright" : 1
-                    , "fond_bright" : 1.3
-                    , "transform_visual" : [[[1003, 31, 31], [819-3, -26+3, 0]], [[1003, 31, 31], [906-20-22-4, 4, 22]]]
-                    , "console" : r'.\rom\gnw_cgrab\gnw_cgrab.png'
-            }
-              
-            , "Spitball_Sparky" :
-                    { "ref" : "bu-201"
-                    , "display_name" : "Spitball Sparky"
-                    , "date" : "1984-02-21"
-                    , "Rom" : r'.\rom\gnw_ssparky\bu-201'
-                    , "Visual" : [r'.\rom\gnw_ssparky\rework\gnw_ssparky_up.svg'
-                                    , r'.\rom\gnw_ssparky\rework\gnw_ssparky_down.svg'] # up = 48% / down = 52%
-                    , "Background" :[r'.\rom\gnw_ssparky\rework\background_up.png'
-                                    , r'.\rom\gnw_ssparky\rework\background_down.png']
-                    , "size_visual" : [resolution_down, resolution_down]
-                    , "color_segment" : True
-                    , "shadow" : False
-                    , "alpha_bright" : 1
-                    , "fond_bright" : 1.3
-                    , "transform_visual" : [[[1003, -32, -34], [864-10, -16+10, 0]], [[1003, -32, -34], [864-10, 0, -17+10]]]
-                    , "console" : r'.\rom\gnw_ssparky\gnw_ssparky.png'
-            }
-              
-             , "boxing" :
-                    { "ref" : "BX_301"
-                    , "display_name" : "Boxing"
-                    , "date" : "1984-07-31"
-                    , "Rom" : r'.\rom\gnw_boxing\bx-301_744.program'
-                    , "Visual" : [r'.\rom\gnw_boxing\gnw_boxing.svg']
-                    , "Melody_Rom" : r'.\rom\gnw_boxing\bx-301_744.melody'
-                    , "Background" :[r'.\rom\gnw_boxing\BackgroundNS.png']
-                    , "transform_visual" : [[[2291, -33, -23], [663, -36, -31]]]
-                    , "console" : r'.\rom\gnw_boxing\gnw_boxing.png'
-            }
-              
-            , "Donkey_Kong_3" :
-                    { "ref" : "ak-302"
-                    , "display_name" : "Donkey Kong 3"
-                    , "date" : "1984-08-20"
-                    , "Rom" : r'.\rom\gnw_dkong3\ak-302.program'
-                    , "Visual" : [r'.\rom\gnw_dkong3\gnw_dkong3.svg']
-                    , "Melody_Rom" : r'.\rom\gnw_dkong3\ak-302.melody'
-                    , "Background" :[r'.\rom\gnw_dkong3\BackgroundNS.png']
-                    , "transform_visual" : [[[2400, 36, 17], [724, -22, 16]]]
-                    , "console" : r'.\rom\gnw_dkong3\gnw_dkong3.png'
-            }
-            
-            , "Donkey_Kong_hockey" :
-                    { "ref" : "hk-303"
-                    , "display_name" : "Donkey Kong hockey"
-                    , "date" : "1984-11-13"
-                    , "Rom" : r'.\rom\gnw_dkhockey\hk-303.program'
-                    , "Visual" : [r'.\rom\gnw_dkhockey\gnw_dkhockey.svg']
-                    , "Melody_Rom" : r'.\rom\gnw_dkhockey\hk-303.melody'
-                    , "Background" :[r'.\rom\gnw_dkhockey\BackgroundNS.png']
-                    , "transform_visual" : [[[2460, 65, 48], [800, 40, 30]]]
-                    , "console" : r'.\rom\gnw_dkhockey\gnw_dkhockey.png'
-                }
-                           
-            ,"black_jack" :
-                    { "ref" : "BJ-60"
-                    , "display_name" : "Black Jack"
-                    , "date" : "1985-02-15"
-                    , "Rom" : r'.\rom\gnw_bjack\BJ-60.program'
-                    , "Visual" : [r'.\rom\gnw_bjack\gnw_bjack_top.svg'
-                                    , r'.\rom\gnw_bjack\gnw_bjack_bottom.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_bjack\BJ-60.melody'
-                    , "Background" :[r'.\rom\gnw_bjack\Screen-TopNS.png'
-                                    , r'.\rom\gnw_bjack\Screen-BottomNS.png']
-                    , "transform_visual" : [[[1355, 33, 26], [898, 33, 48]], [[1346, 18, 32], [891, 4, 70]]]
-                    , "size_visual" : [ resolution_up, [336, 240]]
-                    , "console" : r'.\rom\gnw_bjack\gnw_bjack.png'
-                }
-              
-            , "Tropical_Fish" :
-                    { "ref" : "tf-104"
-                    , "display_name" : "Tropical Fish"
-                    , "Rom" : r'.\rom\gnw_tfish\tf-104'
-                    , "Visual" : [r'.\rom\gnw_tfish\gnw_tfish.svg'] # list of screen visual
-                    , "Background" : [r'.\rom\gnw_tfish\BackgroundNS.png']
-                    , "transform_visual" : [[[1260, 4, 35], [885, 44, 42]]]
-                    , "date" : "1985-07-08"
-                    , "console" : r'.\rom\gnw_tfish\gnw_tfish.png'
-                }
-              
-            , "Squish" :
-                    { "ref" : "mg-61"
-                    , "display_name" : "Squish"
-                    , "date" : "1986-04-XX"
-                    , "Rom" : r'.\rom\gnw_squish\mg-61'
-                    , "Visual" : [r'.\rom\gnw_squish\gnw_squish_top.svg'
-                                    , r'.\rom\gnw_squish\gnw_squish_bottom.svg'] # list of screen visual
-                    , "Background" : [r'.\rom\gnw_squish\Screen-TopNS.png'
-                                    , r'.\rom\gnw_squish\Screen-BottomNS.png']
-                    , "transform_visual" : [[[1373, 42, 35], [896, 29, 50]], [[1357, 22, 39], [896, 20, 59]]]
-                    , "size_visual" : [resolution_up, [360, 240]]
-                    , "console" : r'.\rom\gnw_squish\gnw_squish.png'
-                }
-              
-            , "bomb_sweeper" :
-                    { "ref" : "bd-62"
-                    , "display_name" : "Bomb Sweeper"
-                    , "date" : "1987-06-XX"
-                    , "Rom" : r'.\rom\gnw_bsweep\bd-62.program'
-                    , "Visual" : [r'.\rom\gnw_bsweep\rework\gnw_bsweep_top.svg'
-                                    , r'.\rom\gnw_bsweep\rework\gnw_bsweep_bottom.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_bsweep\bd-62.melody'
-                    , "Background" :[r'.\rom\gnw_bsweep\Screen-TopNS.png'
-                                    , r'.\rom\gnw_bsweep\Screen-BottomNS.png']
-                    , "transform_visual" : [[[1490, 116, 78], [986, 78, 91]], [[1478, 102, 80], [937, 37, 83]]]
-                    , "size_visual" : [ resolution_up, [344, 240]]
-                    , "console" : r'.\rom\gnw_bsweep\gnw_bsweep.png'
-                }
-              
-            ,"Safe_Buster" :
-                    { "ref" : "jb-63"
-                    , "display_name" : "Safe Buster"
-                    , "date" : "1988-01-XX"
-                    , "Rom" : r'.\rom\gnw_sbuster\jb-63.program'
-                    , "Visual" : [r'.\rom\gnw_sbuster\gnw_sbuster_top.svg'
-                                    , r'.\rom\gnw_sbuster\gnw_sbuster_bottom.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_sbuster\jb-63.melody'
-                    , "Background" :[r'.\rom\gnw_sbuster\Screen-TopNS.png'
-                                    , r'.\rom\gnw_sbuster\Screen-BottomNS.png']
-                    , "size_visual" : [ [330, 240], [340, 240]]
-                    , "transform_visual" : [[[1463, 84, 83], [938, 31, 90]], [[1448, 81, 71], [957, 34, 106]]]
-                    , "console" : r'.\rom\gnw_sbuster\gnw_sbuster.png'
-                }
-              
-            , "Super_Mario_Bros" :
-                    { "ref" : "ym-801"
-                    , "display_name" : "Super Mario Bros"
-                    , "Rom" : r'.\rom\gnw_smbn\ym-801.program'
-                    , "Melody_Rom" : r'.\rom\gnw_smbn\ym-801.melody'
-                    , "Visual" : [r'.\rom\gnw_smbn\rework\gnw_smbn.svg'] # list of screen visual
-                    , "Background" : [r'.\rom\gnw_smbn\rework\BackgroundNS.png']
-                    , "size_visual" : [[400, 260]]
-                    , "transform_visual" : [[[1266, 28, 18], [835, 8, 32]]]
-                    , "shadow" : False
-                    , "alpha_bright" : 1.2
-                    , "date" : "1988-03-XX"
-                    , "console" : r'.\rom\gnw_smbn\gnw_smbn.png'
-                }
-              
-            , "Ice_Climber" :
-                    { "ref" : "dr-802"
-                    , "display_name" : "Climber"
-                    , "date" : "1988-03-XX"
-                    , "Rom" : r'.\rom\gnw_climber\dr-802.program'
-                    , "Visual" : [r'.\rom\gnw_climbern\gnw_climbern.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_climber\dr-802.melody'
-                    , "Background" : [r'.\rom\gnw_climber\BackgroundNS.png']
-                    , "transform_visual" : [[[1321, 52, 44], [861, 27, 30]]]             
-                    , "size_visual" : [[400, 250]]
-                    , "console" : r'.\rom\gnw_climbern\gnw_climbern.png'
-                }
-              
-            ,"Balloon_Fight" :
-                    { "ref" : "BF_107"
-                    , "display_name" : "Balloon Fight"
-                    , "date" : "1988-03-XX"
-                    , "Rom" : r'.\rom\gnw_bfightn\bf-803.program'
-                    , "Visual" : [r'.\rom\gnw_bfightn\gnw_bfightn.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_bfightn\bf-803.melody'
-                    , "Background" : [r'.\rom\gnw_bfightn\BackgroundNS.png']
-                    , "transform_visual" : [[[1281, 25, 32], [917, 56, 60]]]
-                    , "console" : r'.\rom\gnw_bfightn\gnw_bfightn.png'
-                }
-              
-            ,"Zelda" :
-                    { "ref" : "zl-65"
-                    , "display_name" : "Zelda"
-                    , "date" : "1988-08-XX"
-                    , "Rom" : r'.\rom\gnw_zelda\zl-65.program'
-                    , "Visual" : [r'.\rom\gnw_zelda\rework\gnw_zelda_top.svg'
-                                    , r'.\rom\gnw_zelda\rework\gnw_zelda_bottom.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_zelda\zl-65.melody'
-                    , "Background" : [r'.\rom\gnw_zelda\rework\Screen-TopNS.png'
-                                    , r'.\rom\gnw_zelda\rework\Screen-BottomNS.png']
-                    , "size_visual" : [resolution_up, [340, 240]]
-                    , "transform_visual" : [[[1393, 38, 44], [933, 36, 80]], [[1393, 46, 51], [915, 36, 62]]]
-                    , "shadow" : True
-                    , "console" : r'.\rom\gnw_zelda\gnw_zelda.png'
-                }
-              
-            ,"Gold_Cliff" :
-                    { "ref" : "mv-64"
-                    , "display_name" : "Gold Cliff"
-                    , "date" : "1988-10-XX"
-                    , "Rom" : r'.\rom\gnw_gcliff\mv-64.program'
-                    , "Visual" : [r'.\rom\gnw_gcliff\gnw_gcliff_top.svg'
-                                    , r'.\rom\gnw_gcliff\gnw_gcliff_bottom.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_gcliff\mv-64.melody'
-                    , "Background" :[r'.\rom\gnw_gcliff\Screen-TopNS.png'
-                                    , r'.\rom\gnw_gcliff\Screen-BottomNS.png']
-                    , "transform_visual" : [[[1360, 31, 33], [890, 33, 40]], [[1348, 32, 20], [870, 10, 43]]]
-                    , "size_visual" : [ [340, 240], [340, 240]]
-                    , "console" : r'.\rom\gnw_gcliff\gnw_gcliff.png'
-                }
-              
-            , "Mario_the_Juggle" :
-                    { "ref" : "mb-108"
-                    , "display_name" : "Mario the Juggler"
-                    , "date" : "1991-10-XX"
-                    , "Rom" : r'.\rom\gnw_mariotj\mb-108.program'
-                    , "Visual" : [r'.\rom\gnw_mariotj\gnw_mariotj.svg'] # list of screen visual
-                    , "Melody_Rom" : r'.\rom\gnw_mariotj\mb-108.melody'
-                    , "Background" : [r'.\rom\gnw_mariotj\BackgroundNSm.png']
-                    , "transform_visual" : [[[1410, 67, 53], [960, 54, 52]]]
-                    , "console" : r'.\rom\gnw_mariotj\gnw_mariotj.png'
-                }
-              
-              
-}
-
-
-games_path__________ = {
-              
-              "ball" :
-                    { "ref" : "ac-01"
-                    , "display_name" : "Ball"
-                    , "Rom" : r'.\rom\ball\ac-01'
-                    , "Visual" : [r'.\rom\ball\gnw_ball.svg'] # list of screen visual
-                    , "Background" :[r'.\rom\ball\Background2NS.png']
-                    , "transform_visual" : [[[2242, 121, 121], [1449, 69, 88]]]
-                    , "date" : "1980-04-28"
-                    , "console" : r'.\rom\ball\gnw_ball.png'
-                }
-              
-}
-
-
+from games_path import games_path
 
 def sort_by_screen(name: str):
     img_screen_sort = []
@@ -764,7 +55,8 @@ def segment_text(all_img, name, color_segment:bool = False):
         seg_y = int(filename.split(".")[1])
         seg_z = int(filename.split(".")[2].split("_")[0])
         color_index = 0
-        if(color_segment): color_index = int(filename.split("_")[1])
+        if(color_segment): 
+            color_index = int(filename.split("_")[1].split(".")[0])
         result += f"{{ {{ {seg_x},{seg_y},{seg_z} }}, {{ {pos_x},{pos_y} }}, {{ {pos_x_tex},{pos_y_tex} }}, {{ {size_x},{size_y} }}, {color_index}, {screen}, false, false, 0 }}, "
     result = result[:-2] + "\n};"
     result += f"  const size_t size_segment_GW_{name} = sizeof(segment_GW_{name})/sizeof(segment_GW_{name}[0]); \n"
@@ -909,8 +201,36 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
 
 def visual_console_data(name, path_console):
     img = Image.open(path_console)
-    img, tmp_x, tmp_y = im.transform_img(img, console_size[0], console_size[1], respect_ratio = False
-                                         , rotate_90 = False, miror = True)
+    original_width, original_height = img.size
+    
+    # Calculate aspect ratios
+    target_ratio = console_size[0] / console_size[1]  # 320/240 = 1.333...
+    image_ratio = original_width / original_height
+    
+    # Determine cuts for center crop to match target aspect ratio
+    if image_ratio > target_ratio:
+        # Image is wider than target - need to crop left and right
+        new_width = int(original_height * target_ratio)
+        x_cut_total = original_width - new_width
+        x_cut_left = x_cut_total / 2
+        x_cut_right = x_cut_total / 2
+        y_cut = [0, 0]
+    else:
+        # Image is taller than target - need to crop top and bottom
+        new_height = int(original_width / target_ratio)
+        y_cut_total = original_height - new_height
+        y_cut_top = y_cut_total / 2
+        y_cut_bottom = y_cut_total / 2
+        x_cut_left = 0
+        x_cut_right = 0
+        y_cut = [y_cut_top / original_height, y_cut_bottom / original_height]
+    
+    # Convert cuts to fractions
+    x_cut = [x_cut_left / original_width, x_cut_right / original_width]
+    
+    img, tmp_x, tmp_y = im.transform_img(img, console_size[0], console_size[1], respect_ratio = True
+                                         , rotate_90 = False, miror = True
+                                         , new_ratio = 0, cut = [x_cut, y_cut], add_SHARPEN = False)
     img = np.array(img)
     img_f = np.zeros((console_atlas_size[1], console_atlas_size[0], 4), dtype=np.uint8)
     img_f[0:img.shape[0], 0:img.shape[1], :] = img
@@ -1032,49 +352,244 @@ def generate_global_file(games_path, destination_file):
 
 
 
+def validate_game_files(games_path):
+    """Check if all required files exist for each game before processing."""
+    print("Validating game files...")
+    print("=" * 60)
+    
+    missing_files = {}
+    has_errors = False
+    
+    for key in games_path:
+        game_missing = []
+        
+        # Check ROM file
+        rom_path = games_path[key]["Rom"]
+        if not os.path.exists(rom_path):
+            game_missing.append(f"ROM: {rom_path}")
+        
+        # Check Melody ROM if specified
+        if 'Melody_Rom' in games_path[key] and games_path[key]['Melody_Rom'] != '':
+            melody_path = games_path[key]['Melody_Rom']
+            if not os.path.exists(melody_path):
+                game_missing.append(f"Melody: {melody_path}")
+        
+        # Check Visual files (SVG files)
+        if 'Visual' in games_path[key]:
+            for visual_path in games_path[key]['Visual']:
+                if not os.path.exists(visual_path):
+                    game_missing.append(f"Visual: {visual_path}")
+        
+        # Check Background files if specified
+        if 'Background' in games_path[key] and len(games_path[key]['Background']) > 0:
+            for bg_path in games_path[key]['Background']:
+                if bg_path != '' and not os.path.exists(bg_path):
+                    game_missing.append(f"Background: {bg_path}")
+        
+        # Check Console file
+        console_path = games_path[key].get('console', default_console)
+        if not os.path.exists(console_path):
+            game_missing.append(f"Console: {console_path}")
+        
+        # Store missing files for this game
+        if game_missing:
+            missing_files[key] = game_missing
+            has_errors = True
+    
+    # Report results
+    if has_errors:
+        print("\n❌ MISSING FILES DETECTED:\n")
+        for game, files in missing_files.items():
+            print(f"Game: {game}")
+            for file in files:
+                print(f"  - {file}")
+            print()
+        print("=" * 60)
+        print(f"\n⚠️  Found {len(missing_files)} game(s) with missing files.")
+        print("Please add the missing files before running the script.\n")
+        return False
+    else:
+        print("✓ All required files found!")
+        print("=" * 60)
+        print()
+        return True
+
+
+def process_single_game(args):
+    """Process a single game - designed for multiprocessing or sequential use."""
+    key, game_data = args
+    
+    print(f"\n--------\n{key}\n")
+
+    if reset_img_svg:
+        try: 
+            # Remove existing ./tmp/img/<game> directory if it exists
+            shutil.rmtree("./tmp/img/" + key)
+            print(f"Removed cache folder: tmp/img/{key}")
+
+            # Clean up gfx for this game: remove all .t3s and .png files
+            # whose filenames contain the current game key, using glob
+            if os.path.exists(destination_graphique_file):
+                pattern = os.path.join(destination_graphique_file, f"*{key}*")
+                for file_path in glob.glob(pattern):
+                    filename = os.path.basename(file_path)
+                    try:
+                        os.remove(file_path)
+                        print(f"Removed: {filename}")
+                    except Exception as e:
+                        print(f"Error removing {filename}: {e}")
+        except: 
+            pass
+                
+    # Set default values if not exist
+    alpha_bright = game_data.get('alpha_bright', default_alpha_bright)
+    fond_bright = game_data.get('fond_bright', default_fond_bright)
+    rotate = game_data.get('rotate', default_rotate)
+    mask = game_data.get('mask', False)
+    color_segment = game_data.get('color_segment', False)
+    two_in_one_screen = game_data.get('2_in_one_screen', False)
+    melody_path = game_data.get('Melody_Rom', '')
+    background_path = game_data.get('Background', [])
+    size_visual = game_data.get('size_visual', [resolution_up, resolution_down])
+    path_console = game_data.get('console', default_console)
+    display_name = game_data.get('display_name', key)
+    shadow = game_data.get('shadow', True)
+    date = game_data.get('date', '198X-XX-XX')
+
+    generate_game_file(
+        destination_game_file, key, display_name,
+        game_data["ref"].replace('-', '_').upper(), date,
+        game_data["Rom"], game_data["Visual"], size_visual,
+        path_console, melody_path, background_path,
+        rotate, mask, color_segment, two_in_one_screen,
+        game_data["transform_visual"],
+        alpha_bright, fond_bright, shadow
+    )
+    
+    return key
+
+
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Build Game & Watch 3DS assets")
+    parser.add_argument(
+        "--game",
+        "-g",
+        metavar="NAME",
+        help="Only rebuild a single game (use key from games_path, e.g. 'cgrab' or 'Fire')",
+    )
+    parser.add_argument(
+        "--parallel",
+        dest="use_parallel",
+        action="store_true",
+        help="Enable multiprocessing when building multiple games",
+    )
+    parser.add_argument(
+        "-c",
+        "--clean",
+        dest="reset_img_svg",
+        action="store_true",
+        help="Delete and regenerate ./tmp/img/<game> before processing",
+    )
+
+    args = parser.parse_args()
+
+    # Toggle to control processing mode
+    USE_PARALLEL_PROCESSING = args.use_parallel  # default False unless --parallel is passed
+
+    # Control whether we reset ./tmp/img/<game> directories before processing
+    # If -c/--clean is passed, we enable cleaning; otherwise we leave the
+    # module-level default value unchanged.
+    if args.reset_img_svg:
+        reset_img_svg = True
+
+    # Validate all game files before processing
+    if not validate_game_files(games_path):
+        print("Exiting due to missing files.")
+        exit(1)
     
     os.makedirs(r'.\tmp', exist_ok=True)
     os.makedirs(r'.\tmp\img', exist_ok=True)
+
+    # Prepare game data with default values (optionally for a single game)
+    game_items = []
+
+    # If a specific game was requested, only process that one
+    if args.game:
+        if args.game not in games_path:
+            print(f"Unknown game '{args.game}'. Available keys:")
+            for k in sorted(games_path.keys()):
+                print(f"  - {k}")
+            exit(1)
+        keys_to_process = [args.game]
+    else:
+        keys_to_process = list(games_path.keys())
+
+    for key in keys_to_process:
+        game_data = games_path[key].copy()
+        
+        # Set defaults
+        if 'alpha_bright' not in game_data: game_data['alpha_bright'] = default_alpha_bright
+        if 'fond_bright' not in game_data: game_data['fond_bright'] = default_fond_bright
+        if 'rotate' not in game_data: game_data['rotate'] = default_rotate
+        if 'mask' not in game_data: game_data['mask'] = False
+        if 'color_segment' not in game_data: game_data['color_segment'] = False
+        if '2_in_one_screen' not in game_data: game_data['2_in_one_screen'] = False
+        if 'Melody_Rom' not in game_data: game_data['Melody_Rom'] = ''
+        if 'Background' not in game_data: game_data['Background'] = []
+        if 'size_visual' not in game_data: game_data['size_visual'] = [resolution_up, resolution_down]
+        if 'console' not in game_data: game_data['console'] = default_console
+        if 'display_name' not in game_data: game_data['display_name'] = key
+        if 'shadow' not in game_data: game_data['shadow'] = True 
+        if 'date' not in game_data: game_data['date'] = '198X-XX-XX'
+        
+        game_items.append((key, game_data))
     
-    games_ref = []
-    
-    for key in games_path:
-        print("\n\n--------")
-        print(key)
-        print("")
+    if USE_PARALLEL_PROCESSING:
+        # Process games in parallel using multiprocessing
+        # Adjust the number of processes based on your CPU cores
+        # Use fewer processes if you run into memory issues
+        num_processes = min(4, os.cpu_count() or 1)  # Use up to 4 processes
 
-        if(reset_img_svg):
-            try: shutil.rmtree("./tmp/img/" + key)
-            except : a = 0
-                    
-        # default value if not exist
-        if not 'alpha_bright' in games_path[key]: games_path[key]['alpha_bright'] = default_alpha_bright
-        if not 'fond_bright' in games_path[key]: games_path[key]['fond_bright'] = default_fond_bright
-        if not 'rotate' in games_path[key]: games_path[key]['rotate'] = default_rotate
-        if not 'mask' in games_path[key]: games_path[key]['mask'] = False
-        if not 'color_segment' in games_path[key]: games_path[key]['color_segment'] = False
-        if not '2_in_one_screen' in games_path[key]: games_path[key]['2_in_one_screen'] = False
-        if not 'Melody_Rom' in games_path[key]: games_path[key]['Melody_Rom'] = ''
-        if not 'Background' in games_path[key]: games_path[key]['Background'] = []
-        if not 'size_visual' in games_path[key]: games_path[key]['size_visual'] = [resolution_up, resolution_down]
-        if not 'console' in games_path[key]: games_path[key]['console'] = default_console
-        if not 'display_name' in games_path[key]: games_path[key]['display_name'] = key
-        if not 'shadow' in games_path[key]: games_path[key]['shadow'] = True 
-        if not 'date' in games_path[key]: games_path[key]['date'] = '198X-XX-XX' 
+        print(f"\n{'='*60}")
+        print(f"Processing {len(game_items)} games using {num_processes} parallel processes...")
+        print(f"{'='*60}\n")
 
+        try:
+            with Pool(processes=num_processes) as pool:
+                results = pool.map(process_single_game, game_items)
 
-        generate_game_file(destination_game_file, key, games_path[key]["display_name"]
-                            , games_path[key]["ref"].replace('-', '_').upper(), games_path[key]['date']
-                            , games_path[key]["Rom"], games_path[key]["Visual"], games_path[key]["size_visual"]
-                            , games_path[key]["console"]
-                            , games_path[key]["Melody_Rom"], games_path[key]["Background"]
-                            , games_path[key]["rotate"], games_path[key]["mask"], games_path[key]["color_segment"]
-                            , games_path[key]["2_in_one_screen"]
-                            , games_path[key]["transform_visual"]
-                            , games_path[key]["alpha_bright"], games_path[key]['fond_bright'], games_path[key]['shadow'])
+            print(f"\n{'='*60}")
+            print(f"Successfully processed {len(results)} games!")
+            print(f"{'='*60}\n")
+
+        except Exception as e:
+            print(f"\n❌ Error during parallel processing: {e}")
+            print("Falling back to sequential processing...\n")
+
+            # Fallback to sequential processing
+            for item in game_items:
+                try:
+                    process_single_game(item)
+                except Exception as game_error:
+                    print(f"Error processing {item[0]}: {game_error}")
+                    continue
+    else:
+        # Sequential processing (default)
+        print(f"\n{'='*60}")
+        print(f"Processing {len(game_items)} games sequentially...")
+        print(f"{'='*60}\n")
+
+        results = []
+        for item in game_items:
+            try:
+                result = process_single_game(item)
+                results.append(result)
+            except Exception as game_error:
+                print(f"Error processing {item[0]}: {game_error}")
+                continue
 
     generate_global_file(games_path, destination_file)
         
     print("\n\n\n\n------------------------------------------------------ Finish !!!!!!!!!!!!")
-       

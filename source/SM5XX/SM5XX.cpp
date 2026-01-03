@@ -1,5 +1,7 @@
 #include "SM5XX/SM5XX.h"
 #include "std/timer.h"
+#include "virtual_i_o/time_addresses.h"
+#include <sys/stat.h>
 
 
 bool SM5XX::step(){ // loop of CPU
@@ -145,7 +147,46 @@ bool SM5XX::condition_to_wake_up(){ // wake up when bouton are pressed or 1sec i
     return (gamma_flag_second | check_button_pressed()); 
 }
 
+//////////////////////////////////// Time Addresses ////////////////////////////////////
 
+void SM5XX::load_rom_time_addresses(const std::string& ref_game)
+{
+    time_addresses = get_time_addresses(ref_game);
+}
+
+void SM5XX::set_time(uint8_t hour, uint8_t minute, uint8_t second) {
+    if (is_time_set()) 
+        return; // only set time once
+
+    // Use time_addresses if available, otherwise fallback to default (col 4, lines as before)
+    if (time_addresses) {
+        // If the hour is greater than 12 then remove 12, and add PM bit
+        uint8_t hour_12h_value = hour;
+        uint8_t pm_bit = 0x00;
+        
+        // Skip setting PM bit if pm_bit == 24 (indicates 24-hour clock)
+        if (time_addresses->pm_bit != 24) {
+            if (hour_12h_value > 12) {
+                hour_12h_value -= 12;
+                pm_bit = time_addresses->pm_bit;
+            }
+            else if (hour_12h_value == 12) {
+                pm_bit = time_addresses->pm_bit; // Noon case
+            }
+            else if (hour_12h_value == 0) {
+                hour_12h_value = 12; // Midnight case
+            }
+        }
+
+        // Set the time digits in RAM using per-digit (col, line)
+        set_ram_value(time_addresses->col_hour_tens, time_addresses->line_hour_tens, (hour_12h_value / 10) | pm_bit);
+        set_ram_value(time_addresses->col_hour_units, time_addresses->line_hour_units, hour_12h_value % 10);
+        set_ram_value(time_addresses->col_minute_tens, time_addresses->line_minute_tens, minute / 10);
+        set_ram_value(time_addresses->col_minute_units, time_addresses->line_minute_units, minute % 10);
+        set_ram_value(time_addresses->col_second_tens, time_addresses->line_second_tens, second / 10);
+        set_ram_value(time_addresses->col_second_units, time_addresses->line_second_units, second % 10);
+    }
+}
 
 //////////////////////////////////// Usefull function ////////////////////////////////////
 
@@ -162,4 +203,52 @@ void SM5XX::copy_buffer(const ProgramCounter& src, ProgramCounter& dst) {
     dst.word = src.word;
 }
 
+///////////////////////////////////// Debug ////////////////////////////////////
 
+void SM5XX::debug_dump_ram_state(const char* filename) {
+    // Dump the current RAM state to a file for debugging on the sd card here: "sdmc:/3ds/debug/"
+    // check the folder exists
+    mkdir("sdmc:/3ds/debug", 0777);
+
+    // Build full path
+    std::string full_path = std::string("sdmc:/3ds/debug/") + filename;
+    FILE* file = fopen(full_path.c_str(), "a"); // append mode
+    if (!file) return;
+
+    // Print header with game name
+    fprintf(file, "---- RAM DUMP ----\n");
+    fprintf(file, "CPU: %s\n", name_cpu.c_str());
+
+    // Print time (HH:MM:SS)
+    time_t rawtime;
+    struct tm* timeinfo;
+    char time_str[16];
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    strftime(time_str, sizeof(time_str), "%H:%M:%S", timeinfo);
+    fprintf(file, "Time: %s \n", time_str);
+
+    int cols = debug_ram_adress_size_col();
+    int lines = debug_ram_adress_size_line();
+
+    // Print column header
+    fprintf(file, "Cols    :");
+    for(int col = 0; col < cols; col++) {
+        fprintf(file, " %d", col);
+    }
+    fprintf(file, "\n");
+
+    // Print separator
+    fprintf(file, "-------------------\n");
+
+    // Print RAM contents
+    for(int line = 0; line < lines; line++){
+        fprintf(file, "Line %02d :", line);
+        for(int col = 0; col < cols; col++){
+            fprintf(file, " %X", debug_get_elem_ram(col, line) & 0x0F);
+        }
+        fprintf(file, " \n");
+    }
+    fprintf(file, "\n");
+    fclose(file);
+}

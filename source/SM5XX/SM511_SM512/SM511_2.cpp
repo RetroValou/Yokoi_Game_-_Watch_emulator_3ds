@@ -1,3 +1,4 @@
+#include "SM5XX/SM511_SM512/SM511_2.h"
 #include "SM5XX/SM511_SM512/sm511_2.h"
 #include "std/timer.h"
 #include <cstring>
@@ -127,6 +128,11 @@ void SM511_2::write_ram_value(uint8_t value){
     ram[col][line] = value & 0x0F; // 4 bit RAM
 }
 
+void SM511_2::set_ram_value(uint8_t col, uint8_t line, uint8_t value) {
+    if (col >= SM511_2_RAM_COL || line >= SM511_2_RAM_LINE) 
+        return;
+    ram[col][line] = value;
+}
 
 /////////////////////////// Wake up //////////////////////////////////////////////////////
 
@@ -276,3 +282,4 @@ uint8_t SM511_2::debug_get_elem_ram(int col, int line) {
     uint8_t line_ = min(line, SM511_2_RAM_LINE-1);
     return ram[col_][line_]; 
 }
+

@@ -135,12 +135,12 @@ def make_alpha(img_base:np.array, fond_bright:float, alpha_bright:float):
     data = np.array(img)
     data_alpha = np.array(img_alpha)
     r, g, b, a = data_alpha[:,:,0], data_alpha[:,:,1], data_alpha[:,:,2], data_alpha[:,:,3]
-    transition = np.zeros((len(r), len(r[0])))
+    transition = np.zeros((len(r), len(r[0])), dtype=np.float64)
     for x in range(len(r)):
         for y in range(len(r[0])):
             if ((r[x, y]>seuil_tr) and (g[x, y]>seuil_tr) and (b[x, y]>seuil_tr)): transition[x, y] = min(0, a[x, y])
             elif (min(min(r[x, y], g[x, y]), b[x, y]) < seuil_semi_tr): transition[x, y] = min(255, a[x, y])
-            else: transition[x, y] = min(int(255 * (seuil_tr - min(min(r[x, y], g[x, y]), b[x, y])) / (seuil_tr - seuil_semi_tr)), a[x, y]) 
+            else: transition[x, y] = min(int(255.0 * float(seuil_tr - min(min(r[x, y], g[x, y]), b[x, y])) / float(seuil_tr - seuil_semi_tr)), float(a[x, y])) 
 
     data[:,:, 3] = transition
     return data

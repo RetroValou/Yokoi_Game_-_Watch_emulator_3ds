@@ -111,6 +111,9 @@
             "path": "C:\\Windows\\System32\\cmd.exe",
             "args": ["/K", "powershell -Command \"Start-Process cmd -Verb RunAs\""]
         }
+    },
+    "terminal.integrated.automationProfile.windows": {
+        "path": "C:\\Windows\\System32\\cmd.exe"
     }
 
 }

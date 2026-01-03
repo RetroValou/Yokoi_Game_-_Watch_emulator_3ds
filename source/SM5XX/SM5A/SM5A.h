@@ -41,6 +41,11 @@ public:
     bool screen_is_on() override;
     bool get_segments_state(uint8_t col, uint8_t line, uint8_t word) override;
     bool get_active_sound() override;
+    
+    // Save/Load state
+    bool save_state(FILE* file) override;
+    bool load_state(FILE* file) override;
+    uint8_t get_cpu_type_id() override { return 0; } // CPU_TYPE_SM5A
 
 private:
     /// Variables / register /// 
@@ -83,6 +88,7 @@ private:
     uint8_t read_rom_value() override;
     uint8_t read_ram_value() override;
     void write_ram_value(uint8_t value) override;
+    void set_ram_value(uint8_t col, uint8_t line, uint8_t value) override;
 
 private:
     // -- from SM5A_instruction.cpp ------------------------------ //
