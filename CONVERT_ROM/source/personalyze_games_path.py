@@ -13,6 +13,7 @@ games_path = {
                     , "transform_visual" : [[[2242, 121, 121], [1449, 69, 88]]]
                     , "date" : "1980-04-28"
                     , "console" : r'.\rom\decompress\gnw_ball\gnw_ball.png'
+                    , "background_in_front" : True
                 }
               
             , "Flagman" :
@@ -46,6 +47,7 @@ games_path = {
                     , "transform_visual" : [[[2300, 150, 150], [1510, 125, 93]]]
                     , "date" : "1980-07-31"
                     , "console" : r'.\rom\decompress\gnw_fires\gnw_fires.png'
+                    , "background_in_front" : True
                     }
               
             , "Judge" :
@@ -100,6 +102,7 @@ games_path = {
                     , "transform_visual" : [[[1026, 25, 38], [699, 44, 40]]]
                     , "date" : "1981-06-16"
                     , "console" : r'.\rom\decompress\gnw_pchute\gnw_pchute.png'
+                    , "background_in_front" : True
                     }
               
             , "octopus" :
@@ -111,6 +114,7 @@ games_path = {
                     , "transform_visual" : [[[1026, 25, 38], [699, 44, 40]]]
                     , "date" : "1981-07-16"
                     , "console" : r'.\rom\decompress\gnw_octopus\gnw_octopus.png'
+                    , "background_in_front" : True
                     }
               
              , "Popeye" :
@@ -122,6 +126,7 @@ games_path = {
                     , "transform_visual" : [[[1317, 46, 48], [904, 60, 62]]]
                     , "date" : "1981-08-05"
                     , "console" : r'.\rom\decompress\gnw_popeye\gnw_popeye.png'
+                    , "background_in_front" : True
                     }
               
             , "Chef" :
@@ -144,6 +149,7 @@ games_path = {
                     , "transform_visual" : [[[1405, 70, 90], [906, 60, 50]]]
                     , "date" : "1981-10-09"
                     , "console" : r'.\rom\decompress\gnw_mmouse\gnw_mmouse.png'
+                    , "background_in_front" : True
                     }
               
              , "Egg" :
@@ -155,6 +161,7 @@ games_path = {
                     , "transform_visual" : [[[1415, 75, 95], [901, 55, 50]]]
                     , "date" : "1981-10-09"
                     , "console" : r'.\rom\decompress\gnw_egg\gnw_egg.png'
+                    , "background_in_front" : True
                     }
               
             , "Fire_wide_screen" :
@@ -166,6 +173,7 @@ games_path = {
                     , "transform_visual" : [[[1315, 26, 44], [875, 40, 39]]]
                     , "date" : "1981-12-04"
                     , "console" : r'.\rom\decompress\gnw_fire\gnw_fire.png'
+                    , "background_in_front" : True
                     }
               
             , "Turtle_Bridge" :
@@ -245,6 +253,7 @@ games_path = {
                     , "transform_visual" : [[[1216, 1, 6], [798, 5, -5]]]
                     , "date" : "1982-10-26"
                     , "console" : r'.\rom\decompress\gnw_dkjr\gnw_dkjr.png'
+                    , "background_in_front" : True
                     }
               
             ,"Mickey_Donald" :
@@ -273,6 +282,7 @@ games_path = {
                     , "size_visual" : [[360, 240], [360, 240]]
                     , "transform_visual" : [[[1330, 16+6, 18+6], [886, 28, 41]], [[1329, 16, 17], [864, 14, 33]]]
                     , "console" : r'.\rom\decompress\gnw_ghouse\gnw_ghouse.png'
+                    , "background_in_front" : True
                 }
 
             ,"Donkey_Kong_2" :
@@ -303,6 +313,7 @@ games_path = {
                     , "shadow" : False
                     , "transform_visual" : [[[1248, 17, 17], [782, 6, 0]], [[1217, 1, 2], [785, 3+10, 6-10]]]
                     , "console" : r'.\rom\decompress\gnw_mario\Backdrop_2.png'
+                    , "background_in_front" : True
                 }
               
             , "Mario_Cement_Factory_panorama" :
@@ -327,6 +338,7 @@ games_path = {
                     , "transform_visual" : [[[1227, 8, 3], [816, 25, -7]]]
                     , "date" : "1983-06-16"
                     , "console" : r'.\rom\decompress\gnw_mariocm\gnw_mariocm.png'
+                    , "background_in_front" : True
                 }
 
             ,"Rain_Shower" :
@@ -454,6 +466,7 @@ games_path = {
                     , "size_visual" : [[326, 240], [326, 240]]
                     , "transform_visual" : [[[1425, 64, 65], [928, 31, 80]], [[1438, 71, 71], [955, 31, 108]]]
                     , "console" : r'.\rom\decompress\gnw_pinball\gnw_pinball.png'
+                    , "background_in_front" : True
                 }
               
             , "Mickey_Mouse_panorama" :
@@ -503,6 +516,7 @@ games_path = {
                     , "fond_bright" : 1.3
                     , "transform_visual" : [[[1003, -32, -34], [864-10, -16+10, 0]], [[1003, -32, -34], [864-10, 0, -17+10]]]
                     , "console" : r'.\rom\decompress\gnw_ssparky\gnw_ssparky.png'
+                    , "background_in_front" : True
             }
               
              , "boxing" :
@@ -579,6 +593,7 @@ games_path = {
                     , "transform_visual" : [[[1373, 42, 35], [896, 29, 50]], [[1357, 22, 39], [896, 20, 59]]]
                     , "size_visual" : [resolution_up, [360, 240]]
                     , "console" : r'.\rom\decompress\gnw_squish\gnw_squish.png'
+                    , "background_in_front" : True
                 }
               
             , "bomb_sweeper" :

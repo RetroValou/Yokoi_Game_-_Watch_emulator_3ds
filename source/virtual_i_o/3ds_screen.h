@@ -114,5 +114,6 @@ class Virtual_Screen {
 
         int set_good_screen(int curr_screen);
   
-        float get_eye_offset(int nb_render, int i_render);
+        float get_eye_offset_segment(int nb_render, int i_render);
+        float get_eye_offset_background(int nb_render, int i_render);
 };

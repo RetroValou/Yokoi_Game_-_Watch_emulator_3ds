@@ -263,7 +263,8 @@ def visual_data_file(name, size_list, background_path_list, rotate = False, mask
 
 
 
-def background_data_file(name, path_list = [], size_list = [], rotate = False, alpha_bright = 1.7, fond_bright = 1.35, shadow = True):
+def background_data_file(name, path_list = [], size_list = [], rotate = False, alpha_bright = 1.7, fond_bright = 1.35
+                            , shadow = True, background_in_front = False):
     i = 0
     atlas_size = [1, 1]
     for size in size_list:
@@ -312,6 +313,9 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
             info_background.append(str(s[0])) # size x
             info_background.append(str(s[1])) # size y
     if(shadow): info_background.append(str(1))
+    else: info_background.append(str(0))
+
+    if(background_in_front): info_background.append(str(1))
     else: info_background.append(str(0))
     result += f"const uint16_t background_info_{name}[] = {{ " + ', '.join(info_background) + " }; \n\n"
  
@@ -399,7 +403,8 @@ def rom_text(name:str, rom_path: str):
 def generate_game_file(destination_game_file, name, display_name, ref, date
                 , rom_path, visual_path, size_visual, path_console
                 , melody_path = '', background_path = [], rotate = False, mask = False, color_segment = False, two_in_one_screen = False
-                , transform = [], alpha_bright = 1.7, fond_bright = 1.35, shadow = True):
+                , transform = [], alpha_bright = 1.7, fond_bright = 1.35, shadow = True
+                , background_in_front = False):
     
     c_file = f"""
 #include <cstdint>
@@ -423,7 +428,7 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
     if(two_in_one_screen): size_background[0] = size_background[1]
         
     if(mask): background_path = [] # background used for create segment
-    c_file += background_data_file(name, background_path, size_background, rotate, alpha_bright, fond_bright, shadow)
+    c_file += background_data_file(name, background_path, size_background, rotate, alpha_bright, fond_bright, shadow, background_in_front)
     
     c_file += visual_console_data(name, path_console)
     
@@ -574,6 +579,7 @@ def process_single_game(args):
     two_in_one_screen = game_data.get('2_in_one_screen', False)
     melody_path = game_data.get('Melody_Rom', '')
     background_path = game_data.get('Background', [])
+    background_in_front = game_data.get('background_in_front', False)
     size_visual = game_data.get('size_visual', [resolution_up, resolution_down])
     if size_scale != 1:
         size_visual = [[int(s[0] * size_scale), int(s[1] * size_scale)] for s in size_visual]
@@ -589,7 +595,8 @@ def process_single_game(args):
         path_console, melody_path, background_path,
         rotate, mask, color_segment, two_in_one_screen,
         game_data["transform_visual"],
-        alpha_bright, fond_bright, shadow
+        alpha_bright, fond_bright, shadow,
+        background_in_front
     )
     
     return key

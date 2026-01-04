@@ -698,6 +698,9 @@ def generate_games_path(target_name: str | None = None) -> bool:
             "table top" in display_label.lower() or
             (metadata and metadata.model.upper() in {"MK-96", "TB-94"})
         )
+        print(ref_value)
+        # Ball, Fire (2 versions), DK-JR (wide screen)
+        background_in_front = ref_value in ("ac-01", "dj-101", "RC-04", "FR-27")
 
         entry = GameEntry(
             folder_name=name,
@@ -715,6 +718,7 @@ def generate_games_path(target_name: str | None = None) -> bool:
             two_in_one_screen=two_in_one_screen,
             mask=needs_mask,
             shadow=True,
+            background_in_front=background_in_front
         )
         entries.append(entry)
 

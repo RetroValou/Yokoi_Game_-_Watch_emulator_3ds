@@ -2,6 +2,7 @@
 
 #include "virtual_i_o/3ds_screen.h"
 #include "std/timer.h"
+#include "std/GW_info_reader.h"
 
 #include "vshader_shbin.h" // shader used
 #include "virtual_i_o/texte_decoup.h"
@@ -256,8 +257,8 @@ void Virtual_Screen::load_visual(std::string path_segment
 
     // Load additional information
     segment_info = v_segment_info;
-    is_mask = (segment_info[3]&0x01) == 0x01;
-    double_in_one_screen = (segment_info[3]&0x02) == 0x02;
+    is_mask = (segment_info[I_SEG_MASK]&0x01) == 0x01;
+    double_in_one_screen = (segment_info[I_SEG_MASK]&0x02) == 0x02;
     background_info = v_background_info;
 
     // set color of fond
@@ -287,28 +288,27 @@ bool Virtual_Screen::init_visual(){
     // X
     if(double_in_one_screen) { // set to edge of screen
         int8_t gap = 1;
-        align_x[0] = min(0, (200-gap)-(int)segment_info[4]); 
-        align_x[1] = max(200-(int)segment_info[6], gap); 
+        align_x[0] = min(0, (200-gap)-(int)segment_info[i_seg_scr_w(0)]); 
+        align_x[1] = max(200-(int)segment_info[i_seg_scr_w(1)], gap); 
     } 
     else { for(int curr_screen = 0; curr_screen < nb_screen; curr_screen++){
-            align_x[curr_screen] = int((_3DS_SCREEN_X[curr_screen] - segment_info[4+curr_screen*2])/2);
+            align_x[curr_screen] = int((_3DS_SCREEN_X[curr_screen] - segment_info[i_seg_scr_w(curr_screen)])/2);
     } }
     // Y
     if(nb_screen == 1 || double_in_one_screen){ 
-        align_y[0] = int((_3DS_SCREEN_Y[0] - segment_info[4+1])/2); 
+        align_y[0] = int((_3DS_SCREEN_Y[0] - segment_info[i_seg_scr_h(0)])/2); 
         if(nb_screen != 1){ align_y[1] = align_y[0]; } // double in one screen
     } 
-    else { align_y[0] = _3DS_SCREEN_Y[0] - segment_info[4+1]; align_y[1] = 0; }
+    else { align_y[0] = _3DS_SCREEN_Y[0] - segment_info[i_seg_scr_h(0)]; align_y[1] = 0; }
 
     // generate polygone fond
     for(int curr_screen = 0; curr_screen < nb_screen; curr_screen++){ // background
-        uint16_t id_src = 2 + curr_screen*4;
         if(curr_screen != 0 && double_in_one_screen){ decal_x = 200; }
         else { decal_x = 0; }
 
         curr_vertex = polygone_sprite(
                             align_x[curr_screen]+decal_x, align_y[curr_screen], -2
-                            , background_info[2+id_src], background_info[3+id_src]
+                            , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]
                             , 1, 1, 1, 1, 1, 1);
 	    memcpy(&vertex_data[curr_index], curr_vertex.data(), 6*sizeof(vertex));
         background_ind_vertex.push_back(curr_index);
@@ -318,16 +318,15 @@ bool Virtual_Screen::init_visual(){
     // generate polygone for image of background
     if(img_background){
         for(int curr_screen = 0; curr_screen < nb_screen; curr_screen++){ // background
-            uint16_t id_src = 2 + curr_screen*4;
             if(curr_screen != 0 && double_in_one_screen){ decal_x = 200; }
             else { decal_x = 0; }
 
             curr_vertex = polygone_sprite(
                                 align_x[curr_screen]+decal_x, align_y[curr_screen], -1
-                                , background_info[2+id_src], background_info[3+id_src]
-                                , background_info[0+id_src], background_info[1+id_src]
-                                , background_info[2+id_src], background_info[3+id_src]
-                                , background_info[0], background_info[1]);
+                                , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]
+                                , background_info[i_bg_x(curr_screen)], background_info[i_bg_y(curr_screen)]
+                                , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]
+                                , background_info[I_TEX_W], background_info[I_TEX_H]);
             memcpy(&vertex_data[curr_index], curr_vertex.data(), 6*sizeof(vertex));
             background_ind_vertex.push_back(curr_index);
             curr_index += 6;
@@ -341,12 +340,12 @@ bool Virtual_Screen::init_visual(){
         else { decal_x = 0; }
 
 		curr_vertex = polygone_sprite(
-								seg_gw.pos_scr[0]/segment_info[2]+align_x[seg_gw.screen]+decal_x // pos x
-                                , seg_gw.pos_scr[1]/segment_info[2]+align_y[seg_gw.screen], 0 // pos y and z
-								, seg_gw.size_tex[0]/segment_info[2], seg_gw.size_tex[1]/segment_info[2] // size x and y
+								seg_gw.pos_scr[0]/segment_info[I_SEG_MULTI]+align_x[seg_gw.screen]+decal_x // pos x
+                                , seg_gw.pos_scr[1]/segment_info[I_SEG_MULTI]+align_y[seg_gw.screen], 0 // pos y and z
+								, seg_gw.size_tex[0]/segment_info[I_SEG_MULTI], seg_gw.size_tex[1]/segment_info[I_SEG_MULTI] // size x and y
 								, seg_gw.pos_tex[0], seg_gw.pos_tex[1] // texture uv pos
 								, seg_gw.size_tex[0], seg_gw.size_tex[1] // texture uv size
-								, segment_info[0], segment_info[1]); // texture max size
+								, segment_info[I_TEX_W], segment_info[I_TEX_H]); // texture max size
 	    memcpy(&vertex_data[curr_index], curr_vertex.data(), 6*sizeof(vertex));
         list_segment[i].index_vertex = curr_index;
         curr_index += 6;
@@ -439,9 +438,9 @@ void Virtual_Screen::set_img(const std::string& path, const uint16_t* info
                                 , int16_t x_pos, int16_t y_pos, uint8_t img_i){
     // polygone
     std::vector<vertex> curr_vertex = polygone_sprite(
-        x_pos, y_pos, -0.5, info[4], info[5]
-        , info[2], info[3], info[4], info[5]
-        , info[0], info[1]);
+        x_pos, y_pos, -0.5, info[I_IMG_W], info[I_IMG_H]
+        , info[I_IMG_X], info[I_IMG_Y], info[I_IMG_W], info[I_IMG_H]
+        , info[I_TEX_W], info[I_TEX_H]);
     memcpy(&vertex_data[index_start_texte+(nb_text_max+img_i)*6], curr_vertex.data(), curr_vertex.size() * sizeof(vertex)); 
     send_vbo();
     // textyre
@@ -505,12 +504,35 @@ int Virtual_Screen::set_good_screen(int curr_screen){
 }
 
 
-float Virtual_Screen::get_eye_offset(int nb_render, int i_render){
+float modif_value_slider(float slider_value){
+    return (slider_value-0.1f)/0.9f;
+} 
+
+float Virtual_Screen::get_eye_offset_segment(int nb_render, int i_render){
     // Get value use for create 3d stereoscopic
-    if(nb_render == 1){ return 0; }
+    float slider_3d_modif = modif_value_slider(slider_3d);
+    if(nb_render == 1 || slider_3d_modif <= 0){ return 0; }
+    
     float orientation = (i_render == 0 ? 1.0f : -1.0f);
     if(is_mask){ orientation = -orientation; } // invers if mask => Table top and Panorama Screen
-    return ((float)slider_3d) * orientation * 5.0f;
+    float coef_bg_in_front = background_info[i_bg_in_front(nb_screen)] == 1 ? 0.85f: 1;
+    float round_better = (i_render == 0 ? 0 : -0.5f);
+
+    float result = round_better + ((float)slider_3d_modif) * orientation * coef_bg_in_front * 2.5f;
+    return (int)result; // only round part
+}
+
+float Virtual_Screen::get_eye_offset_background(int nb_render, int i_render){
+    // Get value use for create 3d stereoscopic
+    float slider_3d_modif = modif_value_slider(slider_3d);
+    if(nb_render == 1 || slider_3d_modif <= 0){ return 0; }
+    
+    float orientation = (i_render == 0 ? 1.0f : -1.0f);
+    float round_better = (i_render == 0 ? 0 : -0.5f);
+    float coef_bg_in_front = background_info[i_bg_in_front(nb_screen)] == 1 ? 1.0f: 0.45f;
+
+    float result = round_better + ((float)slider_3d_modif) * orientation * coef_bg_in_front * 2.5f;
+    return (int)result; // only round part
 }
 
 
@@ -535,8 +557,6 @@ void Virtual_Screen::update_screen(){
                     else { set_screen_up(false);  } // right eye
                 }
 
-            ////// modify matrix for 3d effect /////////////////////////////////////
-            eye_offset = get_eye_offset(nb_render_to_make, i_render);
 
             ////// Generate environnement Color /////////////////////////////////////
             set_color_environnement(curr_fond_color);
@@ -545,7 +565,7 @@ void Virtual_Screen::update_screen(){
             ////// Generate BackGround //////////////////////////////////////////////
             if(img_background){ 
                 C3D_TexBind(0, &background);
-                if(background_info[2+nb_screen*4] == 1){
+                if(background_info[i_bg_shadow(nb_screen)] == 1){
                     // shadow 
                     Mtx_Copy(&modelView_tmp, modelView_curr);
                     Mtx_Translate(&modelView_tmp, 3, 3, -0.10f, true);
@@ -554,8 +574,14 @@ void Virtual_Screen::update_screen(){
                     change_alpha_color_environnement(0x000000, 0x24);
                     C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[nb_screen+curr_screen], 6);
                 }
+                //   -> modify matrix for 3d effect
+                eye_offset = get_eye_offset_background(nb_render_to_make, i_render);
+                // DEBUG
+                set_text("Background Eye Offset :" + std::to_string(eye_offset), 0, 188, 1, 1);
+                Mtx_Copy(&modelView_tmp, modelView_curr); 
+                Mtx_Translate(&modelView_tmp, eye_offset, 0, 0, true);
+                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
                 // true_decors 
-                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, modelView_curr);
                 set_base_environnement();
                 C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[nb_screen+curr_screen], 6);
             }
@@ -590,10 +616,12 @@ void Virtual_Screen::update_screen(){
                 }
             }
 
-            // create true segment
+            //   -> modify matrix for 3d effect
+            eye_offset = get_eye_offset_segment(nb_render_to_make, i_render);
             Mtx_Copy(&modelView_tmp, modelView_curr); 
             Mtx_Translate(&modelView_tmp, eye_offset, 0, 0, true);
-            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp); // set basic transformation Matrix
+            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+            // create true segment
             for(size_t i = index_segment_screen[curr_screen*2]; i < index_segment_screen[curr_screen*2+1]; i++){
                 Segment seg_gw = list_segment[i];
                 if(seg_gw.buffer_state){ // segment is activ / visible
@@ -603,13 +631,15 @@ void Virtual_Screen::update_screen(){
             }
         }
 
-        // For Debug
-        set_screen_down();
-        set_base_environnement();
-        delete_all_text();
-        set_text("Eye Offset :" + std::to_string(eye_offset), 0, 100, 1, 1);
-        set_text("slider 3d :" + std::to_string(slider_3d), 0, 228, 1, 1);
-        update_text();
+        if(curr_screen == 0){
+            // For Debug
+            set_screen_down();
+            set_base_environnement();
+            delete_all_text();
+            set_text("Segment Eye Offset :" + std::to_string(eye_offset), 0, 208, 1, 1);
+            set_text("slider 3d :" + std::to_string(slider_3d), 0, 228, 1, 1);
+            update_text();
+        }
 
     }
 }
