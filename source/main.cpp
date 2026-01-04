@@ -25,7 +25,8 @@
 #include "virtual_i_o/virtual_input.h"
 
 const float _3DS_FPS_SCREEN_ = 60;
-
+const int input_setting = (KEY_L|KEY_B);
+const int input_menu = (KEY_L|KEY_R);
 
 bool get_cpu(SM5XX*& cpu, const uint8_t* rom, uint16_t size_rom){
     if(size_rom == 1856){
@@ -134,7 +135,7 @@ void update_name_game_top(Virtual_Screen* v_screen, bool for_choose = true){
     v_screen->set_text("L+R", 280, 228, 1, 1);
     v_screen->set_text("MENU", 276, 220, 1, 1);
     
-    v_screen->set_text("ZL+ZR", 10, 228, 1, 1);
+    v_screen->set_text("L+B", 10, 228, 1, 1);
     v_screen->set_text("SETTINGS", 2, 220, 1, 1);
 }
 
@@ -186,14 +187,14 @@ int handle_menu_input(Virtual_Screen* v_screen){
     }
 
     // Settings accessed via ZL+ZR buttons (only on press, not held)
-    if((kDown & (KEY_ZL|KEY_ZR)) == (KEY_ZL|KEY_ZR)) {
+    if((kHeld&input_setting) == input_setting) {
         return 2; // Go to settings
     }
 
     if(index_game >= get_nb_name()){ return 0; } // credit, stay in menu
 
     // Use kDown for action buttons to only trigger once per press
-    if( (kDown&KEY_A) || (kDown&KEY_B) || (kDown&KEY_START) ||
+    if( (kDown&KEY_A) /*|| (kDown&KEY_B)*/ || (kDown&KEY_START) ||
         (kDown&KEY_Y) || (kDown&KEY_X) ) { return 1; } // Start game
 
     return 0; // Stay in menu
@@ -346,8 +347,9 @@ void update_settings_display(Virtual_Screen* v_screen) {
 
 bool handle_settings_input(Virtual_Screen* v_screen) {
     hidScanInput();
+    u32 kHeld = hidKeysHeld();
     u32 kDown = hidKeysDown();
-    
+
     // Navigate between settings
     if (kDown & KEY_DUP) {
         selected_setting = (selected_setting - 1 + NUM_SETTINGS) % NUM_SETTINGS;
@@ -361,7 +363,7 @@ bool handle_settings_input(Virtual_Screen* v_screen) {
     }
     
     // Change values
-    else if (kDown & KEY_DRIGHT) {
+    else if (kHeld & KEY_DRIGHT) {
         if (selected_setting == 0) {
             // Background color preset
             selected_bg_preset = (selected_bg_preset + 1) % NUM_BG_PRESETS;
@@ -374,7 +376,7 @@ bool handle_settings_input(Virtual_Screen* v_screen) {
         update_settings_display(v_screen);
         sleep_us_p(100000);
     }
-    else if (kDown & KEY_DLEFT) {
+    else if (kHeld & KEY_DLEFT) {
         if (selected_setting == 0) {
             // Background color preset
             selected_bg_preset = (selected_bg_preset - 1 + NUM_BG_PRESETS) % NUM_BG_PRESETS;
@@ -538,14 +540,14 @@ int main()
                     v_screen.update_screen();
                     C3D_FrameEnd(0);
 
-                    if((hidKeysHeld()&(KEY_L|KEY_R)) == (KEY_L|KEY_R)){
+                    if((hidKeysHeld()&input_menu) == input_menu){
                         // Save game state before exiting to menu
                         save_game_state(cpu, index_game);
                         state = STATE_MENU;
                         update_name_game(&v_screen);
                         cpu->time_set(false); // Reset time set flag
                     }
-                    else if((hidKeysHeld()&(KEY_ZL|KEY_ZR)) == (KEY_ZL|KEY_ZR)){
+                    else if((hidKeysHeld()&input_setting) == input_setting){
                         // Go to settings from gameplay
                         previous_state = STATE_PLAY;
                         state = STATE_SETTINGS;

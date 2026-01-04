@@ -9,6 +9,7 @@
 constexpr uint16_t _3DS_SCREEN_X[2] = { 400, 320 };
 constexpr uint16_t _3DS_SCREEN_Y[2] = { 240, 240 };
 
+////// Useful function  ////////////////////////////////////////////////////////////
 
 static bool loadTextureFromMem(C3D_Tex* tex, C3D_TexCube* cube, const void* data, size_t size)
 {
@@ -55,13 +56,122 @@ bool loadTexture_file(std::string path, C3D_Tex* tex) {
 }
 
 
+
+void Virtual_Screen::set_base_environnement(){
+    // set texture color to classic
+    // -> use alpha and color present in texture
+	C3D_TexEnv* env = C3D_GetTexEnv(0);
+	C3D_TexEnvInit(env);
+	C3D_TexEnvSrc(env, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR);
+	C3D_TexEnvFunc(env, C3D_Both, GPU_REPLACE);
+}
+
+void Virtual_Screen::set_alpha_environnement(uint8_t alpha_multiply){
+    // Change color of texture
+    // texture polygone use only alpha from texture and apply a constant color
+    // Usefull for segment of game watch (texture contain only alpha, color choose by code)
+    // Can multiply by alpha value to modify the global alpha value (created a slight transparency on segment)
+
+    // (tips : storage only alpha info for segment is very usefull for have 8bit texture.
+    //      3ds has not enough vram for contain lot of RGBA8 texture -> storage only A8 texture)
+	C3D_TexEnv* env = C3D_GetTexEnv(0);
+	C3D_TexEnvInit(env);
+	C3D_TexEnvSrc(env, C3D_RGB, GPU_CONSTANT, GPU_CONSTANT);
+	C3D_TexEnvFunc(env, C3D_RGB, GPU_REPLACE);
+	C3D_TexEnvSrc(env, C3D_Alpha, GPU_TEXTURE0, GPU_CONSTANT);
+	C3D_TexEnvFunc(env, C3D_Alpha, GPU_MODULATE);
+    curr_alpha_color = SEGMENT_COLOR[0];
+	C3D_TexEnvColor(env, RGBtoBGR8(curr_alpha_color) | (alpha_multiply<<24)); 
+}
+
+void Virtual_Screen::change_alpha_color_environnement(uint32_t color_, uint8_t alpha_multiply){
+    // Change only constant color of texture 
+    // -> usefull for crab and spyball G&W who contain segment with different color between segment
+    if(curr_alpha_color == color_) { return; } // no change
+    curr_alpha_color = color_;
+	C3D_TexEnv* env = C3D_GetTexEnv(0);
+	C3D_TexEnvColor(env, RGBtoBGR8(curr_alpha_color) | (alpha_multiply<<24)); 
+}
+
+void Virtual_Screen::set_color_environnement(uint32_t color){
+    // Set constant color of polygone -> used for create uniform color background
+	C3D_TexEnv* env = C3D_GetTexEnv(0);
+	C3D_TexEnvInit(env);
+	C3D_TexEnvSrc(env, C3D_RGB, GPU_CONSTANT, GPU_CONSTANT, GPU_CONSTANT);
+	C3D_TexEnvFunc(env, C3D_RGB, GPU_REPLACE);
+	C3D_TexEnvSrc(env, C3D_Alpha, GPU_CONSTANT, GPU_CONSTANT, GPU_CONSTANT);
+	C3D_TexEnvFunc(env, C3D_Alpha, GPU_REPLACE);
+	C3D_TexEnvColor(env, RGBtoBGR8(color)|0xFF000000); 
+}
+
+
+void Virtual_Screen::set_screen_up(bool on_left_eye){
+    // Set on screen up -> tell to gpu "I want to write graphic for up screen"
+    if(on_left_eye) { C3D_FrameDrawOn(target_up); }
+    else { C3D_FrameDrawOn(target_right); }
+    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection_up); 
+    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView,  &modelView_up);
+}
+
+
+void Virtual_Screen::set_screen_down(){
+    // Set on screen up -> tell to gpu "I want to write graphic for down screen"
+    C3D_FrameDrawOn(target_down);
+    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection_down); 
+    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView,  &modelView_down);
+}
+
+
+std::vector<vertex> polygone_sprite(float pos_x, float pos_y, float pos_z, float size_x, float size_y
+						, float x_texture, float y_texture, float x_size_texture, float y_size_texture
+						, float x_total_size_texture, float y_total_size_texture)
+{
+    // Create a polygone sprite -> polygone who can use for show sprite 
+    //                      -> 2d img align to screen and show a part of a sprite sheet
+    // Compose of two polygones : 2 triangles
+
+	float x_uv_pos = ((float)x_texture) / ((float)x_total_size_texture);
+	float y_uv_pos = ((float)y_texture) / ((float)y_total_size_texture);
+	float x_uv_size = ((float)x_size_texture) / ((float)x_total_size_texture);
+	float y_uv_size = (((float)y_size_texture) / ((float)y_total_size_texture));
+	return {
+		// first triangle
+		{ { pos_x, 		  pos_y, 		 pos_z }, {x_uv_pos+x_uv_size, y_uv_pos+y_uv_size	} }, // bas-gauche
+		{ { pos_x+size_x, pos_y,  		 pos_z }, {x_uv_pos, 		   y_uv_pos+y_uv_size	} }, // bas-droite
+		{ { pos_x+size_x, pos_y+size_y,  pos_z }, {x_uv_pos, 		   y_uv_pos 			} }, // haut-droite
+		// second triangle
+		{ { pos_x+size_x, pos_y+size_y,  pos_z }, { x_uv_pos, 			y_uv_pos 			} }, // bas-droite
+		{ { pos_x, 		  pos_y+size_y,  pos_z }, { x_uv_pos+x_uv_size, y_uv_pos			} }, // bas-gauche
+		{ { pos_x, 		  pos_y,  		 pos_z }, { x_uv_pos+x_uv_size, y_uv_pos+y_uv_size 	} }, // haut-gauche
+	};
+}
+
+
+
+////// Init and set parameter ////////////////////////////////////////////////////////////
+
 void Virtual_Screen::config_screen(void){    
     gfxInitDefault();
     romfsInit();
 	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
 
+    // 3D stereoscopic activation -> always activate
+    // Apparently, the 3DS automatically disables 3D
+    // if only the left screen buffer is filled during a frame
+    // (between C3D_FrameBegin(C3D_FRAME_SYNCDRAW) and C3D_FrameEnd(0)).
+    // As a result, the emulator menu will automatically be displayed in 2D
+    // (because only one buffer is filled via the set_text and set_img functions),
+    // while compatible games will automatically display in 3D (both buffers filled).
+    // (PS: Thanks Nintendo for automating this!)    
+    gfxSet3D(true);
+
+    // Create render target
     target_up = C3D_RenderTargetCreate(240, 400, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
 	C3D_RenderTargetSetOutput(target_up, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
+    
+    target_right = C3D_RenderTargetCreate(240, 400, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	C3D_RenderTargetSetOutput(target_right, GFX_TOP, GFX_RIGHT, DISPLAY_TRANSFER_FLAGS);
+
 	target_down = C3D_RenderTargetCreate(240, 320, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
 	C3D_RenderTargetSetOutput(target_down, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
 
@@ -165,32 +275,11 @@ void Virtual_Screen::refresh_settings(){
 }
 
 
-std::vector<vertex> polygone_sprite(float pos_x, float pos_y, float pos_z, float size_x, float size_y
-						, float x_texture, float y_texture, float x_size_texture, float y_size_texture
-						, float x_total_size_texture, float y_total_size_texture)
-{
-	float x_uv_pos = ((float)x_texture) / ((float)x_total_size_texture);
-	float y_uv_pos = ((float)y_texture) / ((float)y_total_size_texture);
-	float x_uv_size = ((float)x_size_texture) / ((float)x_total_size_texture);
-	float y_uv_size = (((float)y_size_texture) / ((float)y_total_size_texture));
-	return {
-		// first triangle
-		{ { pos_x, 		  pos_y, 		 pos_z }, {x_uv_pos+x_uv_size, y_uv_pos+y_uv_size	} }, // bas-gauche
-		{ { pos_x+size_x, pos_y,  		 pos_z }, {x_uv_pos, 		   y_uv_pos+y_uv_size	} }, // bas-droite
-		{ { pos_x+size_x, pos_y+size_y,  pos_z }, {x_uv_pos, 		   y_uv_pos 			} }, // haut-droite
-		// second triangle
-		{ { pos_x+size_x, pos_y+size_y,  pos_z }, { x_uv_pos, 			y_uv_pos 			} }, // bas-droite
-		{ { pos_x, 		  pos_y+size_y,  pos_z }, { x_uv_pos+x_uv_size, y_uv_pos			} }, // bas-gauche
-		{ { pos_x, 		  pos_y,  		 pos_z }, { x_uv_pos+x_uv_size, y_uv_pos+y_uv_size 	} }, // haut-gauche
-	};
-}
-
-
 bool Virtual_Screen::init_visual(){
     Segment seg_gw; std::vector<vertex> curr_vertex;
     uint32_t curr_index = 0;
     uint16_t decal_x = 0;
-
+    
     // calculate value for screen are center
     int16_t align_x[nb_screen];
     int16_t align_y[nb_screen];
@@ -269,7 +358,13 @@ bool Virtual_Screen::init_visual(){
 }
 
 
+////// Used for menu of emulateur ///////////////////////////////////////////////////////////////////////////
+
 void Virtual_Screen::protect_blinking(Segment *seg, bool new_state){
+    // Protect to "blinking segment"
+    // On true G&W is not visible to segment blink (segment too slow to update)
+    // but is visible on emulator without this protection
+    
     // see before and new value of segment for patch if is only blink
     seg->state = seg->state && (new_state || seg->buffer_state);
     seg->state = seg->state || (new_state && seg->buffer_state);
@@ -292,20 +387,10 @@ bool Virtual_Screen::update_buffer_video(SM5XX* cpu){
     return screen_are_update;
 }
 
-void Virtual_Screen::set_screen_up(){
-    C3D_FrameDrawOn(target_up);
-    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection_up); 
-    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView,  &modelView_up);
-}
 
-void Virtual_Screen::set_screen_down(){
-    C3D_FrameDrawOn(target_down);
-    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection_down); 
-    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView,  &modelView_down);
-}
-
-
-void Virtual_Screen::set_text(const std::string& txt, int16_t x_pos_init, int16_t y_pos, uint8_t screen, uint8_t multiply_size){
+void Virtual_Screen::set_text(const std::string& txt
+                        , int16_t x_pos_init, int16_t y_pos
+                        , uint8_t screen, uint8_t multiply_size){
     uint32_t pos_x = 0;
     for (char c : txt) {   
         if (size_text_screen_0+size_text_screen_1 >= nb_text_max) { break; } ; 
@@ -383,114 +468,157 @@ void Virtual_Screen::update_img(bool clean){
     }
 }
 
+
+
+
+////// Geerate G&W screen ///////////////////////////////////////////////////////////////////////////
+
+int Virtual_Screen::set_good_screen(int curr_screen){
+    // Set screen need at begining of generate game visual
+    // In general, curr_screen = 0 -> screen top
+    //              curr_screen = 1 -> screen bottown
+    // Based to paramater of curr load game
+
+    // Some Gamewatch double screen (Lifeboat, rainShower and mario bros) 
+    // have all graphic on top screen (curr_screen = 1 -> screen top) 
+    // parameter : double_in_one_screen  
+
+    // Return nb render need for this screen (1 = 2d, 2 = 3d stereoscopic)
+    if(curr_screen == 0) { // first screen -> up
+        set_screen_up(); 
+        C3D_RenderTargetClear(target_up, C3D_CLEAR_ALL, 0x000000, 0); 
+        C3D_RenderTargetClear(target_right, C3D_CLEAR_ALL, 0x000000, 0); 
+        modelView_curr = &modelView_up;
+        return gfxIs3D() ? 2 : 1;
+    }
+    else if(!double_in_one_screen) { // second screen -> not move if double in one screen
+        set_screen_down(); 
+        C3D_RenderTargetClear(target_down, C3D_CLEAR_ALL, 0x000000, 0);
+        modelView_curr = &modelView_down;
+        return 1;
+    } 
+    else { // double_in_one_screen && curr_screen == 1
+        // Not change used set screen => use previous config by change nothing
+        // So not change use screen up and not clean this screen
+    }
+    return -1;
+}
+
+
+float Virtual_Screen::get_eye_offset(int nb_render, int i_render){
+    // Get value use for create 3d stereoscopic
+    if(nb_render == 1){ return 0; }
+    float orientation = (i_render == 0 ? 1.0f : -1.0f);
+    if(is_mask){ orientation = -orientation; } // invers if mask => Table top and Panorama Screen
+    return ((float)slider_3d) * orientation * 5.0f;
+}
+
+
+
 void Virtual_Screen::update_screen(){
-    C3D_Mtx* model_curr;
-    C3D_Mtx model_tmp;
+    C3D_Mtx modelView_tmp;
+    slider_3d = osGet3DSliderState();
+    int nb_render_to_make = 1; 
+    float eye_offset = 0;
 
     for(int curr_screen = 0; curr_screen < nb_screen; curr_screen++){
-        if(curr_screen == 0) { 
-            set_screen_up(); 
-            C3D_RenderTargetClear(target_up, C3D_CLEAR_ALL, 0x000000, 0); 
-            model_curr = &modelView_up; 
-        }
-        else if(!double_in_one_screen) { // second screen -> not move if double in one screen
-            set_screen_down(); 
-            C3D_RenderTargetClear(target_down, C3D_CLEAR_ALL, 0x000000, 0);
-            model_curr = &modelView_down; 
-        } 
 
-        // Fond 
-        set_color_environnement(curr_fond_color);
-        C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+        ////// Set 3ds screen /////////////////////////////////////
+        int res = set_good_screen(curr_screen);
+        if (res != -1) { nb_render_to_make = res; }
 
-        // decors
-        if(img_background){ 
-            C3D_TexBind(0, &background);
-            if(background_info[2+nb_screen*4] == 1){
-                // shadow 
-                Mtx_Copy(&model_tmp, model_curr);
-                Mtx_Translate(&model_tmp, 3, 3, -0.10f, true);
-                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &model_tmp);
-                set_alpha_environnement();
-                change_alpha_color_environnement(0x000000, 0x24);
+        for(int i_render = 0; i_render < nb_render_to_make; i_render++){
+
+                // Paralax effect -> choose what screen up need
+                if(curr_screen == 0 || double_in_one_screen){
+                    if(i_render==0){ set_screen_up(true); } // left eye -> default buffer if screen in 2D
+                    else { set_screen_up(false);  } // right eye
+                }
+
+            ////// modify matrix for 3d effect /////////////////////////////////////
+            eye_offset = get_eye_offset(nb_render_to_make, i_render);
+
+            ////// Generate environnement Color /////////////////////////////////////
+            set_color_environnement(curr_fond_color);
+            C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+
+            ////// Generate BackGround //////////////////////////////////////////////
+            if(img_background){ 
+                C3D_TexBind(0, &background);
+                if(background_info[2+nb_screen*4] == 1){
+                    // shadow 
+                    Mtx_Copy(&modelView_tmp, modelView_curr);
+                    Mtx_Translate(&modelView_tmp, 3, 3, -0.10f, true);
+                    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+                    set_alpha_environnement();
+                    change_alpha_color_environnement(0x000000, 0x24);
+                    C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[nb_screen+curr_screen], 6);
+                }
+                // true_decors 
+                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, modelView_curr);
+                set_base_environnement();
                 C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[nb_screen+curr_screen], 6);
             }
-            // true_decors 
-            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, model_curr);
-            set_base_environnement();
-            C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[nb_screen+curr_screen], 6);
-        }
 
-        // segment
-        if(!is_mask){ set_alpha_environnement(); } // no mask segment, if mask segment = segment are color -> keep base_environement
-        else { set_base_environnement(); }
-        C3D_TexBind(0, &texture_game);
+            ////// Generate Segment //////////////////////////////////////////////
 
-        if(!is_mask){
-            // slight segment marking effect 
-            Mtx_Copy(&model_tmp, model_curr);
-            Mtx_Translate(&model_tmp, 0, 0, -0.40f, true);
-            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &model_tmp);
-            change_alpha_color_environnement(0x101010, g_settings.segment_marking_alpha);
-            C3D_DrawArrays(GPU_TRIANGLES
-                            , list_segment[index_segment_screen[curr_screen*2]].index_vertex
-                            , 6*index_segment_screen[curr_screen*2+1]); 
+            // Color Segment
+            if(!is_mask){ set_alpha_environnement(); } // no mask segment = classic game watch -> set a color
+            else { set_base_environnement(); } // mask segment = panorama screen and table top -> sprite has aready color
 
-            // shadow 
-            Mtx_Copy(&model_tmp, model_curr);
-            Mtx_Translate(&model_tmp, 2, 2, -0.20f, true);
-            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &model_tmp);
-            change_alpha_color_environnement(0x111111, 0x18);
+            C3D_TexBind(0, &texture_game); // load texture
+
+            // only for Classic segment of Game & Watch (standars Game watch, not panorama screen or table top)
+            if(!is_mask){ 
+                // slight segment marking effect 
+                Mtx_Copy(&modelView_tmp, modelView_curr); // get current space of 3d model (Transformation Matrix)
+                Mtx_Translate(&modelView_tmp, 0, 0, -0.40f, true); // Translate all model along Z axis (move it further back)
+                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp); // transfert Transformation Matrix to gpu (to vertex shader)
+                change_alpha_color_environnement(0x101010, g_settings.segment_marking_alpha);
+                C3D_DrawArrays(GPU_TRIANGLES
+                                , list_segment[index_segment_screen[curr_screen*2]].index_vertex
+                                , 6*index_segment_screen[curr_screen*2+1]); 
+
+                // shadow effect
+                Mtx_Copy(&modelView_tmp, modelView_curr); // get current space of 3d model (Transformation Matrix)
+                Mtx_Translate(&modelView_tmp, 2, 2, -0.20f, true); // Translate all model along x, y axis (and a little z)
+                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp); // transfert Transformation Matrix to gpu (to vertex shader)
+                change_alpha_color_environnement(0x111111, 0x18);
+                for(size_t i = index_segment_screen[curr_screen*2]; i < index_segment_screen[curr_screen*2+1]; i++){
+                    Segment seg_gw = list_segment[i];
+                    if(seg_gw.buffer_state){ C3D_DrawArrays(GPU_TRIANGLES, seg_gw.index_vertex, 6); }
+                }
+            }
+
+            // create true segment
+            Mtx_Copy(&modelView_tmp, modelView_curr); 
+            Mtx_Translate(&modelView_tmp, eye_offset, 0, 0, true);
+            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp); // set basic transformation Matrix
             for(size_t i = index_segment_screen[curr_screen*2]; i < index_segment_screen[curr_screen*2+1]; i++){
                 Segment seg_gw = list_segment[i];
-                if(seg_gw.buffer_state){ C3D_DrawArrays(GPU_TRIANGLES, seg_gw.index_vertex, 6); }
+                if(seg_gw.buffer_state){ // segment is activ / visible
+                    change_alpha_color_environnement(SEGMENT_COLOR[seg_gw.color_index]); // function already check if necessary, useful for Crab and spitball
+                    C3D_DrawArrays(GPU_TRIANGLES, seg_gw.index_vertex, 6); 
+                }
             }
         }
 
-        C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, model_curr);
-        for(size_t i = index_segment_screen[curr_screen*2]; i < index_segment_screen[curr_screen*2+1]; i++){
-            Segment seg_gw = list_segment[i];
-            if(seg_gw.buffer_state){ 
-                change_alpha_color_environnement(SEGMENT_COLOR[seg_gw.color_index]); // function already check if necessary
-                C3D_DrawArrays(GPU_TRIANGLES, seg_gw.index_vertex, 6); 
-            }
-        }
+        // For Debug
+        set_screen_down();
+        set_base_environnement();
+        delete_all_text();
+        set_text("Eye Offset :" + std::to_string(eye_offset), 0, 100, 1, 1);
+        set_text("slider 3d :" + std::to_string(slider_3d), 0, 228, 1, 1);
+        update_text();
+
     }
 }
 
 
-void Virtual_Screen::set_base_environnement(){
-	C3D_TexEnv* env = C3D_GetTexEnv(0);
-	C3D_TexEnvInit(env);
-	C3D_TexEnvSrc(env, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR);
-	C3D_TexEnvFunc(env, C3D_Both, GPU_REPLACE);
-}
-void Virtual_Screen::set_alpha_environnement(uint8_t alpha_multiply){
-	C3D_TexEnv* env = C3D_GetTexEnv(0);
-	C3D_TexEnvInit(env);
-	C3D_TexEnvSrc(env, C3D_RGB, GPU_CONSTANT, GPU_CONSTANT);
-	C3D_TexEnvFunc(env, C3D_RGB, GPU_REPLACE);
-	C3D_TexEnvSrc(env, C3D_Alpha, GPU_TEXTURE0, GPU_CONSTANT);
-	C3D_TexEnvFunc(env, C3D_Alpha, GPU_MODULATE);
-    curr_alpha_color = SEGMENT_COLOR[0];
-	C3D_TexEnvColor(env, RGBtoBGR8(curr_alpha_color) | (alpha_multiply<<24)); 
-}
-void Virtual_Screen::change_alpha_color_environnement(uint32_t color_, uint8_t alpha_multiply){
-    if(curr_alpha_color == color_) { return; } // no change
-    curr_alpha_color = color_;
-	C3D_TexEnv* env = C3D_GetTexEnv(0);
-	C3D_TexEnvColor(env, RGBtoBGR8(curr_alpha_color) | (alpha_multiply<<24)); 
-}
 
-void Virtual_Screen::set_color_environnement(uint32_t color){
-	C3D_TexEnv* env = C3D_GetTexEnv(0);
-	C3D_TexEnvInit(env);
-	C3D_TexEnvSrc(env, C3D_RGB, GPU_CONSTANT, GPU_CONSTANT, GPU_CONSTANT);
-	C3D_TexEnvFunc(env, C3D_RGB, GPU_REPLACE);
-	C3D_TexEnvSrc(env, C3D_Alpha, GPU_CONSTANT, GPU_CONSTANT, GPU_CONSTANT);
-	C3D_TexEnvFunc(env, C3D_Alpha, GPU_REPLACE);
-	C3D_TexEnvColor(env, RGBtoBGR8(color)|0xFF000000); 
-}
+
+
+////// Close screen ///////////////////////////////////////////////////////////////////////////
 
 void Virtual_Screen::Quit_Game(){
     if(!already_load_game){ return; }

@@ -67,8 +67,13 @@ class Virtual_Screen {
         C3D_Mtx projection_up, projection_down;
         C3D_Mtx modelView_up, modelView_down;
 
+        C3D_Mtx* modelView_curr;
+
         C3D_RenderTarget* target_up;
+        C3D_RenderTarget* target_right;
         C3D_RenderTarget* target_down;
+
+        float slider_3d;
 
         uint32_t index_start_texte;
         uint32_t size_text_screen_0;
@@ -103,7 +108,11 @@ class Virtual_Screen {
         void set_alpha_environnement(uint8_t alpha_multiply = 0xFF);
         void set_color_environnement(uint32_t color);
         void change_alpha_color_environnement(uint32_t color_, uint8_t alpha_multiply = 0xFF);
-        void set_screen_up();
+        void set_screen_up(bool on_left_eye = true);
         void set_screen_down();
         void send_vbo();
+
+        int set_good_screen(int curr_screen);
+  
+        float get_eye_offset(int nb_render, int i_render);
 };
