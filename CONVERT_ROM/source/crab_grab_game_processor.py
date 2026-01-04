@@ -19,7 +19,7 @@ class CrabGrabGameProcessor(GameProcessor):
 		self.add_colour_indices()
 
 		# Combine the regular background with the Subtract, Overlay and Frame
-		updater = GamesPathUpdater()
+		updater = GamesPathUpdater(self.target_name)
 		target = updater.get_target(self.game_key)
 		game_folder = target.background_paths[0].parent
 

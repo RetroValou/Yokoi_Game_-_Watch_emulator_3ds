@@ -18,7 +18,7 @@ class SpitballSparkyGameProcessor(GameProcessor):
 		self.header_fraction: float = 0.15
 		self.add_colour_indices()
 
-		updater = GamesPathUpdater()
+		updater = GamesPathUpdater(self.target_name)
 		target = updater.get_target(self.game_key)
 		game_folder = target.background_paths[0].parent
 

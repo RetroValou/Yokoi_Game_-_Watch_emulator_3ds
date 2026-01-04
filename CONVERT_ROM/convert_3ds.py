@@ -1,6 +1,8 @@
 import os
 import glob
 import shutil
+import importlib.util
+from pathlib import Path
 from PIL import Image, ImageEnhance
 import numpy as np
 from rectpack import newPacker
@@ -49,7 +51,33 @@ default_fond_bright = 1.35
 default_rotate = False
 default_console = r'.\rom\default.png'
 
-from games_path import games_path
+
+def _load_games_path_for_target(target_name: str) -> dict:
+    """Load games_path dict for the given target.
+
+    Rule:
+    - <target> -> games_path_<target>.py
+
+    Paths are resolved relative to this script (CONVERT_ROM/).
+    """
+
+    script_dir = Path(__file__).resolve().parent
+    filename = f"games_path_{target_name}.py"
+    module_path = script_dir / filename
+    if not module_path.exists():
+        raise RuntimeError(f"{filename} not found at {module_path}")
+
+    spec = importlib.util.spec_from_file_location("games_path_module", str(module_path))
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load {filename}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)  # type: ignore[assignment]
+    loaded = getattr(module, "games_path", None)
+    if not isinstance(loaded, dict):
+        raise RuntimeError(f"{filename} does not define a 'games_path' dict")
+
+    return loaded
 
 def clean_games_path():
     global games_path
@@ -627,6 +655,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     apply_profile(args.target, args.out_gfx, args.out_gw_all, args.out_gw_rom_dir, args.export_dpi, args.scale)
+
+    # Load games_path based on target.
+    games_path = _load_games_path_for_target(args.target)
 
     os.makedirs(destination_game_file, exist_ok=True)
     os.makedirs(destination_graphique_file, exist_ok=True)

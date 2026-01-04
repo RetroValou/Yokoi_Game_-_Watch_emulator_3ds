@@ -25,6 +25,7 @@ CONVERT_ROM/rom/*
 *.pyc
 
 games_path.py
+games_path_*.py
 
 Yokoi*.3dsx
 Yokoi*.elf

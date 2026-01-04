@@ -133,30 +133,34 @@ def _format_path_list(
 	rendered[-1] += ']'
 	return rendered
 
-def load_games_path() -> Tuple[Path, List[GameEntry]]:
-	"""Dynamically load ``games_path.py`` from its fixed location.
+def load_games_path(target_name: str = "3ds") -> Tuple[Path, List[GameEntry]]:
+	"""Dynamically load a games_path file based on target.
+
+	Target rule:
+	- <target> -> games_path_<target>.py
 
 	Returns a tuple of (path_to_games_path_py, entries).
 	Raises ``RuntimeError`` if the file is missing or malformed.
 	"""
 
-	# games_path.py lives one level above this source/ folder.
+	# games_path*.py lives one level above this source/ folder.
 	script_root = Path(__file__).resolve().parent.parent
-	games_path_module = script_root / "games_path.py"
+	games_path_filename = f"games_path_{target_name}.py"
+	games_path_module = script_root / games_path_filename
 	if not games_path_module.exists():
-		raise RuntimeError(f"games_path.py not found at {games_path_module}")
+		raise RuntimeError(f"{games_path_filename} not found at {games_path_module}")
 
 	import importlib.util
 
 	spec = importlib.util.spec_from_file_location("games_path", str(games_path_module))
 	if spec is None or spec.loader is None:
-		raise RuntimeError("Unable to create import spec for games_path.py")
+		raise RuntimeError(f"Unable to create import spec for {games_path_filename}")
 
 	module = importlib.util.module_from_spec(spec)
 	spec.loader.exec_module(module)  # type: ignore[assignment]
 	games_path = getattr(module, "games_path", None)
 	if not isinstance(games_path, dict):
-		raise RuntimeError("games_path.py does not define a 'games_path' dict")
+		raise RuntimeError(f"{games_path_filename} does not define a 'games_path' dict")
 
 	entries = _dict_to_entries(games_path, script_root)
 	return games_path_module, entries
@@ -202,8 +206,9 @@ class GamesPathUpdater:
 	:meth:`write`.
 	"""
 
-	def __init__(self) -> None:
-		self.games_path_file, self.entries = load_games_path()
+	def __init__(self, target_name: str = "3ds") -> None:
+		self.target_name = target_name
+		self.games_path_file, self.entries = load_games_path(target_name)
 
 	def get_target(self, game_key: str) -> Optional[GameEntry]:
 		"""Return the :class:`GameEntry` for ``game_key``, or ``None``."""

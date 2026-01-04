@@ -62,7 +62,7 @@ class GameProcessor:
 		self.target_name: str = target_name
 
 	def load_info(self) -> bool:
-		updater = GamesPathUpdater()
+		updater = GamesPathUpdater(self.target_name)
 		target = updater.get_target(self.game_key)
 		if target is None:
 			print(f"Game '{self.game_key}' not found in games_path")
@@ -334,7 +334,7 @@ class GameProcessor:
 	
 	def multiscreen_conversion(self) -> None:
 		"""Placeholder for multiscreen conversion logic for this game."""
-		updater = GamesPathUpdater()
+		updater = GamesPathUpdater(self.target_name)
 		target = updater.get_target(self.game_key)
 
 		if target is None:
@@ -492,11 +492,11 @@ class GameProcessor:
 		Raises RuntimeError on failure.
 		"""
 
-		return load_games_path()
+		return load_games_path(self.target_name)
 
 	def _update_games_path_visual(self, out_svg: Path) -> None:
 		"""Replace this game's Visual entry in games_path.py with ``out_svg``"""
-		updater = GamesPathUpdater()
+		updater = GamesPathUpdater(self.target_name)
 
 		# games_path values are relative paths rooted at script_root.
 		# Keep that convention for the new visual path.

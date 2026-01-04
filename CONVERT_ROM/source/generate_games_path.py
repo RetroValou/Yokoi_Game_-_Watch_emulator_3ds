@@ -720,7 +720,8 @@ def generate_games_path(target_name: str | None = None) -> bool:
 
     entries.sort(key=lambda item: item.key.lower())
 
-    destination = script_dir / "games_path.py"
+    destination_name = f"games_path_{profile.name}.py"
+    destination = script_dir / destination_name
     write_games_path(entries, script_dir, destination)
 
     print(f"Generated {len(entries)} games. Output -> {destination}")
