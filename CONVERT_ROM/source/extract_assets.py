@@ -184,7 +184,7 @@ def extract_assets():
     artwork_folder = script_dir / "rom" / "artwork"
     roms_folder = script_dir / "rom" / "roms"
     console_folder = script_dir / "rom" / "console"
-    destination_base = script_dir / "rom"
+    destination_base = script_dir / "rom" / "decompress"
     
     print("=" * 70)
     print("Game & Watch Asset Extractor")

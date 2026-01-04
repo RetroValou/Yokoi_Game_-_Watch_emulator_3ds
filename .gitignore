@@ -20,6 +20,7 @@ CONVERT_ROM/tmp/img/*
 !CONVERT_ROM/tmp/img/.gitkeep
 CONVERT_ROM/rom/*
 !CONVERT_ROM/rom/.gitkeep
+!CONVERT_ROM/rom/default_console.png
 
 *.pyc
 

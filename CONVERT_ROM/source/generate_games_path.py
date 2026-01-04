@@ -1,5 +1,6 @@
 """Generate ``games_path`` entries directly from ``default.lay`` files."""
 
+
 from __future__ import annotations
 
 import re
@@ -29,6 +30,10 @@ VIEW_PRIORITY: Sequence[Tuple[str, bool]] = (
     ("Background Only", False),
     ("Backgrounds Only", True),
 )
+
+# set default img when console img is not set for a game
+default_img_console = r'.\rom\default_console.png'
+
 
 try:
     from source.games_path_utils import (
@@ -597,7 +602,7 @@ def generate_games_path(target_name: str | None = None) -> bool:
 
     script_dir = Path(__file__).resolve().parent.parent
     metadata_map = _load_game_metadata(script_dir)
-    rom_root = script_dir / "rom"
+    rom_root = script_dir / "rom" / "decompress"
     if not rom_root.exists():
         print("rom/ directory not found", file=sys.stderr)
         raise SystemExit(1)
@@ -662,6 +667,7 @@ def generate_games_path(target_name: str | None = None) -> bool:
         console_path = _resolve_console_path(folder)
         if not console_path.exists():
             missing_console.append(console_path)
+            console_path = Path(default_img_console)
 
         melody_path = _find_melody_file(folder, fallback_folder)
 

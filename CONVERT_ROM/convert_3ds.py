@@ -14,7 +14,7 @@ from source.target_profiles import get_target
 
 
 
-INKSCAPE_PATH = r"C:\Program Files\Inkscape\bin\inkscape.exe"
+INKSCAPE_PATH = r"D:\Program Files\Inkscape\bin\inkscape.exe"
 
 destination_file = r"..\source\std\GW_ALL.h"
 destination_game_file = r"..\source\std\GW_ROM"
@@ -50,6 +50,16 @@ default_rotate = False
 default_console = r'.\rom\default.png'
 
 from games_path import games_path
+
+def clean_games_path():
+    global games_path
+    tmp_gamepath = {}
+    for key in games_path:
+        new_key = str(key).lower()
+        if(new_key not in tmp_gamepath):
+            tmp_gamepath[new_key] = games_path[key]
+    games_path = tmp_gamepath
+
 
 
 def _round_up_to_one_of(value: int, candidates: Iterable[int]) -> int:
@@ -559,6 +569,7 @@ def process_single_game(args):
 
 if __name__ == "__main__":
     import argparse
+    clean_games_path()
 
     parser = argparse.ArgumentParser(description="Build Game & Watch assets")
     parser.add_argument(
@@ -642,6 +653,7 @@ if __name__ == "__main__":
 
     # If a specific game was requested, only process that one
     if args.game:
+        args.game = str(args.game).lower()
         if args.game not in games_path:
             print(f"Unknown game '{args.game}'. Available keys:")
             for k in sorted(games_path.keys()):

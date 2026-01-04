@@ -1,1 +1,1 @@
-D:\emulateur\Citra\nightly-mingw\citra.exe "D:\Documents\c_project\Yokoi_Game_-_Watch_emulator_3ds\Yokoi_Game_-_Watch_emulator_3ds.3dsx"
+D:\emulateur\Citra\nightly-mingw\citra.exe ".\Yokoi_Game_-_Watch_emulator_3ds.3dsx"
