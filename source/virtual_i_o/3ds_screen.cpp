@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <math.h>
 
 #include "virtual_i_o/3ds_screen.h"
 #include "std/timer.h"
@@ -9,6 +10,12 @@
 
 constexpr uint16_t _3DS_SCREEN_X[2] = { 400, 320 };
 constexpr uint16_t _3DS_SCREEN_Y[2] = { 240, 240 };
+
+constexpr float _LUM_DARK_FOND_NOISE_ = 0.90f;//0.88f;
+constexpr float _LUM_LIGHT_FOND_NOISE_ = 2.4f; //1.58f;//1.2f;
+constexpr float _ZOOM_SHADOW_ = 0.01f;//0.02f;
+
+
 
 ////// Useful function  ////////////////////////////////////////////////////////////
 
@@ -25,6 +32,20 @@ inline u32 RGBtoBGR8(uint32_t rgb) {
     u8 g = (rgb>>8) & 0xFF;
     u8 b = (rgb)    & 0xFF; 
     return (b << 16) | (g << 8) | r;
+}
+
+uint32_t lum_rgb8(uint32_t c, float factor) {
+    float r = (c >> 16) & 0xFF;
+    float g = (c >> 8)  & 0xFF;
+    float b = c & 0xFF;
+
+    r = fminf(fmaxf(r * factor, 0.0f), 255.0f);
+    g = fminf(fmaxf(g * factor, 0.0f), 255.0f);
+    b = fminf(fmaxf(b * factor, 0.0f), 255.0f);
+
+    return ((int)(r + 0.5f) << 16) |
+           ((int)(g + 0.5f) << 8)  |
+           ((int)(b + 0.5f));
 }
 
 
@@ -63,6 +84,8 @@ void Virtual_Screen::set_base_environnement(){
     // -> use alpha and color present in texture
 	C3D_TexEnv* env = C3D_GetTexEnv(0);
 	C3D_TexEnvInit(env);
+    C3D_TexEnv* env1 = C3D_GetTexEnv(1);
+    C3D_TexEnvInit(env1);
 	C3D_TexEnvSrc(env, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR);
 	C3D_TexEnvFunc(env, C3D_Both, GPU_REPLACE);
 }
@@ -77,6 +100,8 @@ void Virtual_Screen::set_alpha_environnement(uint8_t alpha_multiply){
     //      3ds has not enough vram for contain lot of RGBA8 texture -> storage only A8 texture)
 	C3D_TexEnv* env = C3D_GetTexEnv(0);
 	C3D_TexEnvInit(env);
+    C3D_TexEnv* env1 = C3D_GetTexEnv(1);
+    C3D_TexEnvInit(env1);
 	C3D_TexEnvSrc(env, C3D_RGB, GPU_CONSTANT, GPU_CONSTANT);
 	C3D_TexEnvFunc(env, C3D_RGB, GPU_REPLACE);
 	C3D_TexEnvSrc(env, C3D_Alpha, GPU_TEXTURE0, GPU_CONSTANT);
@@ -98,12 +123,15 @@ void Virtual_Screen::set_color_environnement(uint32_t color){
     // Set constant color of polygone -> used for create uniform color background
 	C3D_TexEnv* env = C3D_GetTexEnv(0);
 	C3D_TexEnvInit(env);
+    C3D_TexEnv* env1 = C3D_GetTexEnv(1);
+    C3D_TexEnvInit(env1);
 	C3D_TexEnvSrc(env, C3D_RGB, GPU_CONSTANT, GPU_CONSTANT, GPU_CONSTANT);
 	C3D_TexEnvFunc(env, C3D_RGB, GPU_REPLACE);
 	C3D_TexEnvSrc(env, C3D_Alpha, GPU_CONSTANT, GPU_CONSTANT, GPU_CONSTANT);
 	C3D_TexEnvFunc(env, C3D_Alpha, GPU_REPLACE);
 	C3D_TexEnvColor(env, RGBtoBGR8(color)|0xFF000000); 
 }
+
 
 
 void Virtual_Screen::set_screen_up(bool on_left_eye){
@@ -195,7 +223,7 @@ void Virtual_Screen::config_screen(void){
 	// calcul for go to 3d into 2d
 	Mtx_OrthoTilt(&projection_up, 0.0f, 400.0f, 240.0f, 0.0f, 1.0f, -5.0f, true);
 	Mtx_OrthoTilt(&projection_down, 0.0f, 320.0f, 240.0f, 0.0f, 1.0f, -5.0f, true);
-	C3D_DepthTest(true, GPU_GEQUAL, GPU_WRITE_ALL);
+	C3D_DepthTest(false, GPU_GEQUAL, GPU_WRITE_ALL);
 	C3D_CullFace(GPU_CULL_NONE);
 
 	// default for model view
@@ -205,6 +233,8 @@ void Virtual_Screen::config_screen(void){
     C3D_FVUnifSet(GPU_VERTEX_SHADER, shaderInstanceGetUniformLocation(program.vertexShader, "uniColor"), 1, 1, 1, 1);
 
     loadTexture_file("romfs:/gfx/texte_3ds.t3x", &text_texture);
+    loadTexture_file("romfs:/gfx/noise.t3x", &noise_texture);
+    C3D_TexSetWrap(&noise_texture, GPU_REPEAT, GPU_REPEAT);
     set_base_environnement();
 
     vertex_data = (vertex*)linearAlloc((nb_text_max+nb_img_interface_max+nb_segments_max)*6*sizeof(vertex)+1000);
@@ -262,15 +292,24 @@ void Virtual_Screen::load_visual(std::string path_segment
     background_info = v_background_info;
 
     // set color of fond
-    if (is_mask){ curr_fond_color = SEGMENT_COLOR[0]; }
-    else {curr_fond_color = g_settings.background_color; }
+    if (is_mask){ 
+        curr_fond_color = SEGMENT_COLOR[0]; 
+        curr_fond_color_noise = lum_rgb8(curr_fond_color, _LUM_LIGHT_FOND_NOISE_) ;
+    }
+    else { 
+        curr_fond_color = g_settings.background_color; 
+        curr_fond_color_noise = lum_rgb8(curr_fond_color, _LUM_DARK_FOND_NOISE_);
+    }
+    
     already_load_game = true;
 }
+
 
 void Virtual_Screen::refresh_settings(){
     // Update background color from settings (only if not using mask)
     if (!is_mask) {
         curr_fond_color = g_settings.background_color;
+        curr_fond_color_noise = lum_rgb8(curr_fond_color, _LUM_DARK_FOND_NOISE_);
     }
     // Segment marking effect settings are already read from g_settings in update_screen()
 }
@@ -284,6 +323,8 @@ bool Virtual_Screen::init_visual(){
     // calculate value for screen are center
     int16_t align_x[nb_screen];
     int16_t align_y[nb_screen];
+
+    pos_fond.clear(); 
 
     // X
     if(double_in_one_screen) { // set to edge of screen
@@ -306,10 +347,15 @@ bool Virtual_Screen::init_visual(){
         if(curr_screen != 0 && double_in_one_screen){ decal_x = 200; }
         else { decal_x = 0; }
 
+        pos_fond.push_back(align_x[curr_screen]+decal_x);
+        pos_fond.push_back(align_y[curr_screen]);
+
         curr_vertex = polygone_sprite(
                             align_x[curr_screen]+decal_x, align_y[curr_screen], -2
                             , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]
-                            , 1, 1, 1, 1, 1, 1);
+                                , 0, 0
+                                , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]
+                                , 64, 64);
 	    memcpy(&vertex_data[curr_index], curr_vertex.data(), 6*sizeof(vertex));
         background_ind_vertex.push_back(curr_index);
         curr_index += 6;
@@ -504,63 +550,103 @@ int Virtual_Screen::set_good_screen(int curr_screen){
 }
 
 
-float modif_value_slider(float slider_value){
-    return (slider_value-0.1f)/0.9f;
+void Virtual_Screen::modif_slider_3d_value(int nb_render){
+    if(nb_render == 1){ slider_3d = 0; return; }
+
+    slider_3d = osGet3DSliderState();
+    slider_3d = (slider_3d-0.1f)*1.11f; // ( *1.11f ~= /0.9f )
+    if(slider_3d <= 0){ slider_3d = 0; return; }
 } 
 
-float Virtual_Screen::get_eye_offset_segment(int nb_render, int i_render){
-    // Get value use for create 3d stereoscopic
-    float slider_3d_modif = modif_value_slider(slider_3d);
-    if(nb_render == 1 || slider_3d_modif <= 0){ return 0; }
-    
+void Virtual_Screen::modif_eye_offset_value(int nb_render, int i_render){
+    if(slider_3d == 0){ eye_offset_value = 0; return; }
     float orientation = (i_render == 0 ? 1.0f : -1.0f);
-    if(is_mask){ orientation = -orientation; } // invers if mask => Table top and Panorama Screen
-    float coef_bg_in_front = background_info[i_bg_in_front(nb_screen)] == 1 ? 0.85f: 1;
-    float round_better = (i_render == 0 ? 0 : -0.5f);
+    eye_offset_value = slider_3d * orientation;
+    //eye_offset_value = is_mask ? -eye_offset_value : eye_offset_value;
+} 
 
-    float result = round_better + ((float)slider_3d_modif) * orientation * coef_bg_in_front * 2.5f;
+float Virtual_Screen::get_eye_offset_segment(int nb_render, int i_render, bool is_active){
+    if(eye_offset_value == 0){ return 0; }
+
+    float coef_bg_in_front ;
+    if(is_mask){ 
+        coef_bg_in_front = -3.0f;
+    }
+    else {
+        coef_bg_in_front = background_info[i_bg_in_front(nb_screen)] == 1 ? -3.0f: 1.0f; //1.35f: 1.65f;
+        coef_bg_in_front = is_active ? coef_bg_in_front : coef_bg_in_front-1.0f;
+    }
+
+    float round_better = (i_render == 0 ? 0 : -0.5f);
+    float result = round_better + eye_offset_value * coef_bg_in_front;
     return (int)result; // only round part
 }
 
 float Virtual_Screen::get_eye_offset_background(int nb_render, int i_render){
-    // Get value use for create 3d stereoscopic
-    float slider_3d_modif = modif_value_slider(slider_3d);
-    if(nb_render == 1 || slider_3d_modif <= 0){ return 0; }
+    if(eye_offset_value == 0){ return 0; }
     
-    float orientation = (i_render == 0 ? 1.0f : -1.0f);
     float round_better = (i_render == 0 ? 0 : -0.5f);
-    float coef_bg_in_front = background_info[i_bg_in_front(nb_screen)] == 1 ? 1.0f: 0.45f;
+    float coef_bg_in_front = background_info[i_bg_in_front(nb_screen)] == 1 ? 0.0f: -3.0f; //1.65f: 0.8f;
 
-    float result = round_better + ((float)slider_3d_modif) * orientation * coef_bg_in_front * 2.5f;
+    float result = round_better + eye_offset_value * coef_bg_in_front;
     return (int)result; // only round part
 }
 
 
+void Virtual_Screen::eye_lower_fond(C3D_Mtx* curr_modelView, int nb_render, int i_render, float zoom){
+    if(eye_offset_value != 0 && !is_mask){
+        float val_move = slider_3d*zoom;
+        Mtx_Translate(curr_modelView, 200, 120, 0, true);
+        Mtx_Scale(curr_modelView, 1 - val_move, double_in_one_screen ? 1 : 1 - val_move, 1);
+        Mtx_Translate(curr_modelView, -200, -120, 0, true);
+        
+        float round_better = (i_render == 0 ? 0 : -0.5f);
+        float coef_bg_in_front = -4.0f; //1.65f: 0.8f;
+        float result = round_better + eye_offset_value * coef_bg_in_front;
+        Mtx_Translate(curr_modelView, result, 0, 0, true);
+    }
+}
+
 
 void Virtual_Screen::update_screen(){
     C3D_Mtx modelView_tmp;
-    slider_3d = osGet3DSliderState();
     int nb_render_to_make = 1; 
     float eye_offset = 0;
 
+    
     for(int curr_screen = 0; curr_screen < nb_screen; curr_screen++){
 
         ////// Set 3ds screen /////////////////////////////////////
         int res = set_good_screen(curr_screen);
         if (res != -1) { nb_render_to_make = res; }
 
+        modif_slider_3d_value(nb_render_to_make);
+
         for(int i_render = 0; i_render < nb_render_to_make; i_render++){
 
-                // Paralax effect -> choose what screen up need
-                if(curr_screen == 0 || double_in_one_screen){
-                    if(i_render==0){ set_screen_up(true); } // left eye -> default buffer if screen in 2D
-                    else { set_screen_up(false);  } // right eye
-                }
+            modif_eye_offset_value(nb_render_to_make, i_render);
+
+            // Paralax effect -> choose what screen up need
+            if(curr_screen == 0 || double_in_one_screen){
+                if(i_render==0){ set_screen_up(true); } // left eye -> default buffer if screen in 2D
+                else { set_screen_up(false);  } // right eye
+            }
 
 
             ////// Generate environnement Color /////////////////////////////////////
-            set_color_environnement(curr_fond_color);
+            Mtx_Copy(&modelView_tmp, modelView_curr);
+            eye_lower_fond(&modelView_tmp, nb_render_to_make, i_render, -0.08f);
+            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+            set_color_environnement( (slider_3d == 0) ? curr_fond_color: curr_fond_color_noise);
             C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+
+            if(slider_3d != 0){
+                set_alpha_environnement();
+                change_alpha_color_environnement(curr_fond_color);
+                C3D_TexBind(0, &noise_texture); // load texture
+                C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+            }
+
 
             ////// Generate BackGround //////////////////////////////////////////////
             if(img_background){ 
@@ -569,6 +655,7 @@ void Virtual_Screen::update_screen(){
                     // shadow 
                     Mtx_Copy(&modelView_tmp, modelView_curr);
                     Mtx_Translate(&modelView_tmp, 3, 3, -0.10f, true);
+                    eye_lower_fond(&modelView_tmp, nb_render_to_make, i_render, _ZOOM_SHADOW_);
                     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
                     set_alpha_environnement();
                     change_alpha_color_environnement(0x000000, 0x24);
@@ -576,8 +663,6 @@ void Virtual_Screen::update_screen(){
                 }
                 //   -> modify matrix for 3d effect
                 eye_offset = get_eye_offset_background(nb_render_to_make, i_render);
-                // DEBUG
-                set_text("Background Eye Offset :" + std::to_string(eye_offset), 0, 188, 1, 1);
                 Mtx_Copy(&modelView_tmp, modelView_curr); 
                 Mtx_Translate(&modelView_tmp, eye_offset, 0, 0, true);
                 C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
@@ -597,19 +682,22 @@ void Virtual_Screen::update_screen(){
             // only for Classic segment of Game & Watch (standars Game watch, not panorama screen or table top)
             if(!is_mask){ 
                 // slight segment marking effect 
+                eye_offset = get_eye_offset_segment(nb_render_to_make, i_render, false);
                 Mtx_Copy(&modelView_tmp, modelView_curr); // get current space of 3d model (Transformation Matrix)
-                Mtx_Translate(&modelView_tmp, 0, 0, -0.40f, true); // Translate all model along Z axis (move it further back)
-                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp); // transfert Transformation Matrix to gpu (to vertex shader)
+                Mtx_Translate(&modelView_tmp, eye_offset, 0, -0.40f, true); // Translate all model along Z axis (move it further back)
+
+                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
                 change_alpha_color_environnement(0x101010, g_settings.segment_marking_alpha);
                 C3D_DrawArrays(GPU_TRIANGLES
                                 , list_segment[index_segment_screen[curr_screen*2]].index_vertex
-                                , 6*index_segment_screen[curr_screen*2+1]); 
+                                , 6*(index_segment_screen[curr_screen*2+1]-index_segment_screen[curr_screen*2])); 
 
                 // shadow effect
                 Mtx_Copy(&modelView_tmp, modelView_curr); // get current space of 3d model (Transformation Matrix)
                 Mtx_Translate(&modelView_tmp, 2, 2, -0.20f, true); // Translate all model along x, y axis (and a little z)
+                eye_lower_fond(&modelView_tmp, nb_render_to_make, i_render, _ZOOM_SHADOW_);
                 C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp); // transfert Transformation Matrix to gpu (to vertex shader)
-                change_alpha_color_environnement(0x111111, 0x18);
+                change_alpha_color_environnement(0x111111, eye_offset == 0 ? 0x18 : 0x24);
                 for(size_t i = index_segment_screen[curr_screen*2]; i < index_segment_screen[curr_screen*2+1]; i++){
                     Segment seg_gw = list_segment[i];
                     if(seg_gw.buffer_state){ C3D_DrawArrays(GPU_TRIANGLES, seg_gw.index_vertex, 6); }
@@ -617,7 +705,7 @@ void Virtual_Screen::update_screen(){
             }
 
             //   -> modify matrix for 3d effect
-            eye_offset = get_eye_offset_segment(nb_render_to_make, i_render);
+            eye_offset = get_eye_offset_segment(nb_render_to_make, i_render, true);
             Mtx_Copy(&modelView_tmp, modelView_curr); 
             Mtx_Translate(&modelView_tmp, eye_offset, 0, 0, true);
             C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
@@ -629,18 +717,48 @@ void Virtual_Screen::update_screen(){
                     C3D_DrawArrays(GPU_TRIANGLES, seg_gw.index_vertex, 6); 
                 }
             }
-        }
 
-        if(curr_screen == 0){
-            // For Debug
-            set_screen_down();
-            set_base_environnement();
-            delete_all_text();
-            set_text("Segment Eye Offset :" + std::to_string(eye_offset), 0, 208, 1, 1);
-            set_text("slider 3d :" + std::to_string(slider_3d), 0, 228, 1, 1);
-            update_text();
-        }
 
+            
+            if(slider_3d != 0 || true){
+                // Create black mask around color fond
+                set_color_environnement(0x000000);
+
+                if(pos_fond[curr_screen*2+1] != 0){
+                    // Up - > in two part
+                    Mtx_Copy(&modelView_tmp, modelView_curr);
+                    Mtx_Translate(&modelView_tmp, (background_info[i_bg_w(curr_screen)]*0.5f)-10, -background_info[i_bg_h(curr_screen)], 0, true);
+                    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+                    C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+                    Mtx_Translate(&modelView_tmp, -(background_info[i_bg_w(curr_screen)]-20), 0, 0, true);
+                    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+                    C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+
+                    // down - > in two part
+                    Mtx_Translate(&modelView_tmp, 0, 2*background_info[i_bg_h(curr_screen)], 0, true);
+                    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+                    C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+                    Mtx_Translate(&modelView_tmp, background_info[i_bg_w(curr_screen)]-20, 0, 0, true);
+                    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+                    C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+
+                }
+                
+                
+                if(!double_in_one_screen){
+                    Mtx_Copy(&modelView_tmp, modelView_curr);
+                    Mtx_Translate(&modelView_tmp, -background_info[i_bg_w(curr_screen)], 0, 0, true);
+                    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+                    C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+
+                    Mtx_Copy(&modelView_tmp, modelView_curr);
+                    Mtx_Translate(&modelView_tmp, background_info[i_bg_w(curr_screen)], 0, 0, true);
+                    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+                    C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);                
+                }
+            }
+
+        }
     }
 }
 
