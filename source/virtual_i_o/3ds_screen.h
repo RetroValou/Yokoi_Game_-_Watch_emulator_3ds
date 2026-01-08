@@ -127,8 +127,8 @@ class Virtual_Screen {
 
         int set_good_screen(int curr_screen);
   
-        void modif_slider_3d_value(int nb_render);
-        void modif_eye_offset_value(int nb_render, int i_render);
+        void update_slider_3d_value(int nb_render);
+        void update__eye_offset_value(int nb_render, int i_render);
         void update_offset_fond();
         void update_offset_background();
         void update_offset_segment();

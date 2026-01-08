@@ -518,7 +518,7 @@ void Virtual_Screen::update_img(bool clean){
 
 
 
-////// Geerate G&W screen ///////////////////////////////////////////////////////////////////////////
+////// Generate G&W screen ///////////////////////////////////////////////////////////////////////////
 
 int Virtual_Screen::set_good_screen(int curr_screen){
     // Set screen need at begining of generate game visual
@@ -552,7 +552,10 @@ int Virtual_Screen::set_good_screen(int curr_screen){
 }
 
 
-void Virtual_Screen::modif_slider_3d_value(int nb_render){
+
+////// Update value used for 3d effect ///////////////////////////////////////////////////////////////////////////
+
+void Virtual_Screen::update_slider_3d_value(int nb_render){
     if(nb_render == 1){ slider_3d = 0; return; }
 
     slider_3d = osGet3DSliderState();
@@ -560,18 +563,16 @@ void Virtual_Screen::modif_slider_3d_value(int nb_render){
     if(slider_3d <= 0){ slider_3d = 0; return; }
 } 
 
-void Virtual_Screen::modif_eye_offset_value(int nb_render, int i_render){
+void Virtual_Screen::update_eye_offset_value(int nb_render, int i_render){
     if(slider_3d == 0){ eye_offset_value = 0; return; }
     float orientation = (i_render == 0 ? 1.0f : -1.0f);
     eye_offset_value = slider_3d * orientation;
-    //eye_offset_value = is_mask ? -eye_offset_value : eye_offset_value;
 } 
-
 
 
 void Virtual_Screen::update_offset_fond(){
     if(eye_offset_value != 0 && !is_mask){
-        float coef_bg_in_front = -4.5f; //1.65f: 0.8f;
+        float coef_bg_in_front = -4.5f;
         offset_fond = eye_offset_value * coef_bg_in_front;
     }
     else { offset_fond = 0; }
@@ -605,6 +606,8 @@ void Virtual_Screen::update_offset_background(){
 }
 
 
+////// apply transformation for 3d effect ///////////////////////////////////////////////////////////////////////////
+
 void Virtual_Screen::apply_3d_segment(C3D_Mtx* curr_modelView, int i_render, bool is_active){
     if(offset_segment == 0){ return; }
 
@@ -635,6 +638,7 @@ void Virtual_Screen::apply_3d_fond(C3D_Mtx* curr_modelView, int i_render, float 
 }
 
 
+////// create graphics ///////////////////////////////////////////////////////////////////////////
 
 void Virtual_Screen::create_fond(int nb_render, int i_render, int curr_screen){
     C3D_Mtx modelView_tmp;
@@ -665,7 +669,7 @@ void Virtual_Screen::create_shadow(int nb_render, int i_render, int curr_screen)
 
     set_alpha_environnement();
 
-    // Shadow Segment
+    // Shadow Segments
     C3D_TexBind(0, &texture_game); // load texture
     change_alpha_color_environnement(0x111111, offset_segment == 0 ? 0x18 : 0x24);
 
@@ -704,53 +708,6 @@ void Virtual_Screen::create_shadow(int nb_render, int i_render, int curr_screen)
 
         C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[nb_screen+curr_screen], 6);
     }
-
-    /*
-    // Shadow border
-    if(eye_offset_value != 0 && !double_in_one_screen && !is_mask){
-        C3D_TexBind(0, &noise_texture);
-        change_alpha_color_environnement(0x000000, 0x24);
-        
-        default_decal = (eye_offset_value != 0) ? 2 : 3;
-
-        decal = offset_fond;
-        decal = (decal < 0) ? -decal : decal;
-        decal = (int)(decal * _COEF_MOVE_SHADOW_);
-        
-        // Constante for shadow of fond
-        float shadow_sr_w_fix = background_info[i_bg_w(curr_screen)];
-        bool need = true;
-        if(shadow_sr_w_fix > _3DS_SCREEN_X[curr_screen]){
-            shadow_sr_w_fix = (int)(_3DS_SCREEN_X[curr_screen] + 0.5f*(shadow_sr_w_fix - _3DS_SCREEN_X[curr_screen])+0.5f);
-            need = false;
-        }
-
-        float shadow_sr_h_fix = background_info[i_bg_h(curr_screen)];
-        if(shadow_sr_h_fix > _3DS_SCREEN_Y[curr_screen]){
-            shadow_sr_h_fix = (int)(_3DS_SCREEN_Y[curr_screen] + 0.5f*(shadow_sr_h_fix - _3DS_SCREEN_Y[curr_screen])+0.5f);
-            need = false;
-        }
-
-        Mtx_Copy(&modelView_tmp, modelView_curr);
-        apply_3d_fond(&modelView_tmp, i_render, 0);
-        Mtx_Translate(&modelView_tmp, default_decal+decal-shadow_sr_w_fix
-                                    , default_decal+decal-shadow_sr_h_fix
-                                    , -0.10f, true);
-        
-        if(need){
-            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
-            C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
-        }                  
-
-        Mtx_Translate(&modelView_tmp, shadow_sr_w_fix, 0, 0, true);
-        C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
-        C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
-
-        Mtx_Translate(&modelView_tmp, -shadow_sr_w_fix, shadow_sr_h_fix, 0, true);
-        C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
-        C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
-    }
-    */
 }
 
 
@@ -807,9 +764,11 @@ void Virtual_Screen::create_background(int nb_render, int i_render, int curr_scr
 
 void Virtual_Screen::create_border(int nb_render, int i_render, int curr_screen){
     C3D_Mtx modelView_tmp;
-     
+    // Create black mask around color fond
+    // -> very usefull with 3d stereoscopic effect
+    // -> gives the illusion of seeing the game through a window
+
     if(slider_3d != 0){
-        // Create black mask around color fond
         set_color_environnement(0x000000);
 
         // Up - > in two part
@@ -856,6 +815,7 @@ void Virtual_Screen::create_border(int nb_render, int i_render, int curr_screen)
 
 
 
+////// loop of screen ///////////////////////////////////////////////////////////////////////////
 
 
 void Virtual_Screen::update_screen(){
@@ -867,11 +827,11 @@ void Virtual_Screen::update_screen(){
         int res = set_good_screen(curr_screen);
         if (res != -1) { nb_render_to_make = res; }
 
-        modif_slider_3d_value(nb_render_to_make);
+        update_slider_3d_value(nb_render_to_make);
 
         for(int i_render = 0; i_render < nb_render_to_make; i_render++){
 
-            modif_eye_offset_value(nb_render_to_make, i_render);
+            update_eye_offset_value(nb_render_to_make, i_render);
             update_offset_fond();
             update_offset_segment();
             update_offset_background();
