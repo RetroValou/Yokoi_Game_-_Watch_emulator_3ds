@@ -172,7 +172,7 @@ int handle_menu_input(Virtual_Screen* v_screen){
             update_name_game(v_screen);
             save_last_game(get_name(index_game)); // Save the selected game
         }
-        sleep_us_p(300000);
+        sleep_us_p(150000);
     }
     else if(kHeld&KEY_DLEFT){
         if(index_game == 0){ index_game = (get_nb_name()+1);}
@@ -183,7 +183,7 @@ int handle_menu_input(Virtual_Screen* v_screen){
             update_name_game(v_screen);
             save_last_game(get_name(index_game)); // Save the selected game
         }
-        sleep_us_p(300000);
+        sleep_us_p(150000);
     }
 
     // Settings accessed via ZL+ZR buttons (only on press, not held)
