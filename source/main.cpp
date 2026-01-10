@@ -27,8 +27,15 @@
 
 
 const float _3DS_FPS_SCREEN_ = 60;
-const int input_setting = (KEY_L|KEY_B);
-const int input_menu = (KEY_L|KEY_R);
+const int _INPUT_SETTING_ = (KEY_L|KEY_B);
+const int _INPUT_SETTING_OTHER_ = (KEY_ZL|KEY_ZR);
+
+const int _INPUT_MENU_ = (KEY_L|KEY_R);
+
+const uint64_t _TIME_MOVE_MENU_ = 400000;
+const uint64_t _TIME_MOVE_VALUE_SETTING_ = 300000;
+
+
 
 uint8_t index_game = 0;
 
@@ -161,13 +168,11 @@ void update_name_game(Virtual_Screen* v_screen, bool for_choose = true){
     C3D_FrameEnd(0);
 }
 
-// Returns: 0 = stay in menu, 1 = start game, 2 = go to settings
-int handle_menu_input(Virtual_Screen* v_screen){
-    hidScanInput();
-    u32 kHeld = hidKeysHeld();
-    u32 kDown = hidKeysDown();
 
-    if(kHeld&KEY_DRIGHT){
+// Returns: 0 = stay in menu, 1 = start game, 2 = go to settings
+int handle_menu_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_manager){
+
+    if(input_manager->input_Held_Increase(KEY_DRIGHT, _TIME_MOVE_MENU_)){
         index_game = (index_game+1)%(get_nb_name()+1);
 
         if(index_game >= get_nb_name()){ update_credit(v_screen); }
@@ -175,9 +180,8 @@ int handle_menu_input(Virtual_Screen* v_screen){
             update_name_game(v_screen);
             save_last_game(get_name(index_game)); // Save the selected game
         }
-        sleep_us_p(150000);
     }
-    else if(kHeld&KEY_DLEFT){
+    else if(input_manager->input_Held_Increase(KEY_DLEFT, _TIME_MOVE_MENU_)){
         if(index_game == 0){ index_game = (get_nb_name()+1);}
         index_game = index_game-1;
 
@@ -186,59 +190,28 @@ int handle_menu_input(Virtual_Screen* v_screen){
             update_name_game(v_screen);
             save_last_game(get_name(index_game)); // Save the selected game
         }
-        sleep_us_p(150000);
     }
 
     // Settings accessed via ZL+ZR buttons (only on press, not held)
-    if((kHeld&input_setting) == input_setting) {
+    if(input_manager->input_isHeld(_INPUT_SETTING_)
+        || input_manager->input_isHeld(_INPUT_SETTING_OTHER_)) {
         return 2; // Go to settings
     }
 
     if(index_game >= get_nb_name()){ return 0; } // credit, stay in menu
 
     // Use kDown for action buttons to only trigger once per press
-    if( (kDown&KEY_A) /*|| (kDown&KEY_B)*/ || (kDown&KEY_START) ||
-        (kDown&KEY_Y) || (kDown&KEY_X) ) { return 1; } // Start game
+    if( input_manager->input_justPressed(KEY_A) 
+        /*|| input_manager->input_justPressed(KEY_B)*/ 
+        || input_manager->input_justPressed(KEY_START) 
+        || input_manager->input_justPressed(KEY_Y)
+        || input_manager->input_justPressed(KEY_X) ) 
+    { return 1; } // Start game
 
     return 0; // Stay in menu
 }
 
-void input_get(Virtual_Input* v_input){
-	hidScanInput();
-	u32 kDown = hidKeysHeld();
 
-    v_input->set_input(PART_SETUP, BUTTON_TIME, kDown&KEY_L);
-    v_input->set_input(PART_SETUP, BUTTON_GAMEA, kDown&KEY_START);
-    v_input->set_input(PART_SETUP, BUTTON_GAMEB, kDown&KEY_SELECT);
-
-    if(v_input->left_configuration == CONF_1_BUTTON_ACTION){
-        bool check;
-        if(v_input->right_configuration == CONF_1_BUTTON_ACTION)
-            { check = (kDown&KEY_DUP)||(kDown&KEY_DDOWN)||(kDown&KEY_DLEFT)||(kDown&KEY_Y); }
-        else { check = (kDown&KEY_DUP)||(kDown&KEY_DDOWN)||(kDown&KEY_DLEFT)||(kDown&KEY_DRIGHT); }
-        v_input->set_input(PART_LEFT, BUTTON_ACTION, check);
-    }
-    else {
-        v_input->set_input(PART_LEFT, BUTTON_LEFT, kDown&KEY_DLEFT);
-        v_input->set_input(PART_LEFT, BUTTON_RIGHT, kDown&KEY_DRIGHT);
-        v_input->set_input(PART_LEFT, BUTTON_UP, kDown&KEY_DUP);
-        v_input->set_input(PART_LEFT, BUTTON_DOWN, kDown&KEY_DDOWN);
-    }
-
-    if(v_input->right_configuration == CONF_1_BUTTON_ACTION){
-        bool check;
-        if(v_input->left_configuration == CONF_1_BUTTON_ACTION)
-            { check = (kDown&KEY_A)||(kDown&KEY_B)||(kDown&KEY_X)||(kDown&KEY_DRIGHT); }
-        else { check = (kDown&KEY_A)||(kDown&KEY_B)||(kDown&KEY_X)||(kDown&KEY_Y); }
-        v_input->set_input(PART_RIGHT, BUTTON_ACTION, check);
-    }
-    else {
-        v_input->set_input(PART_RIGHT, BUTTON_LEFT, kDown&KEY_Y);
-        v_input->set_input(PART_RIGHT, BUTTON_RIGHT, kDown&KEY_A);
-        v_input->set_input(PART_RIGHT, BUTTON_UP, kDown&KEY_X);
-        v_input->set_input(PART_RIGHT, BUTTON_DOWN, kDown&KEY_B);
-    }
-}
 
 void restore_single_screen_console(Virtual_Screen* v_screen) {
     if(v_screen->nb_screen == 1 || v_screen->is_double_in_one_screen()) {
@@ -348,25 +321,32 @@ void update_settings_display(Virtual_Screen* v_screen) {
     C3D_FrameEnd(0);
 }
 
-bool handle_settings_input(Virtual_Screen* v_screen) {
-    hidScanInput();
-    u32 kHeld = hidKeysHeld();
-    u32 kDown = hidKeysDown();
+bool handle_settings_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_manager) {
 
     // Navigate between settings
-    if (kDown & KEY_DUP) {
+    if (input_manager->input_Held_Increase(KEY_DUP, _TIME_MOVE_MENU_)) {
         selected_setting = (selected_setting - 1 + NUM_SETTINGS) % NUM_SETTINGS;
         update_settings_display(v_screen);
-        sleep_us_p(150000);
     }
-    else if (kDown & KEY_DDOWN) {
+    else if (input_manager->input_Held_Increase(KEY_DDOWN, _TIME_MOVE_MENU_)) {
         selected_setting = (selected_setting + 1) % NUM_SETTINGS;
         update_settings_display(v_screen);
-        sleep_us_p(150000);
     }
     
-    // Change values
-    else if (kHeld & KEY_DRIGHT) {
+
+    // Time wait before change value
+    uint64_t time_check = 0;
+    switch (selected_setting) {
+        case 0: // Background color preset
+            time_check = _TIME_MOVE_MENU_;
+            break;
+        
+        case 1: // Segment marking alpha
+            time_check = _TIME_MOVE_VALUE_SETTING_;
+            break;
+    }
+
+    if (input_manager->input_Held_Increase(KEY_DRIGHT, time_check)) {
         if (selected_setting == 0) {
             // Background color preset
             selected_bg_preset = (selected_bg_preset + 1) % NUM_BG_PRESETS;
@@ -377,9 +357,8 @@ bool handle_settings_input(Virtual_Screen* v_screen) {
             g_settings.segment_marking_alpha = (g_settings.segment_marking_alpha + 1) % 256;
         }
         update_settings_display(v_screen);
-        sleep_us_p(100000);
     }
-    else if (kHeld & KEY_DLEFT) {
+    else if (input_manager->input_Held_Increase(KEY_DLEFT, time_check)) {
         if (selected_setting == 0) {
             // Background color preset
             selected_bg_preset = (selected_bg_preset - 1 + NUM_BG_PRESETS) % NUM_BG_PRESETS;
@@ -390,23 +369,22 @@ bool handle_settings_input(Virtual_Screen* v_screen) {
             g_settings.segment_marking_alpha = (g_settings.segment_marking_alpha - 1 + 256) % 256;
         }
         update_settings_display(v_screen);
-        sleep_us_p(100000);
     }
     
     // Save and return
-    if (kDown & KEY_A) {
+    if (input_manager->input_isHeld(KEY_A)) {
         save_settings();
         return true; // Exit settings
     }
     
     // Cancel (don't save)
-    if (kDown & KEY_B) {
+    if (input_manager->input_isHeld(KEY_B)) {
         load_settings(); // Reload original settings
         return true; // Exit settings
     }
     
     // Reset to defaults
-    if (kDown & KEY_X) {
+    if (input_manager->input_isHeld(KEY_X)) {
         reset_settings_to_default();
         update_settings_display(v_screen);
         sleep_us_p(200000);
@@ -421,6 +399,7 @@ int main()
 	Virtual_Screen v_screen;
     Virtual_Sound v_sound;
     Virtual_Input* v_input;
+    Input_Manager_3ds input_manager;
     SM5XX* cpu = nullptr;
 
     v_screen.config_screen();
@@ -445,6 +424,8 @@ int main()
 
     while (aptMainLoop())
 	{
+        input_manager.input_Update();
+
         switch (state)
         {
             case STATE_MENU:
@@ -454,7 +435,7 @@ int main()
                         just_exited_settings = false;
                     }
                     else {
-                        int menu_result = handle_menu_input(&v_screen);
+                        int menu_result = handle_menu_input(&v_screen, &input_manager);
                         if(menu_result == 1) {
                             // Check if save exists, if so go to prompt, otherwise start fresh
                             if(save_state_exists(index_game)) {
@@ -489,17 +470,15 @@ int main()
                     v_screen.update_text();
                     C3D_FrameEnd(0);
                     
-                    hidScanInput();
-                    u32 kDown = hidKeysDown();
 
                     bool should_start = false;
                     bool load_save = false;
                     
-                    if(kDown & KEY_A) {
+                    if(input_manager.input_justPressed(KEY_A)) {
                         should_start = true;
                         load_save = true;
                     }
-                    else if(kDown & KEY_B) {
+                    else if(input_manager.input_justPressed(KEY_B)) {
                         should_start = true;
                         load_save = false;
                     }
@@ -518,7 +497,7 @@ int main()
             case STATE_PLAY:
                 {
                     v_sound.play_sample();
-                    input_get(v_input);
+                    input_manager.input_GW_Update(v_input);
                     curr_rate += cpu->frequency;
                     uint32_t step = curr_rate/_3DS_FPS_SCREEN_;
                     curr_rate -= step*_3DS_FPS_SCREEN_;
@@ -543,14 +522,15 @@ int main()
                     v_screen.update_screen();
                     C3D_FrameEnd(0);
 
-                    if((hidKeysHeld()&input_menu) == input_menu){
+                    if(input_manager.input_isHeld(_INPUT_MENU_)){
                         // Save game state before exiting to menu
                         save_game_state(cpu, index_game);
                         state = STATE_MENU;
                         update_name_game(&v_screen);
                         cpu->time_set(false); // Reset time set flag
                     }
-                    else if((hidKeysHeld()&input_setting) == input_setting){
+                    else if(input_manager.input_isHeld(_INPUT_SETTING_)
+                            || input_manager.input_isHeld(_INPUT_SETTING_OTHER_)){
                         // Go to settings from gameplay
                         previous_state = STATE_PLAY;
                         state = STATE_SETTINGS;
@@ -562,7 +542,7 @@ int main()
                 break;
             case STATE_SETTINGS:
                 {
-                    if(handle_settings_input(&v_screen)) {
+                    if(handle_settings_input(&v_screen, &input_manager)) {
                         // Exit settings back to previous state
                         state = previous_state;
                         if(state == STATE_MENU) {

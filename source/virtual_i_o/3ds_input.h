@@ -17,11 +17,15 @@ class Input_Manager_3ds {
         u32 last_input = 0;
         uint64_t last_time_input = 0;
 
+        u32 kDown;
+        u32 kHeld;
+        u32 kUp;
 
     public: 
+        void input_Update();
         bool input_justPressed(u32 input, bool protect_bad = true);
         bool input_isHeld(u32 input);
-        bool input_Held_Increase(u32 input);
-    
+        bool input_Held_Increase(u32 input, uint64_t time_between = INCREASE_HELD);
+        void input_GW_Update(Virtual_Input* v_input);
 
 };
