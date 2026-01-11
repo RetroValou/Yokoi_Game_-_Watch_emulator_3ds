@@ -46,6 +46,7 @@ class GameEntry:
 	fond_bright: float = default_fond_bright
 	rotate: bool = False
 	background_in_front: bool = False
+	active_cam: bool = False
 
 	def format_lines(self, script_dir: Path) -> List[str]:
 		"""Format this entry using the house style used by the generator."""
@@ -105,6 +106,9 @@ class GameEntry:
 			)
 		if self.background_in_front:
 			lines.append(f'{INDENT_FIELD}, "background_in_front" : True')
+
+		if self.active_cam:
+			lines.append(f'{INDENT_FIELD}, "camera" : True')
 
 		lines.append(INDENT_FOOTER)
 		return lines
@@ -274,6 +278,7 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 		fond_bright = float(data.get("fond_bright", default_fond_bright))
 		rotate = bool(data.get("rotate", False))
 		background_in_front = bool(data.get("background_in_front", False))
+		active_cam = bool(data.get("active_cam", False))
 		date = data.get("date")
 		display_name = data.get("display_name", key)
 		ref = data.get("ref", "")
@@ -301,6 +306,7 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 				fond_bright=fond_bright,
 				rotate=rotate,
 				background_in_front=background_in_front,
+				active_cam=active_cam,
 			),
 		)
 

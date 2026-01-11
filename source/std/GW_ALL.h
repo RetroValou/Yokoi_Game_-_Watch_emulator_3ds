@@ -91,6 +91,12 @@ extern const GW_rom black_jack;
 extern const GW_rom tropical_fish;
 #include "GW_ROM/squish.h"
 extern const GW_rom squish;
+#include "GW_ROM/super_mario_bros_cristal_screen.h"
+extern const GW_rom super_mario_bros_cristal_screen;
+#include "GW_ROM/ice_climber_cristal_screen.h"
+extern const GW_rom ice_climber_cristal_screen;
+#include "GW_ROM/balloon_fight_cristal_screen.h"
+extern const GW_rom balloon_fight_cristal_screen;
 #include "GW_ROM/bomb_sweeper.h"
 extern const GW_rom bomb_sweeper;
 #include "GW_ROM/safe_buster.h"
@@ -111,6 +117,6 @@ extern const GW_rom mario_the_juggle;
 
 
 
-const GW_rom* GW_list[] = {&ball, &flagman, &vermin, &fire, &judge, &manhole, &helmet, &lion, &parachute, &octopus, &popeye, &chef, &mickey_mouse, &egg, &fire_wide_screen, &turtle_bridge, &fire_attack, &snoopy_tennis, &oil_panic, &donkey_kong, &donkey_kong_jr, &mickey_donald, &green_house, &donkey_kong_2, &mario_bros, &mario_cement_factory_panorama, &mario_cement_factory, &rain_shower, &manhole_wide_screen, &snoopy_table_top, &popeye_table_top, &donkey_kong_circus, &dk_jr_panorama, &life_boat, &mario_bombs_away, &pinball, &mickey_mouse_panorama, &crab_grab, &spitball_sparky, &boxing, &donkey_kong_3, &donkey_kong_hockey, &black_jack, &tropical_fish, &squish, &bomb_sweeper, &safe_buster, &super_mario_bros, &ice_climber, &balloon_fight, &zelda, &gold_cliff, &mario_the_juggle};
-const size_t nb_games = 53;
+const GW_rom* GW_list[] = {&ball, &flagman, &vermin, &fire, &judge, &manhole, &helmet, &lion, &parachute, &octopus, &popeye, &chef, &mickey_mouse, &egg, &fire_wide_screen, &turtle_bridge, &fire_attack, &snoopy_tennis, &oil_panic, &donkey_kong, &donkey_kong_jr, &mickey_donald, &green_house, &donkey_kong_2, &mario_bros, &mario_cement_factory_panorama, &mario_cement_factory, &rain_shower, &manhole_wide_screen, &snoopy_table_top, &popeye_table_top, &donkey_kong_circus, &dk_jr_panorama, &life_boat, &mario_bombs_away, &pinball, &mickey_mouse_panorama, &crab_grab, &spitball_sparky, &boxing, &donkey_kong_3, &donkey_kong_hockey, &black_jack, &tropical_fish, &squish, &super_mario_bros_cristal_screen, &ice_climber_cristal_screen, &balloon_fight_cristal_screen, &bomb_sweeper, &safe_buster, &super_mario_bros, &ice_climber, &balloon_fight, &zelda, &gold_cliff, &mario_the_juggle};
+const size_t nb_games = 56;
 

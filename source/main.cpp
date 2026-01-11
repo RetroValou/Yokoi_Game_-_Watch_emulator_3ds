@@ -141,13 +141,31 @@ void update_name_game_top(Virtual_Screen* v_screen, bool for_choose = true){
     v_screen->set_text(line2, pos_x2, pos_y + 32, 0, 2);
     
     v_screen->set_text(date, 160, pos_y+70, 0, 1);
+}
 
+
+void update_text_indicator(Virtual_Screen* v_screen){
     v_screen->set_text("L+R", 280, 228, 1, 1);
     v_screen->set_text("MENU", 276, 220, 1, 1);
     
-    v_screen->set_text("L+B", 10, 228, 1, 1);
+    bool new3DS = false;
+    Result res = APT_CheckNew3DS(&new3DS);
+    if(R_SUCCEEDED(res)) { // Only visual, two value work
+        if(new3DS) { // New 3ds -> show ZL+ZR
+            v_screen->set_text("ZL+ZR", 10, 228, 1, 1); 
+        } 
+        else { // Old 3ds -> show L+B
+            v_screen->set_text("L+B", 10, 228, 1, 1); 
+        } 
+    }
+    else {
+        v_screen->set_text("L+B", 10, 228, 1, 1); 
+    }
+    
     v_screen->set_text("SETTINGS", 2, 220, 1, 1);
 }
+
+
 
 void update_name_game_bottom(Virtual_Screen* v_screen){
     std::string path_console = get_path_console_img(index_game);
@@ -156,6 +174,8 @@ void update_name_game_bottom(Virtual_Screen* v_screen){
     int16_t pos_x = (320 - info[4])/2;
     int16_t pos_y = (240 - info[5])/2;
     v_screen->set_img(path_console, info, pos_x, pos_y, 0);
+
+    update_text_indicator(v_screen);
 }
 
 void update_name_game(Virtual_Screen* v_screen, bool for_choose = true){
@@ -372,19 +392,19 @@ bool handle_settings_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_ma
     }
     
     // Save and return
-    if (input_manager->input_isHeld(KEY_A)) {
+    if (input_manager->input_justPressed(KEY_A)) {
         save_settings();
         return true; // Exit settings
     }
     
     // Cancel (don't save)
-    if (input_manager->input_isHeld(KEY_B)) {
+    if (input_manager->input_justPressed(KEY_B)) {
         load_settings(); // Reload original settings
         return true; // Exit settings
     }
     
     // Reset to defaults
-    if (input_manager->input_isHeld(KEY_X)) {
+    if (input_manager->input_justPressed(KEY_X)) {
         reset_settings_to_default();
         update_settings_display(v_screen);
         sleep_us_p(200000);

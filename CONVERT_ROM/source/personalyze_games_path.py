@@ -603,6 +603,49 @@ games_path = {
                     , "console" : r'.\rom\decompress\gnw_squish\gnw_squish.png'
                     , "background_in_front" : True
                 }
+
+            , "Super_Mario_Bros_cristal_screen" :
+                    { "ref" : "ym-801"
+                    , "display_name" : "Super Mario Bros (Cristal Screen)"
+                    , "Rom" : r'.\rom\decompress\gnw_smb\ym-801.program'
+                    , "Melody_Rom" : r'.\rom\decompress\gnw_smb\ym-801.melody'
+                    , "Visual" : [r'.\rom\decompress\gnw_smb\gnw_smb.svg'] # list of screen visual
+                    , "Background" : [r'.\rom\decompress\gnw_smb\BackgroundNS.png']
+                    , "size_visual" : [[400, 260]]
+                    , "transform_visual" : [[[1266, 28, 18], [835, 8, 32]]]
+                    , "shadow" : False
+                    , "alpha_bright" : 1.2
+                    , "date" : "1986-06-25"
+                    , "console" : r'.\rom\decompress\gnw_smb\gnw_smb.png'
+                    , "camera" : True
+                }
+                            
+            , "Ice_Climber_cristal_screen" :
+                    { "ref" : "dr-802"
+                    , "display_name" : "Climber (Cristal Screen)"
+                    , "date" : "1986-11-19"
+                    , "Rom" : r'.\rom\decompress\gnw_climber\dr-802.program'
+                    , "Visual" : [r'.\rom\decompress\gnw_climber\gnw_climber.svg'] # list of screen visual
+                    , "Melody_Rom" : r'.\rom\decompress\gnw_climber\dr-802.melody'
+                    , "Background" : [r'.\rom\decompress\gnw_climber\ClimberCCNS.png']
+                    , "transform_visual" : [[[1321, 52, 44], [861, 27, 30]]]             
+                    , "size_visual" : [[400, 250]]
+                    , "console" : r'.\rom\decompress\gnw_climber\gnw_climber.png'
+                    , "camera" : True
+                }
+
+            ,"Balloon_Fight_cristal_screen" :
+                    { "ref" : "BF_107"
+                    , "display_name" : "Balloon Fight (Cristal Screen)"
+                    , "date" : "1986-11-19"
+                    , "Rom" : r'.\rom\decompress\gnw_bfight\bf-803.program'
+                    , "Visual" : [r'.\rom\decompress\gnw_bfight\gnw_bfight.svg'] # list of screen visual
+                    , "Melody_Rom" : r'.\rom\decompress\gnw_bfight\bf-803.melody'
+                    , "Background" : [r'.\rom\decompress\gnw_bfight\BackgroundNS.png']
+                    , "transform_visual" : [[[1281, 25, 32], [917, 56, 60]]]
+                    , "console" : r'.\rom\decompress\gnw_bfight\gnw_bfight.png'
+                    , "camera" : True
+                }
               
             , "bomb_sweeper" :
                     { "ref" : "bd-62"
@@ -634,6 +677,7 @@ games_path = {
                     , "console" : r'.\rom\decompress\gnw_sbuster\gnw_sbuster.png'
                 }
               
+              
             , "Super_Mario_Bros" :
                     { "ref" : "ym-801"
                     , "display_name" : "Super Mario Bros"
@@ -648,7 +692,7 @@ games_path = {
                     , "date" : "1988-03-XX"
                     , "console" : r'.\rom\decompress\gnw_smbn\gnw_smbn.png'
                 }
-              
+
             , "Ice_Climber" :
                     { "ref" : "dr-802"
                     , "display_name" : "Climber"
@@ -656,12 +700,12 @@ games_path = {
                     , "Rom" : r'.\rom\decompress\gnw_climber\dr-802.program'
                     , "Visual" : [r'.\rom\decompress\gnw_climbern\gnw_climbern.svg'] # list of screen visual
                     , "Melody_Rom" : r'.\rom\decompress\gnw_climber\dr-802.melody'
-                    , "Background" : [r'.\rom\decompress\gnw_climber\BackgroundNS.png']
+                    , "Background" : [r'.\rom\decompress\gnw_climbern\BackgroundNS.png']
                     , "transform_visual" : [[[1321, 52, 44], [861, 27, 30]]]             
                     , "size_visual" : [[400, 250]]
                     , "console" : r'.\rom\decompress\gnw_climbern\gnw_climbern.png'
-                }
-              
+                }    
+
             ,"Balloon_Fight" :
                     { "ref" : "BF_107"
                     , "display_name" : "Balloon Fight"

@@ -80,16 +80,14 @@ bool loadTexture_file(std::string path, C3D_Tex* tex) {
 
 
 
-void Virtual_Screen::set_base_environnement(){
-    // set texture color to classic
-    // -> use alpha and color present in texture
+void Virtual_Screen::set_base_environnement()
+{
 	C3D_TexEnv* env = C3D_GetTexEnv(0);
 	C3D_TexEnvInit(env);
-    C3D_TexEnv* env1 = C3D_GetTexEnv(1);
-    C3D_TexEnvInit(env1);
 	C3D_TexEnvSrc(env, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR);
 	C3D_TexEnvFunc(env, C3D_Both, GPU_REPLACE);
 }
+
 
 void Virtual_Screen::set_alpha_environnement(uint8_t alpha_multiply){
     // Change color of texture
@@ -152,8 +150,10 @@ void Virtual_Screen::set_screen_down(){
 }
 
 
-std::vector<vertex> polygone_sprite(float pos_x, float pos_y, float pos_z, float size_x, float size_y
-						, float x_texture, float y_texture, float x_size_texture, float y_size_texture
+std::vector<vertex> polygone_sprite(float pos_x, float pos_y, float pos_z
+                        , float size_x, float size_y
+						, float x_texture, float y_texture
+                        , float x_size_texture, float y_size_texture
 						, float x_total_size_texture, float y_total_size_texture)
 {
     // Create a polygone sprite -> polygone who can use for show sprite 
@@ -180,7 +180,8 @@ std::vector<vertex> polygone_sprite(float pos_x, float pos_y, float pos_z, float
 
 ////// Init and set parameter ////////////////////////////////////////////////////////////
 
-void Virtual_Screen::config_screen(void){    
+void Virtual_Screen::config_screen(void){
+    acInit();    
     gfxInitDefault();
     romfsInit();
 	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
@@ -307,6 +308,11 @@ void Virtual_Screen::load_visual(std::string path_segment
 
 
 void Virtual_Screen::refresh_settings(){
+    if(background_info[i_camera(nb_screen)] == 1){
+        cam.exit();
+        cam.init();
+    }
+
     // Update background color from settings (only if not using mask)
     if (!is_mask) {
         curr_fond_color = g_settings.background_color;
@@ -345,18 +351,29 @@ bool Virtual_Screen::init_visual(){
 
     // generate polygone fond
     for(int curr_screen = 0; curr_screen < nb_screen; curr_screen++){ // background
+
         if(curr_screen != 0 && double_in_one_screen){ decal_x = 200; }
         else { decal_x = 0; }
 
         pos_fond.push_back(align_x[curr_screen]+decal_x);
         pos_fond.push_back(align_y[curr_screen]);
 
-        curr_vertex = polygone_sprite(
-                            align_x[curr_screen]+decal_x, align_y[curr_screen], -2
-                            , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]
+        if(background_info[i_camera(nb_screen)] == 0){ // uniform fond with ditering
+            curr_vertex = polygone_sprite(
+                                align_x[curr_screen]+decal_x, align_y[curr_screen], -2
+                                , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]
                                 , 0, 0
                                 , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]
                                 , 64, 64);
+        }
+        else { // cam fond -> need to aligned texture
+            curr_vertex = polygone_sprite(
+                                align_x[curr_screen]+decal_x, align_y[curr_screen], -2
+                                , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]//, 400, 240 //
+                                , align_x[curr_screen]+decal_x, align_y[curr_screen]+(256-240)//, 0, 256-240
+                                , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]//, 400, 240
+                                , 512, 256);
+        }
 	    memcpy(&vertex_data[curr_index], curr_vertex.data(), 6*sizeof(vertex));
         background_ind_vertex.push_back(curr_index);
         curr_index += 6;
@@ -399,6 +416,10 @@ bool Virtual_Screen::init_visual(){
         if(curr_index >= nb_segments_max*6){ break; }
     }
 
+
+    if(background_info[i_camera(nb_screen)] == 1){
+        cam.init();
+    }
 
     send_vbo();
     return true;
@@ -559,7 +580,7 @@ void Virtual_Screen::update_slider_3d_value(int nb_render){
     if(nb_render == 1){ slider_3d = 0; return; }
 
     slider_3d = osGet3DSliderState();
-    slider_3d = (slider_3d-0.1f)*1.11f; // ( *1.11f ~= /0.9f )
+    //slider_3d = (slider_3d-0.1f)*1.11f; // ( *1.11f ~= /0.9f )
     if(slider_3d <= 0){ slider_3d = 0; return; }
 } 
 
@@ -643,26 +664,45 @@ void Virtual_Screen::apply_3d_fond(C3D_Mtx* curr_modelView, int i_render, float 
 void Virtual_Screen::create_fond(int nb_render, int i_render, int curr_screen){
     C3D_Mtx modelView_tmp;
 
-    ////// Generate fond Color /////////////////////////////////////
-    Mtx_Copy(&modelView_tmp, modelView_curr);
-    apply_3d_fond(&modelView_tmp, i_render, -0.08f);
-    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
-    set_color_environnement( (slider_3d == 0) ? curr_fond_color: curr_fond_color_noise);
-    C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+    if(background_info[i_camera(nb_screen)] == 0){ 
+        ////// Generate fond Color /////////////////////////////////////
+        Mtx_Copy(&modelView_tmp, modelView_curr);
+        apply_3d_fond(&modelView_tmp, i_render, -0.08f);
+        C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+        set_color_environnement( (slider_3d == 0) ? curr_fond_color: curr_fond_color_noise);
+        C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
 
-    if(slider_3d != 0){ 
-        // make two polygone -> fond with lower color and other with fond color.
-        // Second polygone hav some "hole" for see lower color of other polygone
-        // Usefull for 3d because uniform fond is complex to see in 3d
+        if(slider_3d != 0){ 
+            // make two polygone -> fond with lower color and other with fond color.
+            // Second polygone hav some "hole" for see lower color of other polygone
+            // Usefull for 3d because uniform fond is complex to see in 3d
+            set_alpha_environnement();
+            change_alpha_color_environnement(curr_fond_color);
+            C3D_TexBind(0, &noise_texture); // load texture
+            C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+        }
+    }
+    else {
+        ////// Generate camera fond /////////////////////////////////////
+        Mtx_Copy(&modelView_tmp, modelView_curr);
+        apply_3d_fond(&modelView_tmp, i_render, -0.08f);
+        C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+        set_base_environnement();
+        if(i_render == 0){ C3D_TexBind(0, &(cam.tex_Left)); }
+        else { C3D_TexBind(0, &(cam.tex_Left/*tex_Right*/)); }
+        C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
+
         set_alpha_environnement();
-        change_alpha_color_environnement(curr_fond_color);
-        C3D_TexBind(0, &noise_texture); // load texture
+        change_alpha_color_environnement(curr_fond_color, 0x38);
         C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
     }
+
 }
 
 
 void Virtual_Screen::create_shadow(int nb_render, int i_render, int curr_screen){
+    if(background_info[i_camera(nb_screen)] == 1){ return; } // no shadow if camera
+
     C3D_Mtx modelView_tmp;
     int decal = 0;
     int default_decal = 2;
@@ -737,11 +777,12 @@ void Virtual_Screen::create_segment(int nb_render, int i_render, int curr_screen
     Mtx_Copy(&modelView_tmp, modelView_curr); 
     apply_3d_segment(&modelView_tmp, i_render, true);
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
+    uint8_t alpha_segment = (background_info[i_camera(nb_screen)] == 1) ? 0xA0: 0xFF;
     // create true segment
     for(size_t i = index_segment_screen[curr_screen*2]; i < index_segment_screen[curr_screen*2+1]; i++){
         Segment seg_gw = list_segment[i];
         if(seg_gw.buffer_state){ // segment is activ / visible
-            change_alpha_color_environnement(SEGMENT_COLOR[seg_gw.color_index]); // function already check if necessary, useful for Crab and spitball
+            change_alpha_color_environnement(SEGMENT_COLOR[seg_gw.color_index], alpha_segment); // function already check if necessary, useful for Crab and spitball
             C3D_DrawArrays(GPU_TRIANGLES, seg_gw.index_vertex, 6); 
         }
     }
@@ -773,21 +814,24 @@ void Virtual_Screen::create_border(int nb_render, int i_render, int curr_screen)
 
         // Up - > in two part
         Mtx_Copy(&modelView_tmp, modelView_curr);
-        Mtx_Translate(&modelView_tmp, (background_info[i_bg_w(curr_screen)]*0.5f)-10, -background_info[i_bg_h(curr_screen)], 0, true);
+        uint16_t w = background_info[i_bg_w(curr_screen)];
+        uint16_t h = background_info[i_bg_h(curr_screen)];
+
+        Mtx_Translate(&modelView_tmp, (w*0.5f)-10, -h, 0, true);
         C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
         C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
 
-        Mtx_Translate(&modelView_tmp, -(background_info[i_bg_w(curr_screen)]-20), 0, 0, true);
+        Mtx_Translate(&modelView_tmp, -(w-20), 0, 0, true);
         C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
         C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
 
         // down - > in two part
         set_color_environnement(0x000000);                
-        Mtx_Translate(&modelView_tmp, 0, 2*background_info[i_bg_h(curr_screen)], 0, true);
+        Mtx_Translate(&modelView_tmp, 0, 2*h, 0, true);
         C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
         C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
         
-        Mtx_Translate(&modelView_tmp, background_info[i_bg_w(curr_screen)]-20, 0, 0, true);
+        Mtx_Translate(&modelView_tmp, w-20, 0, 0, true);
         C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
         C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
         
@@ -801,12 +845,12 @@ void Virtual_Screen::create_border(int nb_render, int i_render, int curr_screen)
             }
             set_color_environnement(0x000000);                
             Mtx_Copy(&modelView_tmp, modelView_curr);
-            Mtx_Translate(&modelView_tmp, -background_info[i_bg_w(curr_screen)]+compense_background, 0, 0, true);
+            Mtx_Translate(&modelView_tmp, -w+compense_background, 0, 0, true);
             C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
             C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);
 
             Mtx_Copy(&modelView_tmp, modelView_curr);
-            Mtx_Translate(&modelView_tmp, background_info[i_bg_w(curr_screen)]-compense_background, 0, 0, true);
+            Mtx_Translate(&modelView_tmp, w-compense_background, 0, 0, true);
             C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView_tmp);
             C3D_DrawArrays(GPU_TRIANGLES, background_ind_vertex[curr_screen], 6);                
         }
@@ -828,6 +872,7 @@ void Virtual_Screen::update_screen(){
         if (res != -1) { nb_render_to_make = res; }
 
         update_slider_3d_value(nb_render_to_make);
+        if(background_info[i_camera(nb_screen)] == 1){ cam.update(); }
 
         for(int i_render = 0; i_render < nb_render_to_make; i_render++){
 
@@ -861,6 +906,7 @@ void Virtual_Screen::Quit_Game(){
     if(!already_load_game){ return; }
 	C3D_TexDelete(&texture_game);
     if(img_background){ C3D_TexDelete(&background); }
+    if(background_info[i_camera(nb_screen)] == 1){ cam.exit(); }
 }
 
 void Virtual_Screen::Exit(void)

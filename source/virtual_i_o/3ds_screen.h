@@ -5,6 +5,9 @@
 #include "std/segment.h"
 #include "std/settings.h"
 
+#include "virtual_i_o/3ds_camera.h"
+
+
 #include <3ds.h>
 #include <citro3d.h>
 #include <tex3ds.h>
@@ -87,6 +90,8 @@ class Virtual_Screen {
         uint32_t size_text_screen_0;
         uint32_t size_text_screen_1;
         std::vector<uint16_t> indice_img;
+
+        Camera_3ds cam;
 
     public:
         void config_screen();

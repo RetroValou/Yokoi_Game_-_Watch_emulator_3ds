@@ -695,7 +695,7 @@ def generate_games_path(target_name: str | None = None) -> bool:
         # Determine if mask should be True (Panorama games and specific models)
         needs_mask = (
             "panorama" in display_label.lower() or
-            "table top" in display_label.lower() or
+            "tabletop" in display_label.lower().strip() or
             (metadata and metadata.model.upper() in {"MK-96", "TB-94"})
         )
         print(ref_value)
@@ -705,6 +705,8 @@ def generate_games_path(target_name: str | None = None) -> bool:
                                                     "fr-27", "sp-30", "dj-101", "ml-102", "nh-103"
                                                     , "gh-54", "jr-55", "mw-56", "mg-61"
                                                     , "ak-302", "hk-303")
+        
+        active_cam = "cristalscreen" in display_label.lower().strip()
 
         entry = GameEntry(
             folder_name=name,
@@ -722,7 +724,8 @@ def generate_games_path(target_name: str | None = None) -> bool:
             two_in_one_screen=two_in_one_screen,
             mask=needs_mask,
             shadow=True,
-            background_in_front=background_in_front
+            background_in_front=background_in_front,
+            active_cam=active_cam
         )
         entries.append(entry)
 

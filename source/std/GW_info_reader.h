@@ -18,6 +18,7 @@ constexpr int I_TEX_H = 1;
 static inline int bg_jump(int i_screen) { return 2 + i_screen * 4; }
 static inline int i_bg_shadow(int nb_screen) { return bg_jump(nb_screen); }
 static inline int i_bg_in_front(int nb_screen) { return bg_jump(nb_screen)+1; }
+static inline int i_camera(int nb_screen) { return bg_jump(nb_screen)+2; }
 
 static inline int i_bg_x(int i_screen) { return bg_jump(i_screen) + 0; }
 static inline int i_bg_y(int i_screen) { return bg_jump(i_screen) + 1; }

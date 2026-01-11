@@ -264,7 +264,7 @@ def visual_data_file(name, size_list, background_path_list, rotate = False, mask
 
 
 def background_data_file(name, path_list = [], size_list = [], rotate = False, alpha_bright = 1.7, fond_bright = 1.35
-                            , shadow = True, background_in_front = False):
+                            , shadow = True, background_in_front = False, camera = False):
     i = 0
     atlas_size = [1, 1]
     for size in size_list:
@@ -296,6 +296,9 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
             info_background.append(str(data.shape[0])) # size y
             curr_ind_r_img = data.shape[0]+2
             i += 1
+
+        if(camera): # create alpha
+            result_img[:, :, 3] = (result_img[:, :, 3]*0.5).astype(np.uint8)
         
         img = Image.fromarray(result_img.astype(np.uint8))
         img.save(destination_graphique_file + 'background_' + name + '.png')
@@ -317,6 +320,10 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
 
     if(background_in_front): info_background.append(str(1))
     else: info_background.append(str(0))
+
+    if(camera): info_background.append(str(1))
+    else: info_background.append(str(0))
+
     result += f"const uint16_t background_info_{name}[] = {{ " + ', '.join(info_background) + " }; \n\n"
  
     return result
@@ -404,7 +411,7 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
                 , rom_path, visual_path, size_visual, path_console
                 , melody_path = '', background_path = [], rotate = False, mask = False, color_segment = False, two_in_one_screen = False
                 , transform = [], alpha_bright = 1.7, fond_bright = 1.35, shadow = True
-                , background_in_front = False):
+                , background_in_front = False, camera = False):
     
     c_file = f"""
 #include <cstdint>
@@ -428,7 +435,7 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
     if(two_in_one_screen): size_background[0] = size_background[1]
         
     if(mask): background_path = [] # background used for create segment
-    c_file += background_data_file(name, background_path, size_background, rotate, alpha_bright, fond_bright, shadow, background_in_front)
+    c_file += background_data_file(name, background_path, size_background, rotate, alpha_bright, fond_bright, shadow, background_in_front, camera)
     
     c_file += visual_console_data(name, path_console)
     
@@ -580,6 +587,7 @@ def process_single_game(args):
     melody_path = game_data.get('Melody_Rom', '')
     background_path = game_data.get('Background', [])
     background_in_front = game_data.get('background_in_front', False)
+    camera = game_data.get('camera', False)
     size_visual = game_data.get('size_visual', [resolution_up, resolution_down])
     if size_scale != 1:
         size_visual = [[int(s[0] * size_scale), int(s[1] * size_scale)] for s in size_visual]
@@ -596,7 +604,7 @@ def process_single_game(args):
         rotate, mask, color_segment, two_in_one_screen,
         game_data["transform_visual"],
         alpha_bright, fond_bright, shadow,
-        background_in_front
+        background_in_front, camera
     )
     
     return key
