@@ -1,9 +1,12 @@
 #include <algorithm>
 #include <math.h>
+#include <string>
 
 #include "virtual_i_o/3ds_screen.h"
 #include "std/timer.h"
 #include "std/GW_info_reader.h"
+#include "std/gw_pack.h"
+#include "std/debug_log.h"
 
 #include "vshader_shbin.h" // shader used
 #include "virtual_i_o/texte_decoup.h"
@@ -60,8 +63,37 @@ void Virtual_Screen::send_vbo(){
 
 bool loadTexture_file(std::string path, C3D_Tex* tex) {
 
+    // If an external ROM pack is loaded, prefer reading the texture bytes from it.
+    // The pack stores files by basename (e.g. "segment_Ball.t3x").
+    // Note: the pack generator also uses paths like "romfs:/gfx/console_*.t3x" in game metadata;
+    // we still need to resolve those via the pack (basename lookup) in ROMPACK_ONLY builds.
+    if (gw_pack::is_loaded()) {
+        std::string base = path;
+        size_t slash = base.find_last_of('/');
+        if (slash != std::string::npos) {
+            base = base.substr(slash + 1);
+        }
+        const uint8_t* bytes = nullptr;
+        size_t size = 0;
+        if (!base.empty() && gw_pack::get_file_bytes(base, bytes, size) && bytes && size > 0) {
+            const bool ok = loadTextureFromMem(tex, NULL, bytes, size);
+            if (!ok) {
+                YOKOI_LOG("tex: import failed from pack '%s' (%u bytes)", base.c_str(), (unsigned)size);
+            }
+            return ok;
+        }
+
+        // We expected it in the pack but didn't find it.
+        if (!base.empty()) {
+            YOKOI_LOG("tex: missing in pack '%s' (from '%s')", base.c_str(), path.c_str());
+        }
+    }
+
     FILE* file = fopen(path.c_str(), "rb");
-    if (!file) { return false; } // not sucess
+    if (!file) {
+        YOKOI_LOG("tex: fopen failed '%s'", path.c_str());
+        return false;
+    } // not sucess
 
     fseek(file, 0, SEEK_END);
     size_t size = ftell(file);
@@ -73,9 +105,12 @@ bool loadTexture_file(std::string path, C3D_Tex* tex) {
     fread(data, 1, size, file);
     fclose(file);
 
-    loadTextureFromMem(tex, NULL, data, size);
+    const bool ok = loadTextureFromMem(tex, NULL, data, size);
+    if (!ok) {
+        YOKOI_LOG("tex: import failed from file '%s' (%u bytes)", path.c_str(), (unsigned)size);
+    }
     free(data); // free ram
-    return true;
+    return ok;
 }
 
 
@@ -234,9 +269,14 @@ void Virtual_Screen::config_screen(void){
 
     C3D_FVUnifSet(GPU_VERTEX_SHADER, shaderInstanceGetUniformLocation(program.vertexShader, "uniColor"), 1, 1, 1, 1);
 
-    loadTexture_file("romfs:/gfx/texte_3ds.t3x", &text_texture);
-    loadTexture_file("romfs:/gfx/noise.t3x", &noise_texture);
-    C3D_TexSetWrap(&noise_texture, GPU_REPEAT, GPU_REPEAT);
+    if (!loadTexture_file("romfs:/gfx/texte_3ds.t3x", &text_texture)) {
+        printf("Failed to load UI font texture: romfs:/gfx/texte_3ds.t3x\n");
+    }
+    if (!loadTexture_file("romfs:/gfx/noise.t3x", &noise_texture)) {
+        printf("Failed to load noise texture: romfs:/gfx/noise.t3x\n");
+    } else {
+        C3D_TexSetWrap(&noise_texture, GPU_REPEAT, GPU_REPEAT);
+    }
     set_base_environnement();
 
     vertex_data = (vertex*)linearAlloc((nb_text_max+nb_img_interface_max+nb_segments_max)*6*sizeof(vertex)+1000);
@@ -249,19 +289,27 @@ void Virtual_Screen::config_screen(void){
 }
 
 
-void Virtual_Screen::load_visual(std::string path_segment
+bool Virtual_Screen::load_visual(std::string path_segment
                                 , const Segment* segment_list, const size_t size_segment_list
                                 , const uint16_t* v_segment_info
                                 , std::string path_background 
                                 , const uint16_t* v_background_info ){ 
 
     // load texture
-    if (!loadTexture_file(path_segment, &texture_game)) { printf("Erreur chargement texture segment !\n"); }
+    already_load_game = false;
+    if (!loadTexture_file(path_segment, &texture_game)) {
+        printf("Erreur chargement texture segment ! (%s)\n", path_segment.c_str());
+        return false;
+    }
     C3D_TexSetFilter(&texture_game, GPU_LINEAR, GPU_NEAREST);
     if(!path_background.empty()){
-        if (!loadTexture_file(path_background, &background)) { printf("Erreur chargement texture !\n"); }
-        C3D_TexSetFilter(&background, GPU_LINEAR, GPU_NEAREST);
-        img_background = true;
+        if (!loadTexture_file(path_background, &background)) {
+            printf("Erreur chargement texture background ! (%s)\n", path_background.c_str());
+            img_background = false;
+        } else {
+            C3D_TexSetFilter(&background, GPU_LINEAR, GPU_NEAREST);
+            img_background = true;
+        }
     } else { img_background = false; }
 
     // Load segments (attributs) -> Sort for start with first screen and finish with second screen
@@ -304,6 +352,7 @@ void Virtual_Screen::load_visual(std::string path_segment
     }
     
     already_load_game = true;
+    return true;
 }
 
 

@@ -41,6 +41,33 @@ GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 GFXBUILD	:=	$(ROMFS)/gfx
 
+# Set ROMPACK_ONLY=1 to build without embedded ROMs/graphics and rely on an external .ykp pack.
+ROMPACK_ONLY ?= 0
+
+# Minimum external pack content version that this build accepts.
+# Bump this when the app expects newer pack contents (textures/layout/etc.).
+ROMPACK_CONTENT_VERSION_REQUIRED ?= 1
+
+# Extra defines for pack-only builds (appended after CFLAGS is set).
+ROMPACK_DEFINES ?=
+
+# Always define the required content version (applies when a pack is loaded).
+ROMPACK_DEFINES += -DYOKOI_ROMPACK_REQUIRED_CONTENT_VERSION=$(ROMPACK_CONTENT_VERSION_REQUIRED)
+
+ifneq ($(strip $(ROMPACK_ONLY)),0)
+	SOURCES := $(filter-out source/std/GW_ROM,$(SOURCES))
+	INCLUDES := $(filter-out source/std/GW_ROM,$(INCLUDES))
+	# Suffix output artifacts so pack-only builds are easy to distinguish.
+	TARGET := $(TARGET)_rompack
+	# Pack-only build: do not embed any game textures/ROMs.
+	# We still embed minimal UI textures (font, logo) via romfs so menu text renders.
+	GRAPHICS := gfx
+	ROMFS := romfs
+	GFXBUILD := $(ROMFS)/gfx
+	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s
+	ROMPACK_DEFINES += -DYOKOI_EXTERNAL_ROMPACK_ONLY
+endif
+
 APP_TITLE		:=	Yokoi G&W Emulator
 APP_DESCRIPTION	:=	a Game&Watch emulator for 3ds
 APP_AUTHOR		:=	RetroValou
@@ -55,6 +82,9 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -D__3DS__
+
+# Apply pack-only defines (if any).
+CFLAGS	+=	$(ROMPACK_DEFINES)
 
 #CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++20
@@ -94,6 +124,12 @@ PICAFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.v.pica)))
 SHLISTFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.shlist)))
 GFXFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.t3s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+
+	# In pack-only builds, only include minimal UI textures in romfs.
+	# (Game textures come from the external .ykp pack.)
+	ifneq ($(strip $(ROMPACK_ONLY)),0)
+		GFXFILES := $(ROMPACK_UI_GFXFILES)
+	endif
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
