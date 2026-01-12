@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include <string>
 #include "SM5XX/SM5XX.h"
 #include "std/segment.h"
 #include "std/settings.h"
@@ -48,6 +49,7 @@ class Virtual_Screen {
         C3D_Tex text_texture;
         C3D_Tex noise_texture;
         C3D_Tex img_texture[nb_img_interface_max];
+        std::string img_texture_path[nb_img_interface_max];
 
         std::vector<Segment> list_segment;
         uint32_t index_segment_screen[4];

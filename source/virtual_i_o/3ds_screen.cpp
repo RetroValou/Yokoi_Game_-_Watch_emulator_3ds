@@ -577,15 +577,27 @@ void Virtual_Screen::set_img(const std::string& path, const uint16_t* info
     memcpy(&vertex_data[index_start_texte+(nb_text_max+img_i)*6], curr_vertex.data(), curr_vertex.size() * sizeof(vertex)); 
     send_vbo();
     // textyre
-    if (img_texture[img_i].data) { C3D_TexDelete(&img_texture[img_i]); img_texture[img_i].data = nullptr;  }    
-    if (!loadTexture_file(path, &img_texture[img_i])) { printf("Erreur chargement texture segment !\n"); }
+    const bool same_texture = (img_texture[img_i].data != nullptr && img_texture_path[img_i] == path);
+    if (!same_texture) {
+        if (img_texture[img_i].data) {
+            C3D_TexDelete(&img_texture[img_i]);
+            img_texture[img_i].data = nullptr;
+        }
+        if (!loadTexture_file(path, &img_texture[img_i])) {
+            printf("Erreur chargement texture segment !\n");
+            img_texture_path[img_i].clear();
+        } else {
+            img_texture_path[img_i] = path;
+        }
+    }
     // set index for update
     if (std::find(indice_img.begin(),indice_img.end(),img_i) == indice_img.end()) { indice_img.push_back(img_i); }
 }
 
 void Virtual_Screen::delete_all_img(){
     for (size_t img_i = 0; img_i < indice_img.size(); img_i++) { 
-        if (img_texture[img_i].data) { C3D_TexDelete(&img_texture[img_i]); img_texture[img_i].data = nullptr;  }    
+        if (img_texture[img_i].data) { C3D_TexDelete(&img_texture[img_i]); img_texture[img_i].data = nullptr; }
+        img_texture_path[img_i].clear();
     }
     indice_img.resize(0);
 }
