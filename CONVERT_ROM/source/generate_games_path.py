@@ -472,14 +472,32 @@ def _resolve_rom_file(
     return None
 
 
-def _find_melody_file(folder: Path, fallback: Optional[Path]) -> Optional[Path]:
-    matches = sorted(folder.glob("*.melody"))
-    if matches:
-        return matches[0]
+def _find_melody_file(
+    name: str,
+    folder: Path,
+    fallback: Optional[Path],
+    folder_map: Dict[str, Path],
+    rom_path: Optional[Path] = None,
+) -> Optional[Path]:
+    candidates: List[Path] = [folder]
     if fallback is not None:
-        matches = sorted(fallback.glob("*.melody"))
+        candidates.append(fallback)
+
+    if rom_path is not None:
+        rom_folder = rom_path.parent
+        if rom_folder not in candidates:
+            candidates.append(rom_folder)
+
+    for fallback_name in _rom_fallback_candidates(name):
+        candidate_folder = folder_map.get(fallback_name)
+        if candidate_folder is not None and candidate_folder not in candidates:
+            candidates.append(candidate_folder)
+
+    for candidate in candidates:
+        matches = sorted(candidate.glob("*.melody"))
         if matches:
             return matches[0]
+
     return None
 
 
@@ -669,7 +687,13 @@ def generate_games_path(target_name: str | None = None) -> bool:
             missing_console.append(console_path)
             console_path = Path(default_img_console)
 
-        melody_path = _find_melody_file(folder, fallback_folder)
+        melody_path = _find_melody_file(
+            name,
+            folder,
+            fallback_folder,
+            folder_map,
+            rom_path=rom_path,
+        )
 
         rom_stem = rom_path.stem.strip()
         if rom_stem == "0019_238e":
