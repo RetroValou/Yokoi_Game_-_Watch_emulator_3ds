@@ -48,7 +48,7 @@ class GameProcessor:
 		self.split_ratio_top = 0.50  # Default, set this in the specific game subclass
 
 		self.script_root = Path(__file__).parent.parent
-		self.rom_root = self.script_root / "rom"
+		self.rom_root = self.script_root / "rom" / "decompress"
 		self.info: Optional[GameEntry] = None
 
 		# Colour mapping configuration (can be overridden per-game)
