@@ -112,7 +112,7 @@ static void show_pack_required_screen(Virtual_Screen& v_screen, const std::strin
 
     v_screen.set_text("Press START to exit", 52, 110, 1, 1);
     v_screen.set_text("(then copy pack and restart)", 16, 130, 1, 1);
-
+ 
     // Render once, then idle until exit.
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     v_screen.update_img();
@@ -270,11 +270,13 @@ void update_text_indicator(Virtual_Screen* v_screen){
     
     v_screen->set_text("SETTINGS", 2, 220, 1, 1);
 
-    // Surface pack load failures in the UI so missing packs are obvious.
-    if (!gw_pack::is_loaded() && !g_pack_load_error.empty()) {
-        v_screen->set_text("ROM pack load failed:", 4, 200, 0, 1);
-        v_screen->set_text("sdmc:/3ds/yokoi_pack_3ds.ykp", 4, 212, 0, 1);
-    }
+    #if defined(YOKOI_SHOW_MSG_ROM)    
+        // Surface pack load failures in the UI so missing packs are obvious.
+        if (!gw_pack::is_loaded() && !g_pack_load_error.empty()) {
+            v_screen->set_text("ROM pack load failed:", 4, 200, 0, 1);
+            v_screen->set_text("sdmc:/3ds/yokoi_pack_3ds.ykp", 4, 212, 0, 1);
+        }
+    #endif
 }
 
 
@@ -639,11 +641,13 @@ int main()
     load_settings();
 	YOKOI_LOG("main: settings loaded");
 
+#if defined(YOKOI_SHOW_MSG_ROM)    
     // If pack load failed but we're not pack-only, surface it in-app.
     if (!pack_ok && !g_pack_load_error.empty()) {
         show_pack_required_screen(v_screen, g_pack_load_error);
     }
-    
+#endif
+
     // Load the last selected game index
     index_game = load_last_game_index();
 

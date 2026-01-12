@@ -44,6 +44,9 @@ GFXBUILD	:=	$(ROMFS)/gfx
 # Set ROMPACK_ONLY=1 to build without embedded ROMs/graphics and rely on an external .ykp pack.
 ROMPACK_ONLY ?= 0
 
+# Set SHOW_MSG_ROM=0 to build without show Warning rom data
+SHOW_MSG_ROM ?= 1
+
 # Minimum external pack content version that this build accepts.
 # Bump this when the app expects newer pack contents (textures/layout/etc.).
 ROMPACK_CONTENT_VERSION_REQUIRED ?= 2
@@ -67,6 +70,13 @@ ifneq ($(strip $(ROMPACK_ONLY)),0)
 	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s
 	ROMPACK_DEFINES += -DYOKOI_EXTERNAL_ROMPACK_ONLY
 endif
+
+ifneq ($(strip $(SHOW_MSG_ROM)),0)
+	ROMPACK_DEFINES += -DYOKOI_SHOW_MSG_ROM
+else
+	TARGET := $(TARGET)_no_warning
+endif
+
 
 APP_TITLE		:=	Yokoi G&W Emulator
 APP_DESCRIPTION	:=	a Game&Watch emulator for 3ds

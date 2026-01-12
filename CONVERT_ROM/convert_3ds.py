@@ -23,7 +23,7 @@ INKSCAPE_PATH = r"D:\Program Files\Inkscape\bin\inkscape.exe"
 
 # Path to tex3ds executable (devkitPro). If you have tex3ds on PATH you can leave this as "tex3ds".
 # Example Windows install path (adjust as needed): r"C:\devkitPro\tools\bin\tex3ds.exe"
-TEX3DS_PATH = r"D:\devkitPro\tools\bin\tex3ds.exe"
+TEX3DS_PATH = r"C:\devkitPro\tools\bin\tex3ds.exe"
 
 destination_file = r"..\source\std\GW_ALL.h"
 destination_game_file = r"..\source\std\GW_ROM"

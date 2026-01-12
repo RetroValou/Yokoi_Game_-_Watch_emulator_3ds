@@ -189,25 +189,40 @@ std::vector<vertex> polygone_sprite(float pos_x, float pos_y, float pos_z
                         , float size_x, float size_y
 						, float x_texture, float y_texture
                         , float x_size_texture, float y_size_texture
-						, float x_total_size_texture, float y_total_size_texture)
+						, float x_total_size_texture, float y_total_size_texture
+                        , bool flip_x = false, bool flip_y = false)
 {
     // Create a polygone sprite -> polygone who can use for show sprite 
     //                      -> 2d img align to screen and show a part of a sprite sheet
     // Compose of two polygones : 2 triangles
 
-	float x_uv_pos = ((float)x_texture) / ((float)x_total_size_texture);
-	float y_uv_pos = ((float)y_texture) / ((float)y_total_size_texture);
+	float x_uv_pos_0 = ((float)x_texture) / ((float)x_total_size_texture);
+	float y_uv_pos_0 = ((float)y_texture) / ((float)y_total_size_texture);
 	float x_uv_size = ((float)x_size_texture) / ((float)x_total_size_texture);
 	float y_uv_size = (((float)y_size_texture) / ((float)y_total_size_texture));
+	float x_uv_pos_1 = x_uv_pos_0+x_uv_size;
+	float y_uv_pos_1 = y_uv_pos_0+y_uv_size;
+
+    if (flip_x){
+        float tmp = x_uv_pos_0;
+        x_uv_pos_0 = x_uv_pos_1;
+        x_uv_pos_1 = tmp;
+    }
+    if(flip_y){
+        float tmp = y_uv_pos_0;
+        y_uv_pos_0 = y_uv_pos_1;
+        y_uv_pos_1 = tmp;
+    }
+
 	return {
 		// first triangle
-		{ { pos_x, 		  pos_y, 		 pos_z }, {x_uv_pos+x_uv_size, y_uv_pos+y_uv_size	} }, // bas-gauche
-		{ { pos_x+size_x, pos_y,  		 pos_z }, {x_uv_pos, 		   y_uv_pos+y_uv_size	} }, // bas-droite
-		{ { pos_x+size_x, pos_y+size_y,  pos_z }, {x_uv_pos, 		   y_uv_pos 			} }, // haut-droite
+		{ { pos_x, 		  pos_y, 		 pos_z }, {x_uv_pos_1,   y_uv_pos_1 } }, // bas-gauche
+		{ { pos_x+size_x, pos_y,  		 pos_z }, {x_uv_pos_0,   y_uv_pos_1 } }, // bas-droite
+		{ { pos_x+size_x, pos_y+size_y,  pos_z }, {x_uv_pos_0,   y_uv_pos_0  } }, // haut-droite
 		// second triangle
-		{ { pos_x+size_x, pos_y+size_y,  pos_z }, { x_uv_pos, 			y_uv_pos 			} }, // bas-droite
-		{ { pos_x, 		  pos_y+size_y,  pos_z }, { x_uv_pos+x_uv_size, y_uv_pos			} }, // bas-gauche
-		{ { pos_x, 		  pos_y,  		 pos_z }, { x_uv_pos+x_uv_size, y_uv_pos+y_uv_size 	} }, // haut-gauche
+		{ { pos_x+size_x, pos_y+size_y,  pos_z }, { x_uv_pos_0,  y_uv_pos_0 } }, // bas-droite
+		{ { pos_x, 		  pos_y+size_y,  pos_z }, { x_uv_pos_1,  y_uv_pos_0 } }, // bas-gauche
+		{ { pos_x, 		  pos_y,  		 pos_z }, { x_uv_pos_1,  y_uv_pos_1 } }, // haut-gauche
 	};
 }
 
@@ -421,7 +436,7 @@ bool Virtual_Screen::init_visual(){
                                 , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]//, 400, 240 //
                                 , align_x[curr_screen]+decal_x, align_y[curr_screen]+(256-240)//, 0, 256-240
                                 , background_info[i_bg_w(curr_screen)], background_info[i_bg_h(curr_screen)]//, 400, 240
-                                , 512, 256);
+                                , 512, 256, /*flip_x:*/ true);
         }
 	    memcpy(&vertex_data[curr_index], curr_vertex.data(), 6*sizeof(vertex));
         background_ind_vertex.push_back(curr_index);
