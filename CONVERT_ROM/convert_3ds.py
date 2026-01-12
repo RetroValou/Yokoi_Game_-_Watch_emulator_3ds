@@ -2,6 +2,8 @@ import os
 import glob
 import shutil
 import importlib.util
+import struct
+import subprocess
 from pathlib import Path
 from PIL import Image, ImageEnhance
 import numpy as np
@@ -14,9 +16,14 @@ from source import convert_svg as cs
 from source import img_manipulation as im
 from source.target_profiles import get_target
 
-
+ROMPACK_FORMAT_VERSION = 2
+ROMPACK_CONTENT_VERSION = 2
 
 INKSCAPE_PATH = r"D:\Program Files\Inkscape\bin\inkscape.exe"
+
+# Path to tex3ds executable (devkitPro). If you have tex3ds on PATH you can leave this as "tex3ds".
+# Example Windows install path (adjust as needed): r"C:\devkitPro\tools\bin\tex3ds.exe"
+TEX3DS_PATH = r"D:\devkitPro\tools\bin\tex3ds.exe"
 
 destination_file = r"..\source\std\GW_ALL.h"
 destination_game_file = r"..\source\std\GW_ROM"
@@ -254,12 +261,38 @@ def visual_data_file(name, size_list, background_path_list, rotate = False, mask
     int_mask = 0
     if(mask): int_mask = 1 # first byte
     if(two_in_one_screen) : int_mask += 2 # second byte
-    seg_info = [atlas_size[0], atlas_size[1], 1, int_mask]
-    
-    for src in screen_size: seg_info = seg_info + src
-    seg_info = [str(i) for i in seg_info]
-    result += f" const uint16_t segment_info_{name}[] = {{ " + ", ".join(seg_info) + "}; \n"
-    return result, screen_size
+    seg_info_ints: list[int] = [int(atlas_size[0]), int(atlas_size[1]), 1, int(int_mask)]
+
+    for src in screen_size:
+        seg_info_ints.extend([int(src[0]), int(src[1])])
+
+    result += f" const uint16_t segment_info_{name}[] = {{ " + ", ".join(str(i) for i in seg_info_ints) + "}; \n"
+
+    # Pack-friendly segment list (matches SegmentDiskV1 in source/std/gw_pack.cpp)
+    segment_records: list[dict] = []
+    for data in all_img:
+        filename, _img_r, screen, pos_x, pos_y, size_x, size_y, pos_x_tex, pos_y_tex = data
+        seg_x = int(filename.split(".")[0])
+        seg_y = int(filename.split(".")[1])
+        seg_z = int(filename.split(".")[2].split("_")[0])
+        color_index = 0
+        if color_segment:
+            color_index = int(filename.split("_")[1].split(".")[0])
+        segment_records.append({
+            "id0": seg_x,
+            "id1": seg_y,
+            "id2": seg_z,
+            "pos_scr_x": int(pos_x),
+            "pos_scr_y": int(pos_y),
+            "pos_tex_x": int(pos_x_tex),
+            "pos_tex_y": int(pos_y_tex),
+            "size_tex_x": int(size_x),
+            "size_tex_y": int(size_y),
+            "color_index": int(color_index),
+            "screen": int(screen),
+        })
+
+    return result, screen_size, seg_info_ints, segment_records
 
 
 
@@ -276,7 +309,7 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
         
     result_img = np.zeros((atlas_size[1], atlas_size[0], 4))
     curr_ind_r_img = 1
-    info_background = [str(atlas_size[0]), str(atlas_size[1])]
+    info_background_ints: list[int] = [int(atlas_size[0]), int(atlas_size[1])]
     
     if(len(path_list) > 0 and path_list[0] != ''):
         for path in path_list:
@@ -290,10 +323,10 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
 
             result_img[curr_ind_r_img:(data.shape[0]+curr_ind_r_img), 1:data.shape[1]+1, :] = data
             
-            info_background.append(str(1)) # pos x
-            info_background.append(str(atlas_size[1]-curr_ind_r_img-data.shape[0])) # pos y
-            info_background.append(str(data.shape[1])) # size x
-            info_background.append(str(data.shape[0])) # size y
+            info_background_ints.append(1) # pos x
+            info_background_ints.append(int(atlas_size[1]-curr_ind_r_img-data.shape[0])) # pos y
+            info_background_ints.append(int(data.shape[1])) # size x
+            info_background_ints.append(int(data.shape[0])) # size y
             curr_ind_r_img = data.shape[0]+2
             i += 1
 
@@ -311,22 +344,16 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
     else:
         result = f'\nconst std::string path_background_{name} = "";\n'
         for s in size_list:
-            info_background.append(str(0)) # pos x
-            info_background.append(str(0)) # pos y
-            info_background.append(str(s[0])) # size x
-            info_background.append(str(s[1])) # size y
-    if(shadow): info_background.append(str(1))
-    else: info_background.append(str(0))
-
-    if(background_in_front): info_background.append(str(1))
-    else: info_background.append(str(0))
-
-    if(camera): info_background.append(str(1))
-    else: info_background.append(str(0))
-
-    result += f"const uint16_t background_info_{name}[] = {{ " + ', '.join(info_background) + " }; \n\n"
+            info_background_ints.append(0) # pos x
+            info_background_ints.append(0) # pos y
+            info_background_ints.append(int(s[0])) # size x
+            info_background_ints.append(int(s[1])) # size y
+    info_background_ints.append(1 if shadow else 0)
+    info_background_ints.append(1 if background_in_front else 0)
+    info_background_ints.append(1 if camera else 0)
+    result += f"const uint16_t background_info_{name}[] = {{ " + ', '.join(str(i) for i in info_background_ints) + " }; \n\n"
  
-    return result
+    return result, info_background_ints
 
 
 
@@ -373,9 +400,17 @@ def visual_console_data(name, path_console):
             f.write("")
     pos_y = console_atlas_size[1]-img.shape[0]
     result = f'\nconst std::string path_console_{name} = "{texture_path_prefix}console_{name}{texture_path_ext}";\n'
-    result += f"const uint16_t console_info_{name}[] = {{ {console_atlas_size[0]}, {console_atlas_size[1]}, 0, {pos_y}, {img.shape[1]}, {img.shape[0]} }}; \n\n"
+    console_info_ints: list[int] = [
+        int(console_atlas_size[0]),
+        int(console_atlas_size[1]),
+        0,
+        int(pos_y),
+        int(img.shape[1]),
+        int(img.shape[0]),
+    ]
+    result += f"const uint16_t console_info_{name}[] = {{ " + ", ".join(str(i) for i in console_info_ints) + "}; \n\n"
 
-    return result
+    return result, console_info_ints
 
 
 def melody_text(name:str, melody_path:str):
@@ -427,7 +462,9 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
     c_file += melody_text(name, melody_path)
     
     cs.extract_group_segs(visual_path, "./tmp/img/"+name, INKSCAPE_PATH, export_dpi=export_dpi)
-    text, new_size_screen = visual_data_file(name, size_visual, background_path, rotate, mask, color_segment, two_in_one_screen, transform)
+    text, new_size_screen, seg_info_ints, segment_records = visual_data_file(
+        name, size_visual, background_path, rotate, mask, color_segment, two_in_one_screen, transform
+    )
     c_file += text
     
     size_background = []
@@ -435,9 +472,21 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
     if(two_in_one_screen): size_background[0] = size_background[1]
         
     if(mask): background_path = [] # background used for create segment
-    c_file += background_data_file(name, background_path, size_background, rotate, alpha_bright, fond_bright, shadow, background_in_front, camera)
+    bg_text, background_info_ints = background_data_file(
+        name,
+        background_path,
+        size_background,
+        rotate,
+        alpha_bright,
+        fond_bright,
+        shadow,
+        background_in_front,
+        camera,
+    )
+    c_file += bg_text
     
-    c_file += visual_console_data(name, path_console)
+    cs_text, console_info_ints = visual_console_data(name, path_console)
+    c_file += cs_text
     
     c_file += "\n\n"
     
@@ -467,7 +516,23 @@ extern const GW_rom {name};
 
 """    
     with open(destination_game_file+"\\"+name+".h", "w") as f: f.write(c_file)
-    return 
+
+    # Pack metadata (used to generate yokoi_pack_<target>.ykp)
+    return {
+        "key": name,
+        "display_name": display_name,
+        "ref": ref,
+        "date": date,
+        "rom_path": rom_path,
+        "melody_path": melody_path,
+        "path_segment": f"{texture_path_prefix}segment_{name}{texture_path_ext}",
+        "path_background": f"{texture_path_prefix}background_{name}{texture_path_ext}" if background_path else "",
+        "path_console": f"{texture_path_prefix}console_{name}{texture_path_ext}",
+        "segments": segment_records,
+        "segment_info": seg_info_ints,
+        "background_info": background_info_ints,
+        "console_info": console_info_ints,
+    }
 
 
 
@@ -596,7 +661,7 @@ def process_single_game(args):
     shadow = game_data.get('shadow', True)
     date = game_data.get('date', '198X-XX-XX')
 
-    generate_game_file(
+    pack_meta = generate_game_file(
         destination_game_file, key, display_name,
         game_data["ref"].replace('-', '_').upper(), date,
         game_data["Rom"], game_data["Visual"], size_visual,
@@ -607,7 +672,211 @@ def process_single_game(args):
         background_in_front, camera
     )
     
-    return key
+    return pack_meta
+
+
+def _build_tex3ds_outputs_for_pack(t3s_dir: Path, t3x_out_dir: Path) -> None:
+    """Build .t3x files from .t3s inputs using tex3ds.
+
+    convert_3ds.py generates *.t3s + *.png, but the 3DS pack bundles *.t3x.
+    This helper makes pack generation self-contained by invoking tex3ds directly.
+    """
+
+    t3s_dir = t3s_dir.resolve()
+    t3x_out_dir = t3x_out_dir.resolve()
+    t3x_out_dir.mkdir(parents=True, exist_ok=True)
+
+    t3s_files = sorted(t3s_dir.glob("*.t3s"))
+    if not t3s_files:
+        raise RuntimeError(
+            f"No .t3s files found in '{t3s_dir}'. "
+            "Expected generated texture descriptors (segment_*.t3s/background_*.t3s/console_*.t3s)."
+        )
+
+    for t3s in t3s_files:
+        out_t3x = t3x_out_dir / f"{t3s.stem}.t3x"
+
+        try:
+            needs_build = (not out_t3x.exists()) or (out_t3x.stat().st_mtime < t3s.stat().st_mtime)
+        except OSError:
+            needs_build = True
+
+        if not needs_build:
+            continue
+
+        try:
+            # Run with cwd=t3s_dir so relative PNG references in the .t3s resolve reliably.
+            subprocess.run(
+                [TEX3DS_PATH, "-i", t3s.name, "-o", str(out_t3x)],
+                cwd=str(t3s_dir),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                f"tex3ds was not found at '{TEX3DS_PATH}'. Install devkitPro/devkitARM and set TEX3DS_PATH "
+                "near the top of convert_3ds.py (or put tex3ds on PATH)."
+            ) from e
+        except subprocess.CalledProcessError as e:
+            stderr = (e.stderr or "").strip()
+            stdout = (e.stdout or "").strip()
+            details = stderr or stdout or str(e)
+            raise RuntimeError(f"tex3ds failed for '{t3s.name}': {details}") from e
+
+def write_rom_pack_v1(pack_games: list[dict], gfx_dir: str, out_path: str, platform: int = 0, texture_file_ext: str = ".png"):
+    """Write a single external ROM pack.
+
+    Note: The pack "format" version may change independently from the pack "content" version.
+    The content version is used by the apps to detect outdated packs and prompt import only
+    when needed.
+    """
+
+    # Collect unique texture files referenced by games.
+    file_name_to_path: dict[str, str] = {}
+    for g in pack_games:
+        key = g["key"]
+        for base in (f"segment_{key}{texture_file_ext}", f"background_{key}{texture_file_ext}", f"console_{key}{texture_file_ext}"):
+            p = os.path.join(gfx_dir, base)
+            if os.path.exists(p):
+                file_name_to_path[base] = p
+
+    # Include UI textures that the 3DS frontend needs to render text/credits.
+    # These are safe to bundle and allow ROMPACK_ONLY builds to work without embedding romfs.
+    for base in (f"texte_3ds{texture_file_ext}", f"logo_pioupiou{texture_file_ext}"):
+        p = os.path.join(gfx_dir, base)
+        if os.path.exists(p):
+            file_name_to_path[base] = p
+
+    file_items = sorted(file_name_to_path.items(), key=lambda kv: kv[0])
+
+    if not file_items:
+        raise RuntimeError(
+            f"No texture files found for pack in '{gfx_dir}' (expected files like segment_*{texture_file_ext}). "
+            "Build/prepare textures first, then re-run convert_3ds.py."
+        )
+
+    header_size = 36  # PackHeaderV2
+    game_entry_size = 96  # GameEntryV1 (24 * uint32)
+    file_entry_size = 16  # FileEntryV1
+
+    games_offset = header_size
+    files_offset = games_offset + (len(pack_games) * game_entry_size)
+    data_offset = files_offset + (len(file_items) * file_entry_size)
+
+    data = bytearray()
+
+    def append_chunk(b: bytes) -> int:
+        off = data_offset + len(data)
+        data.extend(b)
+        return off
+
+    def append_string(s: str) -> tuple[int, int]:
+        b = (s or "").encode("utf-8")
+        return append_chunk(b), len(b)
+
+    def append_u16_list(vals: list[int]) -> tuple[int, int]:
+        if not vals:
+            return 0, 0
+        packed = struct.pack("<" + "H" * len(vals), *[int(v) & 0xFFFF for v in vals])
+        return append_chunk(packed), len(vals)
+
+    def append_segments(segs: list[dict]) -> tuple[int, int]:
+        if not segs:
+            return 0, 0
+        out = bytearray()
+        for s in segs:
+            out.extend(struct.pack(
+                "<BBBiiHHHHBB",
+                int(s["id0"]) & 0xFF,
+                int(s["id1"]) & 0xFF,
+                int(s["id2"]) & 0xFF,
+                int(s["pos_scr_x"]),
+                int(s["pos_scr_y"]),
+                int(s["pos_tex_x"]) & 0xFFFF,
+                int(s["pos_tex_y"]) & 0xFFFF,
+                int(s["size_tex_x"]) & 0xFFFF,
+                int(s["size_tex_y"]) & 0xFFFF,
+                int(s["color_index"]) & 0xFF,
+                int(s["screen"]) & 0xFF,
+            ))
+        return append_chunk(bytes(out)), len(segs)
+
+    game_entries: list[bytes] = []
+    for g in pack_games:
+        name_off, name_len = append_string(g["display_name"])
+        ref_off, ref_len = append_string(g["ref"])
+        date_off, date_len = append_string(g["date"])
+
+        with open(g["rom_path"], "rb") as f:
+            rom_bytes = f.read()
+        rom_off = append_chunk(rom_bytes)
+        rom_size = len(rom_bytes)
+
+        melody_off = 0
+        melody_size = 0
+        melody_path = g.get("melody_path") or ""
+        if melody_path:
+            with open(melody_path, "rb") as f:
+                melody_bytes = f.read()
+            melody_off = append_chunk(melody_bytes)
+            melody_size = len(melody_bytes)
+
+        path_segment_off, path_segment_len = append_string(g["path_segment"])
+        segments_off, segments_count = append_segments(g["segments"])
+        segment_info_off, segment_info_count = append_u16_list(g["segment_info"])
+
+        path_background_off, path_background_len = append_string(g["path_background"])
+        background_info_off, background_info_count = append_u16_list(g["background_info"])
+
+        path_console_off, path_console_len = append_string(g["path_console"])
+        console_info_off, console_info_count = append_u16_list(g["console_info"])
+
+        game_entries.append(struct.pack(
+            "<" + "I" * 24,
+            name_off, name_len,
+            ref_off, ref_len,
+            date_off, date_len,
+            rom_off, rom_size,
+            melody_off, melody_size,
+            path_segment_off, path_segment_len,
+            segments_off, segments_count,
+            segment_info_off, segment_info_count,
+            path_background_off, path_background_len,
+            background_info_off, background_info_count,
+            path_console_off, path_console_len,
+            console_info_off, console_info_count,
+        ))
+
+    file_entries: list[bytes] = []
+    for name, path in file_items:
+        n_off, n_len = append_string(name)
+        with open(path, "rb") as f:
+            blob = f.read()
+        d_off = append_chunk(blob)
+        d_size = len(blob)
+        file_entries.append(struct.pack("<IIII", n_off, n_len, d_off, d_size))
+
+    header = struct.pack(
+        "<IIIIIIIII",
+        0x31504B59,                   # 'YKP1'
+        int(ROMPACK_FORMAT_VERSION),  # format version
+        int(platform),
+        int(ROMPACK_CONTENT_VERSION),
+        len(pack_games),
+        len(file_entries),
+        games_offset,
+        files_offset,
+        data_offset,
+    )
+
+    with open(out_path, "wb") as f:
+        f.write(header)
+        for e in game_entries:
+            f.write(e)
+        for e in file_entries:
+            f.write(e)
+        f.write(data)
 
 
 if __name__ == "__main__":
@@ -667,6 +936,8 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    print(f"\n=== convert_3ds.py target: {args.target} ===\n")
 
     apply_profile(args.target, args.out_gfx, args.out_gw_all, args.out_gw_rom_dir, args.export_dpi, args.scale)
 
@@ -752,9 +1023,11 @@ if __name__ == "__main__":
             print("Falling back to sequential processing...\n")
 
             # Fallback to sequential processing
+            results = []
             for item in game_items:
                 try:
-                    process_single_game(item)
+                    result = process_single_game(item)
+                    results.append(result)
                 except Exception as game_error:
                     print(f"Error processing {item[0]}: {game_error}")
                     continue
@@ -774,5 +1047,53 @@ if __name__ == "__main__":
                 continue
 
     generate_global_file(games_path, destination_file)
+
+    # Always write a pack for the selected target.
+    script_dir = Path(__file__).resolve().parent
+    canonical_pack_path = script_dir / f"yokoi_pack_{args.target}.ykp"
+    versioned_pack_path = script_dir / f"yokoi_pack_{args.target}_v{ROMPACK_FORMAT_VERSION}.{ROMPACK_CONTENT_VERSION}.ykp"
+
+    # Target-specific defaults.
+    platform_id = 0
+    texture_file_ext = ".png"
+    if args.target == "3ds":
+        platform_id = 1
+        texture_file_ext = ".t3x"
+    elif args.target == "rgds":
+        platform_id = 2
+        texture_file_ext = ".png"
+
+    # For 3DS packs we bundle .t3x, so ensure tex3ds has produced them.
+    if args.target == "3ds":
+        _build_tex3ds_outputs_for_pack(
+            t3s_dir=Path(destination_graphique_file),
+            t3x_out_dir=(script_dir.parent / "romfs" / "gfx"),
+        )
+
+    # Texture source directory for pack:
+    # - 3DS: always use ../romfs/gfx (contains built .t3x).
+    # - RGDS: use generated output dir (gfx2x by default).
+    if args.target == "3ds":
+        candidate = (script_dir.parent / "romfs" / "gfx")
+        if not candidate.exists():
+            raise RuntimeError(
+                f"3DS pack requires built .t3x textures in '{candidate}'. "
+                "Build the 3DS assets (tex3ds) first so romfs/gfx is populated, then re-run convert_3ds.py."
+            )
+        pack_gfx_dir = str(candidate)
+    else:
+        pack_gfx_dir = destination_graphique_file
+
+    print(f"\nWriting ROM pack (versioned): {versioned_pack_path}")
+    print(f"Writing ROM pack (canonical):  {canonical_pack_path}")
+    print(f"Pack textures from: {pack_gfx_dir}")
+    pack_games = [r for r in results if isinstance(r, dict)]
+    # Write the versioned file for humans, and also keep the canonical filename that the apps load.
+    write_rom_pack_v1(pack_games, pack_gfx_dir, str(versioned_pack_path), platform=platform_id, texture_file_ext=texture_file_ext)
+    try:
+        import shutil
+        shutil.copyfile(versioned_pack_path, canonical_pack_path)
+    except Exception as e:
+        raise RuntimeError(f"Failed to write canonical pack '{canonical_pack_path}': {e}")
         
     print("\n\n\n\n------------------------------------------------------ Finish !!!!!!!!!!!!")

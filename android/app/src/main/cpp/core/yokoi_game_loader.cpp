@@ -18,13 +18,10 @@
 
 // NOTE: Upstream defines get_input_config(...) in this header (non-inline), which is an ODR hazard.
 // We include it here with a TU-unique rename so we can use the Virtual_Input type without
-// colliding with the canonical symbol, which lives in yokoi_jni.cpp.
+// colliding with any other TU that might include the upstream header.
 #define get_input_config get_input_config__android_game_loader_tu
 #include "virtual_i_o/virtual_input.h"
 #undef get_input_config
-
-// Declare the canonical symbol (defined in yokoi_jni.cpp via the upstream header include).
-extern Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game);
 
 #include "yokoi_audio.h"
 #include "yokoi_cpu_utils.h"
@@ -86,7 +83,7 @@ void yokoi_load_game_by_index_and_init(uint8_t idx) {
     g_cpu->time_set(false);
     yokoi_cpu_set_time_if_needed(g_cpu.get());
 
-    g_input.reset(get_input_config(g_cpu.get(), g_game->ref));
+    g_input.reset(get_input_config__android_game_loader_tu(g_cpu.get(), g_game->ref));
 
     g_segments.clear();
     if (g_game->segment && g_game->size_segment > 0) {
@@ -130,8 +127,6 @@ void yokoi_load_game_by_index_and_init(uint8_t idx) {
     }
 
     // Ensure we display a valid initial frame immediately after load.
-        // Declare the canonical symbol (defined in yokoi_jni.cpp via the upstream header include).
-        extern Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game);
     g_cpu->segments_state_are_update = true;
     update_segments_from_cpu(g_cpu.get());
     reset_runtime_state_for_new_game();

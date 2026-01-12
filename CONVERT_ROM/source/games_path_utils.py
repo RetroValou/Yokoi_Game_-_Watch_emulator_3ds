@@ -278,7 +278,9 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 		fond_bright = float(data.get("fond_bright", default_fond_bright))
 		rotate = bool(data.get("rotate", False))
 		background_in_front = bool(data.get("background_in_front", False))
-		active_cam = bool(data.get("active_cam", False))
+		# Preferred key is "camera" (matches convert_3ds.py). Keep backward compat
+		# with any older intermediate key name.
+		active_cam = bool(data.get("camera", data.get("active_cam", False)))
 		date = data.get("date")
 		display_name = data.get("display_name", key)
 		ref = data.get("ref", "")

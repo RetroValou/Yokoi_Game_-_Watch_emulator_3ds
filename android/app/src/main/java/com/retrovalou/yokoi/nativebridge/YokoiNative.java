@@ -20,6 +20,9 @@ public final class YokoiNative {
 
     public static native String[] nativeGetTextureAssetNames();
 
+    public static native boolean nativeLoadRomPack(String path);
+    public static native byte[] nativeGetPackFileBytes(String name);
+
     public static native void nativeSetTextures(
             int segmentTex, int segmentW, int segmentH,
             int backgroundTex, int backgroundW, int backgroundH,

@@ -95,7 +95,7 @@ class Virtual_Screen {
 
     public:
         void config_screen();
-        void load_visual(std::string path_segment
+        bool load_visual(std::string path_segment
                         , const Segment* segment_list, const size_t size_segment_list
                         , const uint16_t* v_segment_info
                         , std::string path_background 

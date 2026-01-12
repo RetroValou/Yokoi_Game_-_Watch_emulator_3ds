@@ -104,4 +104,34 @@ python convert_3ds.py --target rgds
 
 ```
 
+### External ROM pack
+
+An external rom pack is now build at the same time as the embedded rom files. This external rom pack can be used with both the Android and 3DS versions of the application that do not include any embedded assets.
+
+#### Android RGDS pack:
+
+```powershell
+# Writes into the CONVERT_ROM folder as "yokoi_pack_rgds_vX.X.ykp".
+python convert_3ds.py --target rgds
+```
+
+#### 3DS pack (v1):
+
+```powershell
+# Writes into the CONVERT_ROM folder as "yokoi_pack_3ds_vX.X.ykp".
+python convert_3ds.py --target 3ds
+```
+
+The rom pack files above are named with the pack version and content version (i.e. vX.X)
+
+Note: the 3DS pack bundles `.t3x` textures. `convert_3ds.py` will invoke `tex3ds` to build them, so devkitPro/devkitARM must be installed and `TEX3DS_PATH` (near the top of `convert_3ds.py`) must point to your `tex3ds` executable (or `tex3ds` must be on PATH).
+
+#### Rom pack locations
+
+Android will ask to import/update the rom pack when needed on start up, just select the file and it will be copied into place
+
+3DS will inform you if the file is missing and it must be located in `sdmc:/3ds/yokoi_pack_3ds.ykp`
+
+---
+
 If you adjust per‑game processors or add new games, re‑run `convert_original.py` first so that `games_path.py` and the processed assets are up to date, then run `convert_3ds.py` again to regenerate the 3DS build data.

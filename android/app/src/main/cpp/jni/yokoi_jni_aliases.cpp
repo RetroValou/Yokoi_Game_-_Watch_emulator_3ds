@@ -37,6 +37,9 @@ JNIEXPORT jint JNICALL Java_com_retrovalou_yokoi_MainActivity_nativeGetBackgroun
 JNIEXPORT void JNICALL Java_com_retrovalou_yokoi_MainActivity_nativeSetBackgroundColor(JNIEnv* env, jclass clazz, jint rgb);
 JNIEXPORT jint JNICALL Java_com_retrovalou_yokoi_MainActivity_nativeGetSegmentMarkingAlpha(JNIEnv* env, jclass clazz);
 JNIEXPORT void JNICALL Java_com_retrovalou_yokoi_MainActivity_nativeSetSegmentMarkingAlpha(JNIEnv* env, jclass clazz, jint alpha);
+
+JNIEXPORT jboolean JNICALL Java_com_retrovalou_yokoi_MainActivity_nativeLoadRomPack(JNIEnv* env, jclass clazz, jstring path);
+JNIEXPORT jbyteArray JNICALL Java_com_retrovalou_yokoi_MainActivity_nativeGetPackFileBytes(JNIEnv* env, jclass clazz, jstring name);
 }
 
 // -----------------------------------------------------------------------------
@@ -76,6 +79,16 @@ Java_com_retrovalou_yokoi_nativebridge_YokoiNative_nativeStopAaudio(JNIEnv* env,
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_retrovalou_yokoi_nativebridge_YokoiNative_nativeGetTextureAssetNames(JNIEnv* env, jclass clazz) {
     return Java_com_retrovalou_yokoi_MainActivity_nativeGetTextureAssetNames(env, clazz);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_retrovalou_yokoi_nativebridge_YokoiNative_nativeLoadRomPack(JNIEnv* env, jclass clazz, jstring path) {
+    return Java_com_retrovalou_yokoi_MainActivity_nativeLoadRomPack(env, clazz, path);
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_retrovalou_yokoi_nativebridge_YokoiNative_nativeGetPackFileBytes(JNIEnv* env, jclass clazz, jstring name) {
+    return Java_com_retrovalou_yokoi_MainActivity_nativeGetPackFileBytes(env, clazz, name);
 }
 
 extern "C" JNIEXPORT void JNICALL
