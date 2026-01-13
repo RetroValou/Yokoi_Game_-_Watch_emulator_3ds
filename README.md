@@ -38,12 +38,23 @@ This project supports two 3DS build modes:
 3. Copy the pack to the SD card:
 	- `sdmc:/3ds/yokoi_pack_3ds.ykp`
 
+Note: Use the --sort option on the `convert_3ds.py` script to order the games by date, name, etc if desired
+
 ## Android build (embedded vs external pack)
 
 The Android project lives in the `android/` folder and provides two build variants:
 
-- **embedded** (default): includes `gfx2x` as APK assets and can still load a pack if you place one in app storage.
+- **embedded** (default): includes `gfx2x` as APK assets.
 - **rompackOnly**: does not include embedded ROMs/assets; requires `yokoi_pack_rgds.ykp` at runtime.
+
+### Build assets and rompack
+
+Generate the assets and pack file for Android:
+
+- `python CONVERT_ROM/convert_original.py --target rgds`
+- `python CONVERT_ROM/convert_3ds.py --target rgds`
+
+Note: Use the --sort option on the `convert_3ds.py` script to order the games by date, name, etc if desired
 
 Android ROM pack location:
 

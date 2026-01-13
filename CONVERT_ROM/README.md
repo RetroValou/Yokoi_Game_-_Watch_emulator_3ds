@@ -140,12 +140,14 @@ An external rom pack is now build at the same time as the embedded rom files. Th
 python convert_3ds.py --target rgds
 ```
 
-#### 3DS pack (v1):
+#### 3DS pack:
 
 ```powershell
 # Writes into the CONVERT_ROM folder as "yokoi_pack_3ds_vX.X.ykp".
 python convert_3ds.py --target 3ds
 ```
+
+Note: Use the --sort option on the `convert_3ds.py` script to order the games by date, name, etc if desired
 
 The rom pack files above are named with the pack version and content version (i.e. vX.X)
 
