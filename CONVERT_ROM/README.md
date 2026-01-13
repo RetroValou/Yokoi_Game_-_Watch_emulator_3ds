@@ -100,6 +100,19 @@ python convert_3ds.py --target rgds --sort display_name
 python convert_3ds.py --target 3ds --sort ref --sort-reverse
 ```
 
+#### External tool configuration (Inkscape / tex3ds)
+
+Some steps use external executables whose install paths differ per machine:
+
+- **Inkscape**: used to export SVG layers to PNGs.
+- **tex3ds**: used only for the `--target 3ds` pipeline to build `.t3x` from generated `.t3s`.
+
+To configure these tools:
+
+1. Copy `CONVERT_ROM/external_apps_template.py` to `CONVERT_ROM/external_apps.py`
+2. Edit `INKSCAPE_PATH` and `TEX3DS_PATH` to match your system
+
+
 ### Targets / screen profiles
 
 The script supports two main targets, 3DS and RG DS scaling the graphics to suit each device.
@@ -136,7 +149,7 @@ python convert_3ds.py --target 3ds
 
 The rom pack files above are named with the pack version and content version (i.e. vX.X)
 
-Note: the 3DS pack bundles `.t3x` textures. `convert_3ds.py` will invoke `tex3ds` to build them, so devkitPro/devkitARM must be installed and `TEX3DS_PATH` (near the top of `convert_3ds.py`) must point to your `tex3ds` executable (or `tex3ds` must be on PATH).
+Note: the 3DS pack bundles `.t3x` textures. `convert_3ds.py` will invoke `tex3ds` to build them, so devkitPro/devkitARM must be installed and `TEX3DS_PATH` in `CONVERT_ROM/external_apps.py` must point to your `tex3ds` executable (or `tex3ds` must be on PATH).
 
 #### Rom pack locations
 

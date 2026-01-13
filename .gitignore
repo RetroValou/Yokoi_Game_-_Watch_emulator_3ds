@@ -27,6 +27,9 @@ CONVERT_ROM/rom/*/.gitkeep
 games_path.py
 games_path_*.py
 
+# Per-machine tool configuration (copy from CONVERT_ROM/external_apps_template.py)
+CONVERT_ROM/external_apps.py
+
 Yokoi*.3dsx
 Yokoi*.elf
 Yokoi*.cia
