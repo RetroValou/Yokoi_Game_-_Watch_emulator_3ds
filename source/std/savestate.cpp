@@ -21,15 +21,14 @@ static CPUType get_cpu_type(SM5XX* cpu) {
 // Get save file path for a game
 const char* get_save_path(uint8_t game_index) {
     static char path[256];
-    // Use game ref as some game name cause file saving errors
+    // Use game ref for the savestate filename (stable across pack reorder).
     const GW_rom* game = load_game(game_index);
     if(game) {
         std::string dir = savestate_dir();
         snprintf(path, sizeof(path), "%s/%s.sav", dir.c_str(), game->ref.c_str());
     } else {
-        // Fallback to index-based name if game not found
-        std::string dir = savestate_dir();
-        snprintf(path, sizeof(path), "%s/game_%02d.sav", dir.c_str(), game_index);
+        // No game loaded/resolved for this index.
+        path[0] = '\0';
     }
     return path;
 }
@@ -43,6 +42,7 @@ static void ensure_save_directory() {
 // Check if a save state file exists for a game
 bool save_state_exists(uint8_t game_index) {
     const char* path = get_save_path(game_index);
+    if(path[0] == '\0') return false;
     FILE* file = fopen(path, "rb");
     if(!file) return false;
     fclose(file);
@@ -56,6 +56,7 @@ bool save_game_state(SM5XX* cpu, uint8_t game_index) {
     ensure_save_directory();
     
     const char* path = get_save_path(game_index);
+    if(path[0] == '\0') return false;
     FILE* file = fopen(path, "wb");
     if(!file) return false;
     
@@ -88,6 +89,7 @@ bool load_game_state(SM5XX* cpu, uint8_t game_index) {
     if(!cpu) return false;
     
     const char* path = get_save_path(game_index);
+    if(path[0] == '\0') return false;
     FILE* file = fopen(path, "rb");
     if(!file) return false;
     
@@ -110,11 +112,8 @@ bool load_game_state(SM5XX* cpu, uint8_t game_index) {
         return false;
     }
     
-    // Validate game index
-    if(header.game_index != game_index) {
-        fclose(file);
-        return false;
-    }
+    // NOTE: We intentionally do not validate header.game_index. Packs can be reordered,
+    // and the savestate path is already keyed by game->ref.
     
     // Validate CPU type
     if(header.cpu_type != get_cpu_type(cpu)) {
@@ -131,5 +130,7 @@ bool load_game_state(SM5XX* cpu, uint8_t game_index) {
 
 // Delete game state file
 void delete_game_state(uint8_t game_index) {
-    remove(get_save_path(game_index));
+    const char* path = get_save_path(game_index);
+    if(path[0] == '\0') return;
+    remove(path);
 }
