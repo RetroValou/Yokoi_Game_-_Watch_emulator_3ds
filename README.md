@@ -1,78 +1,99 @@
 # Yokoi - Game & Watch Emulator for 3DS
-A Game & Watch emulator for 3DS: SM5A, SM510, and SM511/SM512.
+
+A Game & Watch emulator for 3DS & Android: SM5A, SM510, and SM511/SM512.
 
 <img src="screenshot/all.png" alt="Gameplay"/>
 
-# Build Instructions
-The code has been tested and compiled on Windows. The conversion scripts may not work on Linux or Mac due to the reliance on Inkscape.  
-The source code is provided **without the ROMs or graphics of the original Game & Watch devices** (copyrighted).  
+# Supported devices
 
-To convert the ROMs, use the provided Python program included in the `CONVERT_ROM` folder. The ROMs used are the same as those that work with MAME.  
-ROM parameters should be specified in the `games_path` dictionary. A pre-filled version is included in the source code.  
-There is no strict ROM size limit—you can define one or use existing sizes.  
+- **Nintendo 3DS/2DS family** (Old/New models) running Homebrew/CFW.
+- **Anbernic RGDS (dual screen, Android)**: supported and recommended. 
+- **Android (arm64-v8a)** devices (phones/tablets/handhelds).
 
-The conversion code requires **Inkscape**, as MAME ROMs use the SVG vector format (not directly readable on the 3DS). Inkscape is used to convert these vector graphics into PNG images.
+# Supported games
 
-## 3DS build: embedded vs external pack
+Supported games are all of the Game & Watch titles and a single Tronica game.
 
-This project supports two 3DS build modes:
+- Full list: [CONVERT_ROM/GNW_LIST.md](/CONVERT_ROM/GNW_LIST.md)
+- Notes:
+	- Availability depends on which ROMs/artwork you provide when generating your rompack.
+	- Some games may still have quirks (see [Known issues](#known-issues)).
 
-- **Embedded (default):** ROMs and textures are built into the `.3dsx/.cia` (via generated `source/std/GW_ROM/*` and `romfs/gfx/*.t3x`).
-- **External pack (pack-only):** the app ships without embedded ROMs/textures and loads everything from `sdmc:/3ds/yokoi_pack_3ds.ykp`.
+# Installation
 
-### Build (embedded, default)
+Installation requires both the application and a rompack with the games. 
 
-1. Generate assets + sources:
-	- `python CONVERT_ROM/convert_original.py --target 3ds`
-	- `python CONVERT_ROM/convert_3ds.py --target 3ds`
-2. Build:
-	- `make`
+**Note:** The rompack is **not provided** as it contains original Game & Watch ROMs and graphics. You will need to build your own. Details are in the [CONVERT_ROM/README.md](/CONVERT_ROM/README.md)
 
-### Build (external pack, no embedded ROMs/textures)
+## 3DS
 
-1. Generate the pack file:
-	- `python CONVERT_ROM/convert_3ds.py --target 3ds`
-2. Build the 3DS app in pack-only mode:
-	- `make clean`
-	- `make ROMPACK_ONLY=1`
-3. Copy the pack to the SD card:
+The emulator is provided as `.cia` and `.3dsx` files for 3DS.
+
+### Install (CIA)
+
+Prerequisites:
+
+- A 3DS with CFW (e.g. Luma3DS) so you can install CIAs.
+- A title installer such as **FBI**.
+
+Steps:
+
+1. Copy `Yokoi*.cia` to your SD card (any folder).
+2. Launch **FBI** on the 3DS.
+3. Go to **SD** -> find the `.cia` -> choose **Install and delete CIA** (or Install).
+4. Launch **Yokoi** from the HOME Menu.
+
+### Install (3DSX)
+
+Prerequisites:
+
+- The Homebrew Launcher.
+
+Steps:
+
+1. Copy `Yokoi*.3dsx` (or the release `.3dsx`) to `sdmc:/3ds/yokoi/`.
+2. Launch the Homebrew Launcher and start **Yokoi**.
+
+### ROM pack 
+
+The rompack is **not provided**, you will need to generate your own from MAME roms.
+
+1. Generate a 3DS rompack as detailed in the [CONVERT_ROM/README.md](/CONVERT_ROM/README.md)
+2. Copy your generated pack file to:
 	- `sdmc:/3ds/yokoi_pack_3ds.ykp`
 
-Note: Use the --sort option on the `convert_3ds.py` script to order the games by date, name, etc if desired
+If the emulator starts but shows no games or reports a missing pack, double-check the filename and location exactly match the path above.
 
-## Android build (embedded vs external pack)
+## Android
 
-The Android project lives in the `android/` folder and provides two build variants:
+The emulator is provided as an `.apk` in the latest releases section.
 
-- **embedded** (default): includes `gfx2x` as APK assets.
-- **rompackOnly**: does not include embedded ROMs/assets; requires `yokoi_pack_rgds.ykp` at runtime.
+### Install (APK)
 
-### Build assets and rompack
+1. Download the latest `Yokoi*.apk` from the releases.
+2. Enable installing from unknown sources (wording depends on Android version):
+	- Settings -> Security/Privacy -> Install unknown apps -> allow your browser/file manager.
+3. Open the APK and install it.
+4. Launch **Yokoi**.
 
-Generate the assets and pack file for Android:
+### ROM pack (Android)
 
-- `python CONVERT_ROM/convert_original.py --target rgds`
-- `python CONVERT_ROM/convert_3ds.py --target rgds`
+The rompack is **not provided**, you will need to generate your own from MAME roms.
 
-Note: Use the --sort option on the `convert_3ds.py` script to order the games by date, name, etc if desired
+1. Generate an Android rompack as detailed in the [CONVERT_ROM/README.md](/CONVERT_ROM/README.md)
+2. Copy the generated rompack `yokoi_pack_rgds.ykp` somewhere accessible (e.g. `Download/`).
+3. Launch the app and use **Import/Update ROM pack** option shown to select the file.
 
-Android ROM pack location:
+# Building
 
-- The app will try to load `yokoi_pack_rgds.ykp` and if missing show a message where you can select the ykp rom pack file to import and use.
+See [BUILDING.md](BUILDING.md) for how to build the 3DS and Android applications.
 
-- Copy `yokoi_pack_rgds.ykp` anywhere you can access easily (e.g. `Download/`).
-- Launch the app; if the ROM pack is missing/outdated, an import screen appears. 
-- Tap **Import/Update ROM pack** and select the file. The app copies it into private storage and loads it.
-- Rom pack is then imported.
-
-### Android Studio
-
-- Open the `android/` folder in Android Studio.
-- Use **Build Variants** to pick `embeddedDebug` or `rompackOnlyDebug`.
+For ROM pack / asset generation, see [CONVERT_ROM/README.md](/CONVERT_ROM/README.md).
 
 # Known issues
 - Very imperfect sound / strange resonance on Game & Watch SM510 (e.g., Donkey Kong JR Widescreen)
 - Bug on some Game & Watch SM5A (sometimes freezes at the end of a game)
+
 
 # License
 Public Domain / Free to use  

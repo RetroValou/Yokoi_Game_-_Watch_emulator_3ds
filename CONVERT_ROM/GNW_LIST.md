@@ -70,6 +70,8 @@ There are only 56 unique games listed above. The following games have bug fixes 
 
 ## Special Editions
 
+Special editions are not supported in the emulator, refer to the Notes column for the original games they are remakes of.
+
 | Model    | Game Title                                                   | Release Date | Notes                                    |
 |----------|--------------------------------------------------------------|--------------|------------------------------------------|
 | YM-901-S | Game & Watch: Super Mario Bros. (Special Edition)            | 1987.08.01   | Same content as YM-105                   |
@@ -80,7 +82,7 @@ There are only 56 unique games listed above. The following games have bug fixes 
 | SM-35    | Game & Watch: Super Mario Bros. 35th Anniversary Edition     | 2020.11.13   | Modern remake of Game & Watch device     |
 | ZL-35    | Game & Watch: The Legend of Zelda 35th Anniversary Edition   | 2021.11.12   | Modern remake of Game & Watch device     |
 
-## List of Tronic games
+## List of Tronica games
 
 | No. | Model   | Filename            | Game Title                                                   | Release Date |
 |-----|---------|---------------------|--------------------------------------------------------------|--------------|
