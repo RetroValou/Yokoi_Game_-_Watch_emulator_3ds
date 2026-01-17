@@ -2,7 +2,7 @@
 
 #include "gw_pack.h"
 
-#if !defined(YOKOI_EXTERNAL_ROMPACK_ONLY)
+#if defined(YOKOI_EMBEDDED_ASSETS)
     #if defined(__ANDROID__)
         #include "GW_ALL_rgds.h"
     #else
@@ -16,7 +16,7 @@ const GW_rom* load_game(uint8_t i_game){
         return gw_pack::game_at(i_game);
     }
 
-#if !defined(YOKOI_EXTERNAL_ROMPACK_ONLY)
+#if defined(YOKOI_EMBEDDED_ASSETS)
     if (i_game < nb_games) {
         return GW_list[i_game];
     }
@@ -33,7 +33,7 @@ size_t get_nb_name(){
     if (gw_pack::is_loaded()) {
         return gw_pack::game_count();
     }
-#if !defined(YOKOI_EXTERNAL_ROMPACK_ONLY)
+#if defined(YOKOI_EMBEDDED_ASSETS)
     return nb_games;
 #else
     return 0;
