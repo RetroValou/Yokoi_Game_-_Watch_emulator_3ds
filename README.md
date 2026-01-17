@@ -26,7 +26,7 @@ Supported games are all of the Game & Watch titles and a single Tronica game.
 
 - Dual-screen support for double-screen Game & Watch on 3DS and Anbernic RGDS
 - Save state support
-- Time synchronization (feature not available for all G&W)
+- Time synchronization
 - Stereoscopic 3D on 3ds
 - Camera support for Game & Watch Crystal Screen games on 3ds (reproduces the "transparent" screen) 
 
