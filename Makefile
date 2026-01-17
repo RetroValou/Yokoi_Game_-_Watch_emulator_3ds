@@ -41,8 +41,9 @@ GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 GFXBUILD	:=	$(ROMFS)/gfx
 
-# Set ROMPACK_ONLY=1 to build without embedded ROMs/graphics and rely on an external .ykp pack.
-ROMPACK_ONLY ?= 0
+# Set EMBEDDED=1 to build with embedded ROMs/graphics.
+# Default (EMBEDDED=0) builds without embedded assets and relies on an external .ykp pack.
+EMBEDDED ?= 0
 
 # Set SHOW_MSG_ROM=0 to build without show Warning rom data
 SHOW_MSG_ROM ?= 1
@@ -51,13 +52,13 @@ SHOW_MSG_ROM ?= 1
 # Bump this when the app expects newer pack contents (textures/layout/etc.).
 ROMPACK_CONTENT_VERSION_REQUIRED ?= 2
 
-# Extra defines for pack-only builds (appended after CFLAGS is set).
+# Extra defines for embedded/pack builds (appended after CFLAGS is set).
 ROMPACK_DEFINES ?=
 
 # Always define the required content version (applies when a pack is loaded).
 ROMPACK_DEFINES += -DYOKOI_ROMPACK_REQUIRED_CONTENT_VERSION=$(ROMPACK_CONTENT_VERSION_REQUIRED)
 
-ifneq ($(strip $(ROMPACK_ONLY)),0)
+ifeq ($(strip $(EMBEDDED)),0)
 	SOURCES := $(filter-out source/std/GW_ROM,$(SOURCES))
 	INCLUDES := $(filter-out source/std/GW_ROM,$(INCLUDES))
 	# Suffix output artifacts so pack-only builds are easy to distinguish.
@@ -68,7 +69,10 @@ ifneq ($(strip $(ROMPACK_ONLY)),0)
 	ROMFS := romfs
 	GFXBUILD := $(ROMFS)/gfx
 	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s
-	ROMPACK_DEFINES += -DYOKOI_EXTERNAL_ROMPACK_ONLY
+endif
+
+ifneq ($(strip $(EMBEDDED)),0)
+	ROMPACK_DEFINES += -DYOKOI_EMBEDDED_ASSETS=1
 endif
 
 ifneq ($(strip $(SHOW_MSG_ROM)),0)
@@ -135,9 +139,9 @@ SHLISTFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.shlist)))
 GFXFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.t3s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
-	# In pack-only builds, only include minimal UI textures in romfs.
+	# In non-embedded builds, only include minimal UI textures in romfs.
 	# (Game textures come from the external .ykp pack.)
-	ifneq ($(strip $(ROMPACK_ONLY)),0)
+	ifeq ($(strip $(EMBEDDED)),0)
 		GFXFILES := $(ROMPACK_UI_GFXFILES)
 	endif
 

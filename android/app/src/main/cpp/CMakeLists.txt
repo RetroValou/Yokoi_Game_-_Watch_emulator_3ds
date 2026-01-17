@@ -4,7 +4,7 @@ project(yokoi_android LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(YOKOI_EXTERNAL_ROMPACK_ONLY "Build without compiled-in ROMs/assets; require external ROM pack at runtime" OFF)
+option(YOKOI_EMBEDDED_ASSETS "Build with compiled-in ROMs/assets (embedded build)" OFF)
 
 # Minimum external pack content version that this build accepts.
 # Bump this when the app expects newer pack contents (textures/layout/etc.).
@@ -31,7 +31,7 @@ file(GLOB_RECURSE YOKOI_GW_ROM_SRC
     "${YOKOI_ROOT}/source/std/GW_ROM_RGDS/*.cpp"
 )
 
-if(YOKOI_EXTERNAL_ROMPACK_ONLY)
+if(NOT YOKOI_EMBEDDED_ASSETS)
     set(YOKOI_GW_ROM_SRC "")
 endif()
 
@@ -63,8 +63,8 @@ add_library(yokoi SHARED
     ${YOKOI_GW_ROM_SRC}
 )
 
-if(YOKOI_EXTERNAL_ROMPACK_ONLY)
-    target_compile_definitions(yokoi PRIVATE YOKOI_EXTERNAL_ROMPACK_ONLY=1)
+if(YOKOI_EMBEDDED_ASSETS)
+    target_compile_definitions(yokoi PRIVATE YOKOI_EMBEDDED_ASSETS=1)
 endif()
 
 target_compile_definitions(yokoi PRIVATE YOKOI_ROMPACK_REQUIRED_CONTENT_VERSION=${YOKOI_ROMPACK_REQUIRED_CONTENT_VERSION})

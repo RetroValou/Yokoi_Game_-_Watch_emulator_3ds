@@ -65,7 +65,7 @@ static std::string g_pack_load_error;
 
 static constexpr const char* k3dsRomPackPath = "sdmc:/3ds/yokoi_pack_3ds.ykp";
 
-#if defined(YOKOI_EXTERNAL_ROMPACK_ONLY)
+#if !defined(YOKOI_EMBEDDED_ASSETS)
 static void show_pack_required_console(const std::string& err) {
     gfxInitDefault();
 
@@ -95,7 +95,7 @@ static void show_pack_required_console(const std::string& err) {
 
     gfxExit();
 }
-#endif // defined(YOKOI_EXTERNAL_ROMPACK_ONLY)
+#endif // !defined(YOKOI_EMBEDDED_ASSETS)
 
 static void show_pack_required_screen(Virtual_Screen& v_screen, const std::string& err) {
     v_screen.delete_all_text();
@@ -623,7 +623,7 @@ int main()
             g_pack_load_error.clear();
         }
 
-#if defined(YOKOI_EXTERNAL_ROMPACK_ONLY)
+#if !defined(YOKOI_EMBEDDED_ASSETS)
         if (!pack_ok) {
             show_pack_required_console(g_pack_load_error);
             return 0;

@@ -53,7 +53,7 @@ public final class MainActivity extends Activity {
     private RomPackImporter romPackImporter;
 
     private boolean isPackOnlyGated() {
-        return BuildConfig.ROMPACK_ONLY && (glView == null);
+        return !BuildConfig.EMBEDDED && (glView == null);
     }
 
     private File getDefaultRomPackPathPreferExternal() {
@@ -346,7 +346,7 @@ public final class MainActivity extends Activity {
                     public void onRomPackImported(File dest, boolean loadOk) {
                         if (loadOk) {
                             // If we started in "gated" mode (no GL/UI yet), bring up the main UI now.
-                            if (BuildConfig.ROMPACK_ONLY && glView == null) {
+                            if (!BuildConfig.EMBEDDED && glView == null) {
                                 startMainUi();
                             } else if (packOverlay != null) {
                                 packOverlay.setVisibility(View.GONE);
@@ -367,7 +367,7 @@ public final class MainActivity extends Activity {
 
         // In pack-only builds, do not create/render the emulator UI until we have a valid pack.
         // This prevents the menu/overlays from appearing behind the import screen.
-        if (BuildConfig.ROMPACK_ONLY && !packOk) {
+        if (!BuildConfig.EMBEDDED && !packOk) {
             showPackGateScreen();
             return;
         }

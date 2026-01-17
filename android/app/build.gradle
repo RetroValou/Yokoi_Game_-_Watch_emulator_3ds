@@ -44,21 +44,22 @@ android {
     // - rompackOnly: ships without embedded ROMs/assets; requires an external .ykp pack at runtime.
     flavorDimensions += ['content']
     productFlavors {
-        embedded {
+        // Keep rompackOnly first so Android Studio tends to pick rompackOnlyDebug by default.
+        rompackOnly {
             dimension 'content'
-            buildConfigField 'boolean', 'ROMPACK_ONLY', 'false'
+            buildConfigField 'boolean', 'EMBEDDED', 'false'
             externalNativeBuild {
                 cmake {
-                    arguments '-DYOKOI_EXTERNAL_ROMPACK_ONLY=OFF'
+                    arguments '-DYOKOI_EMBEDDED_ASSETS=OFF'
                 }
             }
         }
-        rompackOnly {
+        embedded {
             dimension 'content'
-            buildConfigField 'boolean', 'ROMPACK_ONLY', 'true'
+            buildConfigField 'boolean', 'EMBEDDED', 'true'
             externalNativeBuild {
                 cmake {
-                    arguments '-DYOKOI_EXTERNAL_ROMPACK_ONLY=ON'
+                    arguments '-DYOKOI_EMBEDDED_ASSETS=ON'
                 }
             }
         }
