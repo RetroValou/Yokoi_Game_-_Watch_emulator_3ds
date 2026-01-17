@@ -12,7 +12,6 @@ bool SM5XX::step(){ // loop of CPU
     if(cycle_curr_opcode <= 0){
         debug_theorie_time = debug_cycle_curr_opcode * time_per_cycle_us; 
         debug_cycle_previous_opcode = debug_cycle_curr_opcode;
-        debug_time_execute = ((int64_t)time_us_64_p() - debug_time_execute);
         
         execution_opcode = true;
         cycle_curr_opcode = 0x00; // safety -> never less than 0
@@ -33,7 +32,6 @@ bool SM5XX::step(){ // loop of CPU
         debug_cycle_curr_opcode = cycle_curr_opcode;
     }
     execute_cycle();
-    if(cycle_curr_opcode <= 0){ debug_time_execute = (int64_t)time_us_64_p(); }
 
     return execution_opcode;
 }
@@ -44,7 +42,6 @@ void SM5XX::execute_cycle(){
     // each execution need during 1 cycle
     step_clock_divider(); // in, there are update screen
     cycle_curr_opcode--;
-    wait_timing_cpu(1);
     update_sound();
 }
 
@@ -80,32 +77,6 @@ void SM5XX::skip_instruction(){
     if(is_on_double_octet(opcode_to_skip)){ adding_program_counter(nullptr); }
 }
 
-
-
-
-/////////////////////////////////// Timing CPU ///////////////////////////////////
-
-uint64_t SM5XX::get_target_time_cpu(int cycle){
-    uint64_t target_time;
-    nb_group_cycle += cycle;
-    target_time = time_last_group_cycle 
-                    + (uint64_t)(nb_group_cycle * time_per_cycle_us + 0.5);
-    
-    if(nb_group_cycle > 200){ // protection contre derive precision
-        nb_group_cycle = 0;
-        time_last_group_cycle = target_time;
-    }
-    return target_time;
-}
-
-
-void SM5XX::wait_timing_cpu(int cycle){
-    if(cycle <= 0){ return; }
-
-    uint64_t target_time = get_target_time_cpu(cycle);
-    int64_t time_wait = ((int64_t)target_time) - ((int64_t)time_us_64_p());
-    if(!NO_WAIT_CYCLE && time_wait > 0){ sleep_us_p(time_wait); }
-}
 
 
 

@@ -41,8 +41,6 @@ void SM5A::init()
     }
 
     segments_state_are_update = false;
-    time_last_group_cycle = time_us_64_p();
-    nb_group_cycle = 0;
     cycle_curr_opcode = 0;
 
     for(int col = 0; col < SM5A_SEGMENT_COL; col++){

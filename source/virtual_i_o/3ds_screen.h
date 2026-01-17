@@ -1,9 +1,13 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include <string>
 #include "SM5XX/SM5XX.h"
 #include "std/segment.h"
 #include "std/settings.h"
+
+#include "virtual_i_o/3ds_camera.h"
+
 
 #include <3ds.h>
 #include <citro3d.h>
@@ -43,7 +47,9 @@ class Virtual_Screen {
         C3D_Tex texture_game;
         C3D_Tex background;
         C3D_Tex text_texture;
+        C3D_Tex noise_texture;
         C3D_Tex img_texture[nb_img_interface_max];
+        std::string img_texture_path[nb_img_interface_max];
 
         std::vector<Segment> list_segment;
         uint32_t index_segment_screen[4];
@@ -58,6 +64,7 @@ class Virtual_Screen {
         bool need_redraw_bottom = false; // Flag to redraw bottom screen after settings
 
         uint32_t curr_fond_color;
+        uint32_t curr_fond_color_noise;
         uint32_t curr_alpha_color;
 
         vertex* vertex_data;
@@ -67,17 +74,30 @@ class Virtual_Screen {
         C3D_Mtx projection_up, projection_down;
         C3D_Mtx modelView_up, modelView_down;
 
+        C3D_Mtx* modelView_curr;
+
         C3D_RenderTarget* target_up;
+        C3D_RenderTarget* target_right;
         C3D_RenderTarget* target_down;
+
+        float slider_3d;
+        float eye_offset_value;
+
+        float offset_segment;
+        float offset_mark_segment;
+        float offset_background;
+        float offset_fond;
 
         uint32_t index_start_texte;
         uint32_t size_text_screen_0;
         uint32_t size_text_screen_1;
         std::vector<uint16_t> indice_img;
 
+        Camera_3ds cam;
+
     public:
         void config_screen();
-        void load_visual(std::string path_segment
+        bool load_visual(std::string path_segment
                         , const Segment* segment_list, const size_t size_segment_list
                         , const uint16_t* v_segment_info
                         , std::string path_background 
@@ -97,13 +117,38 @@ class Virtual_Screen {
         void refresh_settings(); // Update visual settings from g_settings
         bool is_double_in_one_screen() const { return double_in_one_screen; }
 
+        std::vector<int> pos_fond;
+
     private:
         void protect_blinking(Segment *seg, bool new_state);
+
         void set_base_environnement();
         void set_alpha_environnement(uint8_t alpha_multiply = 0xFF);
         void set_color_environnement(uint32_t color);
+        void set_gradient_color(uint32_t color1, uint32_t color2);
         void change_alpha_color_environnement(uint32_t color_, uint8_t alpha_multiply = 0xFF);
-        void set_screen_up();
+
+        void set_screen_up(bool on_left_eye = true);
         void set_screen_down();
         void send_vbo();
+
+        int set_good_screen(int curr_screen);
+  
+        void update_slider_3d_value(int nb_render);
+        void update_eye_offset_value(int nb_render, int i_render);
+        void update_offset_fond();
+        void update_offset_background();
+        void update_offset_segment();
+
+        float get_eye_offset_segment(int nb_render, int i_render, bool is_active);
+        void apply_3d_segment(C3D_Mtx* curr_modelView, int i_render, bool is_active);
+        void apply_3d_background(C3D_Mtx* curr_modelView, int i_render);
+        void apply_3d_fond(C3D_Mtx* curr_modelView, int i_render, float zoom);
+
+        void create_fond(int nb_render, int i_render, int curr_screen);
+        void create_shadow(int nb_render, int i_render, int curr_screen);
+        void create_segment(int nb_render, int i_render, int curr_screen);
+        void create_background(int nb_render, int i_render, int curr_screen);
+        void create_border(int nb_render, int i_render, int curr_screen);
+
 };

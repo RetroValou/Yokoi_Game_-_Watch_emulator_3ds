@@ -13,11 +13,13 @@
 #include <mutex>
 #include <algorithm>
 #include <atomic>
+#include <limits>
 
 #include <thread>
 #include <condition_variable>
 
 #include "std/GW_ROM.h"
+#include "std/gw_pack.h"
 #include "std/platform_paths.h"
 #include "std/settings.h"
 #include "std/savestate.h"
@@ -57,6 +59,10 @@ void logi(const char* msg) {
 
 void logi_str(const std::string& s) {
     __android_log_write(ANDROID_LOG_INFO, kLogTag, s.c_str());
+}
+
+void loge_str(const std::string& s) {
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, s.c_str());
 }
 
 static GlResources* get_or_create_gl_for_current_context();
@@ -210,6 +216,72 @@ Java_com_retrovalou_yokoi_MainActivity_nativeSetStorageRoot(JNIEnv* env, jclass,
     env->ReleaseStringUTFChars(path, utf);
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeLoadRomPack(JNIEnv* env, jclass, jstring path) {
+    if (!path) {
+        return JNI_FALSE;
+    }
+
+    const char* utf = env->GetStringUTFChars(path, nullptr);
+    if (!utf) {
+        return JNI_FALSE;
+    }
+
+    std::string err;
+    const bool ok = gw_pack::load(std::string(utf), &err);
+    env->ReleaseStringUTFChars(path, utf);
+
+    if (!ok) {
+        loge_str(std::string("ROM pack load failed: ") + err);
+        return JNI_FALSE;
+    }
+
+    // If the core is already running, refresh menu selection so updated packs take effect
+    // immediately (textures/layout/menu list).
+    const size_t n = get_nb_name();
+    if (g_core_inited && n > 0) {
+        if ((size_t)g_game_index >= n) {
+            g_game_index = 0;
+        }
+        g_app_mode.store(MODE_MENU_SELECT);
+        g_menu_load_choice.store(0);
+        yokoi_menu_select_game_by_index(g_game_index);
+    }
+
+    logi_str(std::string("ROM pack loaded (games=") + std::to_string(n) + ")");
+    return JNI_TRUE;
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_retrovalou_yokoi_MainActivity_nativeGetPackFileBytes(JNIEnv* env, jclass, jstring name) {
+    if (!name) {
+        return nullptr;
+    }
+    const char* utf = env->GetStringUTFChars(name, nullptr);
+    if (!utf) {
+        return nullptr;
+    }
+
+    const uint8_t* data = nullptr;
+    size_t size = 0;
+    const bool ok = gw_pack::get_file_bytes(std::string(utf), data, size);
+    env->ReleaseStringUTFChars(name, utf);
+
+    if (!ok || !data || size == 0) {
+        return nullptr;
+    }
+
+    if (size > (size_t)std::numeric_limits<jsize>::max()) {
+        return nullptr;
+    }
+    jbyteArray out = env->NewByteArray((jsize)size);
+    if (!out) {
+        return nullptr;
+    }
+    env->SetByteArrayRegion(out, 0, (jsize)size, reinterpret_cast<const jbyte*>(data));
+    return out;
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_retrovalou_yokoi_MainActivity_nativeInit(JNIEnv*, jclass) {
     // Always ensure GL resources exist for the current GL context.
@@ -219,15 +291,28 @@ Java_com_retrovalou_yokoi_MainActivity_nativeInit(JNIEnv*, jclass) {
         // Settings/saves will land in Context.getFilesDir().
         load_settings();
 
+        // Attempt to load an external ROM pack from the default location.
+        // Only do this if one isn't already loaded (e.g. via nativeLoadRomPack()).
+        if (!gw_pack::is_loaded()) {
+            std::string err;
+            const std::string p = storage_path("yokoi_pack_rgds.ykp");
+            const bool ok = gw_pack::load(p, &err);
+            if (!ok) {
+                loge_str(std::string("Default ROM pack load failed: ") + err);
+            }
+        }
+
         logi("Native init OK");
         logi_str("Storage root: " + storage_root());
         logi_str("Games detected: " + std::to_string(get_nb_name()));
 
         // Start in menu mode like the 3DS app.
         g_app_mode.store(MODE_MENU_SELECT);
-        g_menu_load_choice.store(get_default_menu_load_choice_for_game(get_default_game_index_for_android()));
-        uint8_t idx = get_default_game_index_for_android();
-        menu_select_game_by_index(idx);
+        if (get_nb_name() > 0) {
+            g_menu_load_choice.store(get_default_menu_load_choice_for_game(get_default_game_index_for_android()));
+            uint8_t idx = get_default_game_index_for_android();
+            menu_select_game_by_index(idx);
+        }
         g_core_inited = true;
     }
 

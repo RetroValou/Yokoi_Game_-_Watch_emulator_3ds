@@ -13,6 +13,28 @@ public final class TextureLoader {
     private TextureLoader() {
     }
 
+    public static TextureInfo loadTextureFromPngBytesOrAsset(AssetManager assets, String assetName, byte[] pngBytes) {
+        if (pngBytes != null && pngBytes.length > 0) {
+            TextureInfo info = loadTextureFromPngBytes(pngBytes);
+            if (info != null && info.id != 0) {
+                return info;
+            }
+        }
+        return loadTextureFromAsset(assets, assetName);
+    }
+
+    public static TextureInfo loadTextureFromPngBytes(byte[] pngBytes) {
+        if (pngBytes == null || pngBytes.length == 0) {
+            return new TextureInfo(0, 0, 0);
+        }
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+
+        Bitmap bitmap = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.length, options);
+        return loadTextureFromBitmap(bitmap);
+    }
+
     public static TextureInfo loadTextureFromAsset(AssetManager assets, String assetName) {
         if (assets == null || assetName == null || assetName.isEmpty()) {
             return new TextureInfo(0, 0, 0);

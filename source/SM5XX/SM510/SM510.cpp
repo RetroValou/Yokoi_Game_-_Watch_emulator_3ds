@@ -40,8 +40,6 @@ void SM510::init()
     is_sleep = false;
 
     segments_state_are_update = false;
-    time_last_group_cycle = time_us_64_p();
-    nb_group_cycle = 0;
     alternativ_col_ram = 0x00; // used for sbm -> change temporaly value of ram col adresse
     cycle_curr_opcode = 0;
 

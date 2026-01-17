@@ -45,6 +45,8 @@ class GameEntry:
 	alpha_bright: float = default_alpha_bright
 	fond_bright: float = default_fond_bright
 	rotate: bool = False
+	background_in_front: bool = False
+	active_cam: bool = False
 
 	def format_lines(self, script_dir: Path) -> List[str]:
 		"""Format this entry using the house style used by the generator."""
@@ -102,6 +104,11 @@ class GameEntry:
 			lines.append(
 				f'{INDENT_FIELD}, "console" : {_format_path(self.console_path, script_dir)}'
 			)
+		if self.background_in_front:
+			lines.append(f'{INDENT_FIELD}, "background_in_front" : True')
+
+		if self.active_cam:
+			lines.append(f'{INDENT_FIELD}, "camera" : True')
 
 		lines.append(INDENT_FOOTER)
 		return lines
@@ -184,7 +191,6 @@ def write_games_path(entries: Sequence[GameEntry], script_dir: Path, destination
 
 	This is a thin convenience wrapper around :func:`build_games_path_lines`.
 	"""
-
 	lines = build_games_path_lines(entries, script_dir)
 	destination.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -271,6 +277,10 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 		alpha_bright = float(data.get("alpha_bright", default_alpha_bright))
 		fond_bright = float(data.get("fond_bright", default_fond_bright))
 		rotate = bool(data.get("rotate", False))
+		background_in_front = bool(data.get("background_in_front", False))
+		# Preferred key is "camera" (matches convert_3ds.py). Keep backward compat
+		# with any older intermediate key name.
+		active_cam = bool(data.get("camera", data.get("active_cam", False)))
 		date = data.get("date")
 		display_name = data.get("display_name", key)
 		ref = data.get("ref", "")
@@ -297,6 +307,8 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 				alpha_bright=alpha_bright,
 				fond_bright=fond_bright,
 				rotate=rotate,
+				background_in_front=background_in_front,
+				active_cam=active_cam,
 			),
 		)
 

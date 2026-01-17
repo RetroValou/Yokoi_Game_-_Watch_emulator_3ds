@@ -153,9 +153,9 @@ public final class SecondScreenController {
                     String bgName = (names != null && names.length > 1) ? names[1] : "";
                     String csName = (names != null && names.length > 2) ? names[2] : "";
 
-                    TextureInfo seg = TextureLoader.loadTextureFromAsset(activity.getAssets(), segName);
-                    TextureInfo bg = TextureLoader.loadTextureFromAsset(activity.getAssets(), bgName);
-                    TextureInfo cs = TextureLoader.loadTextureFromAsset(activity.getAssets(), csName);
+                    TextureInfo seg = TextureLoader.loadTextureFromPngBytesOrAsset(activity.getAssets(), segName, YokoiNative.nativeGetPackFileBytes(segName));
+                    TextureInfo bg = TextureLoader.loadTextureFromPngBytesOrAsset(activity.getAssets(), bgName, YokoiNative.nativeGetPackFileBytes(bgName));
+                    TextureInfo cs = TextureLoader.loadTextureFromPngBytesOrAsset(activity.getAssets(), csName, YokoiNative.nativeGetPackFileBytes(csName));
 
                     YokoiNative.nativeSetTextures(
                             seg.id, seg.width, seg.height,
@@ -189,9 +189,9 @@ public final class SecondScreenController {
                         String bgName = (names != null && names.length > 1) ? names[1] : "";
                         String csName = (names != null && names.length > 2) ? names[2] : "";
 
-                        TextureInfo seg = TextureLoader.loadTextureFromAsset(activity.getAssets(), segName);
-                        TextureInfo bg = TextureLoader.loadTextureFromAsset(activity.getAssets(), bgName);
-                        TextureInfo cs = TextureLoader.loadTextureFromAsset(activity.getAssets(), csName);
+                        TextureInfo seg = TextureLoader.loadTextureFromPngBytesOrAsset(activity.getAssets(), segName, YokoiNative.nativeGetPackFileBytes(segName));
+                        TextureInfo bg = TextureLoader.loadTextureFromPngBytesOrAsset(activity.getAssets(), bgName, YokoiNative.nativeGetPackFileBytes(bgName));
+                        TextureInfo cs = TextureLoader.loadTextureFromPngBytesOrAsset(activity.getAssets(), csName, YokoiNative.nativeGetPackFileBytes(csName));
 
                         YokoiNative.nativeSetTextures(
                                 seg.id, seg.width, seg.height,

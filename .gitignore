@@ -21,16 +21,20 @@ CONVERT_ROM/tmp/img/*
 CONVERT_ROM/rom/*
 !CONVERT_ROM/rom/.gitkeep
 !CONVERT_ROM/rom/default_console.png
-
+CONVERT_ROM/rom/*/.gitkeep
 *.pyc
 
 games_path.py
 games_path_*.py
 
+# Per-machine tool configuration (copy from CONVERT_ROM/external_apps_template.py)
+CONVERT_ROM/external_apps.py
+
 Yokoi*.3dsx
 Yokoi*.elf
 Yokoi*.cia
 Yokoi*.smdh
+start_citra_emu.bat
 
 .DS_Store
 Thumbs.db   
@@ -42,4 +46,7 @@ android/.gradle
 android/app/.cxx
 android/build
 android/app/release
+android/app/embedded
+android/app/rompackOnly
 
+*.ykp

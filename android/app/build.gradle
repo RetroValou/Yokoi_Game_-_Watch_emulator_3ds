@@ -6,6 +6,10 @@ android {
     namespace 'com.retrovalou.yokoi'
     compileSdk 34
 
+    buildFeatures {
+        buildConfig true
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
@@ -15,8 +19,8 @@ android {
         applicationId 'com.retrovalou.yokoi'
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName '1.1.1'
+        versionCode 4
+        versionName '1.2.0'
 
         externalNativeBuild {
             cmake {
@@ -35,6 +39,32 @@ android {
         }
     }
 
+    // Build variants:
+    // - embedded: ships with APK assets (gfx2x) + compiled-in ROM metadata.
+    // - rompackOnly: ships without embedded ROMs/assets; requires an external .ykp pack at runtime.
+    flavorDimensions += ['content']
+    productFlavors {
+        // Keep rompackOnly first so Android Studio tends to pick rompackOnlyDebug by default.
+        rompackOnly {
+            dimension 'content'
+            buildConfigField 'boolean', 'EMBEDDED', 'false'
+            externalNativeBuild {
+                cmake {
+                    arguments '-DYOKOI_EMBEDDED_ASSETS=OFF'
+                }
+            }
+        }
+        embedded {
+            dimension 'content'
+            buildConfigField 'boolean', 'EMBEDDED', 'true'
+            externalNativeBuild {
+                cmake {
+                    arguments '-DYOKOI_EMBEDDED_ASSETS=ON'
+                }
+            }
+        }
+    }
+
     externalNativeBuild {
         cmake {
             path 'src/main/cpp/CMakeLists.txt'
@@ -43,7 +73,7 @@ android {
     }
 
     sourceSets {
-        main {
+        embedded {
             // Android/RGDS uses the 2x artwork set.
             // The generated RGDS metadata (UVs/sizes) expects these textures.
             assets.srcDirs += ['../../gfx2x']

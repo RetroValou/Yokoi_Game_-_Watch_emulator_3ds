@@ -19,7 +19,7 @@ enum CPUType : uint8_t {
 struct SaveStateHeader {
     uint32_t magic;           // Magic number for validation
     uint8_t version;          // Save state format version
-    uint8_t game_index;       // Which game this save is for
+    uint8_t game_index;       // Informational only (pack ordering can change); identity is via ref-based filename.
     uint8_t cpu_type;         // Which CPU type (SM5A, SM510, SM511_2)
     uint8_t reserved;         // Padding for alignment
     uint32_t data_size;       // Size of CPU-specific data that follows

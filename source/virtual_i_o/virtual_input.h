@@ -1634,7 +1634,7 @@ class BX_301 : public Virtual_Input{
 
 //////////////////// Get good Game & Watch input Configuration ////////////////////
 
-Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
+inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     /* SM5A */
     if (ref_game == "AC_01") { return new AC_01(cpu); } // BALL
     else if (ref_game == "FL_02") { return new FL_02(cpu); } // Flagman

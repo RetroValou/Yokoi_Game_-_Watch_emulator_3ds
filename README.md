@@ -1,21 +1,99 @@
 # Yokoi - Game & Watch Emulator for 3DS
-A Game & Watch emulator for 3DS: SM5A, SM510, and SM511/SM512.
+
+A Game & Watch emulator for 3DS & Android: SM5A, SM510, and SM511/SM512.
 
 <img src="screenshot/all.png" alt="Gameplay"/>
 
-# Build Instructions
-The code has been tested and compiled on Windows. The conversion scripts may not work on Linux or Mac due to the reliance on Inkscape.  
-The source code is provided **without the ROMs or graphics of the original Game & Watch devices** (copyrighted).  
+# Supported devices
 
-To convert the ROMs, use the provided Python program included in the `CONVERT_ROM` folder. The ROMs used are the same as those that work with MAME.  
-ROM parameters should be specified in the `games_path` dictionary. A pre-filled version is included in the source code.  
-There is no strict ROM size limit—you can define one or use existing sizes.  
+- **Nintendo 3DS/2DS family** (Old/New models) running Homebrew/CFW.
+- **Anbernic RGDS (dual screen, Android)**: supported and recommended. 
+- **Android (arm64-v8a)** devices (phones/tablets/handhelds).
 
-The conversion code requires **Inkscape**, as MAME ROMs use the SVG vector format (not directly readable on the 3DS). Inkscape is used to convert these vector graphics into PNG images.
+# Supported games
+
+Supported games are all of the Game & Watch titles and a single Tronica game.
+
+- Full list: [CONVERT_ROM/GNW_LIST.md](/CONVERT_ROM/GNW_LIST.md)
+- Notes:
+	- Availability depends on which ROMs/artwork you provide when generating your rompack.
+	- Some games may still have quirks (see [Known issues](#known-issues)).
+
+# Installation
+
+Installation requires both the application and a rompack with the games. 
+
+**Note:** The rompack is **not provided** as it contains original Game & Watch ROMs and graphics. You will need to build your own. Details are in the [CONVERT_ROM/README.md](/CONVERT_ROM/README.md)
+
+## 3DS
+
+The emulator is provided as `.cia` and `.3dsx` files for 3DS.
+
+### Install (CIA)
+
+Prerequisites:
+
+- A 3DS with CFW (e.g. Luma3DS) so you can install CIAs.
+- A title installer such as **FBI**.
+
+Steps:
+
+1. Copy `Yokoi*.cia` to your SD card (any folder).
+2. Launch **FBI** on the 3DS.
+3. Go to **SD** -> find the `.cia` -> choose **Install and delete CIA** (or Install).
+4. Launch **Yokoi** from the HOME Menu.
+
+### Install (3DSX)
+
+Prerequisites:
+
+- The Homebrew Launcher.
+
+Steps:
+
+1. Copy `Yokoi*.3dsx` (or the release `.3dsx`) to `sdmc:/3ds/yokoi/`.
+2. Launch the Homebrew Launcher and start **Yokoi**.
+
+### ROM pack 
+
+The rompack is **not provided**, you will need to generate your own from MAME roms.
+
+1. Generate a 3DS rompack as detailed in the [CONVERT_ROM/README.md](/CONVERT_ROM/README.md)
+2. Copy your generated pack file to:
+	- `sdmc:/3ds/yokoi_pack_3ds.ykp`
+
+If the emulator starts but shows no games or reports a missing pack, double-check the filename and location exactly match the path above.
+
+## Android
+
+The emulator is provided as an `.apk` in the latest releases section.
+
+### Install (APK)
+
+1. Download the latest `Yokoi*.apk` from the releases.
+2. Enable installing from unknown sources (wording depends on Android version):
+	- Settings -> Security/Privacy -> Install unknown apps -> allow your browser/file manager.
+3. Open the APK and install it.
+4. Launch **Yokoi**.
+
+### ROM pack (Android)
+
+The rompack is **not provided**, you will need to generate your own from MAME roms.
+
+1. Generate an Android rompack as detailed in the [CONVERT_ROM/README.md](/CONVERT_ROM/README.md)
+2. Copy the generated rompack `yokoi_pack_rgds.ykp` somewhere accessible (e.g. `Download/`).
+3. Launch the app and use **Import/Update ROM pack** option shown to select the file.
+
+# Building
+
+See [BUILDING.md](BUILDING.md) for how to build the 3DS and Android applications.
+
+For ROM pack / asset generation, see [CONVERT_ROM/README.md](/CONVERT_ROM/README.md).
 
 # Known issues
 - Very imperfect sound / strange resonance on Game & Watch SM510 (e.g., Donkey Kong JR Widescreen)
 - Bug on some Game & Watch SM5A (sometimes freezes at the end of a game)
+
 
 # License
 Public Domain / Free to use  
