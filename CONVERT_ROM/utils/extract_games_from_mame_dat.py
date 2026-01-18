@@ -41,6 +41,17 @@ SET_MODEL_OVERRIDES: dict[str, str] = {
     # Egg uses the same ROM/model token as some variants in MAME.dat, but the real
     # Game & Watch model number is EG-26.
     "gnw_egg": "EG-26",
+    "tigarden": "TG-18",
+    "trclchick": "CC-38V",
+    "trdivadv": "DA-37", 
+    "trsgkeep": "SK-10",
+    "trshutvoy": "MG-8",
+    "trspacadv": "SA-12",
+    "trspacmis": "SM-11",
+    "trspider": "SG-21",
+    "trsrescue": "MG-9",
+    "trthuball": "FR-23",
+    "trtreisl": "TI-31"
 }
 
 
