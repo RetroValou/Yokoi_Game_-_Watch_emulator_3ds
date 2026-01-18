@@ -11,6 +11,7 @@ If you are looking for how to build the apps themselves, see [BUILDING.md](/BUIL
 - [CONVERT\_ROM tools](#convert_rom-tools)
   - [Table of contents](#table-of-contents)
   - [Supported games](#supported-games)
+  - [Manufacturer grouping (menu)](#manufacturer-grouping-menu)
   - [Prerequisites](#prerequisites)
     - [Python](#python)
     - [External apps](#external-apps)
@@ -34,6 +35,13 @@ Supported games are all of the Game & Watch titles and a single Tronica game.
 Full list: [GNW_LIST.md](/CONVERT_ROM/GNW_LIST.md)
 
 Notes: You do not have to include all games, you only need to include the games you want to be part of the emulator/rompack.
+
+## Manufacturer grouping (menu)
+
+The 3DS and Android menus group games by manufacturer automatically.
+
+- **Left/Right**: change game within the current manufacturer
+- **Up/Down**: switch manufacturer group
 
 ## Prerequisites
 

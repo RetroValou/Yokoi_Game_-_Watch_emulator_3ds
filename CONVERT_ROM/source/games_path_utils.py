@@ -12,6 +12,21 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+try:
+	# When imported as part of the 'source' package
+	from .manufacturer_ids import (
+		MANUFACTURER_NINTENDO,
+		MANUFACTURER_TRONICA,
+		normalize_manufacturer_id,
+	)
+except ImportError:
+	# When run directly from the 'source' directory
+	from manufacturer_ids import (
+		MANUFACTURER_NINTENDO,
+		MANUFACTURER_TRONICA,
+		normalize_manufacturer_id,
+	)
+
 
 INDENT_KEY_FIRST = "              "
 INDENT_KEY_OTHER = "            , "
@@ -47,12 +62,15 @@ class GameEntry:
 	rotate: bool = False
 	background_in_front: bool = False
 	active_cam: bool = False
+	# Numeric manufacturer id (matches source/std/GW_ROM.h constants).
+	manufacturer: int = MANUFACTURER_NINTENDO
 
 	def format_lines(self, script_dir: Path) -> List[str]:
 		"""Format this entry using the house style used by the generator."""
 
 		lines: List[str] = []
 		lines.append(f'{INDENT_FIELD}{{ "ref" : "{self.ref}"')
+		lines.append(f'{INDENT_FIELD}, "manufacturer" : {int(self.manufacturer)}')
 		lines.append(f'{INDENT_FIELD}, "display_name" : "{self.display_name}"')
 		lines.append(f'{INDENT_FIELD}, "Rom" : {_format_path(self.rom_path, script_dir)}')
 
@@ -257,6 +275,9 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 		if not isinstance(data, dict):
 			continue
 
+		manufacturer_value = data.get("manufacturer", MANUFACTURER_NINTENDO)
+		manufacturer = normalize_manufacturer_id(manufacturer_value, default=MANUFACTURER_NINTENDO)
+
 		rom_path = _to_path(data.get("Rom"))
 		visual_values = data.get("Visual") or []
 		background_values = data.get("Background") or []
@@ -309,6 +330,7 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 				rotate=rotate,
 				background_in_front=background_in_front,
 				active_cam=active_cam,
+				manufacturer=manufacturer,
 			),
 		)
 

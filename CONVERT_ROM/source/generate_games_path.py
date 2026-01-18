@@ -13,10 +13,12 @@ from typing import Dict, List, Optional, Sequence, Tuple, Iterable
 try:
     # When imported as part of the 'source' package
     from source.games_path_utils import GameEntry, write_games_path
+    from source.manufacturer_ids import MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA
     from source.target_profiles import get_target
 except ImportError:
     # When run directly from the 'source' directory
     from games_path_utils import GameEntry, write_games_path
+    from manufacturer_ids import MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA
     from target_profiles import get_target
 
 # Preferred background views ordered by desirability. Boolean marks multi-screen views.
@@ -67,6 +69,7 @@ class GameMetadata:
     title: str
     display_title: str
     release_date: Optional[str]
+    manufacturer: int
 
 
 @dataclass(frozen=True)
@@ -121,11 +124,26 @@ def _load_game_metadata(script_dir: Path) -> Dict[str, GameMetadata]:
 
     mapping: Dict[str, GameMetadata] = {}
     in_table = False
+    current_manufacturer = MANUFACTURER_NINTENDO
     for line in text.splitlines():
         stripped = line.strip()
         if not stripped:
             in_table = False
             continue
+
+        if stripped.startswith("##"):
+            heading = stripped.lstrip("#").strip().lower()
+            # Heading-driven manufacturer:
+            # - Nintendo section headings usually include "Game & Watch"
+            # - Tronica section headings include "Tronica"
+            # Keep the current value for unrelated headings like "Special Editions".
+            in_table = False
+            if "tronica" in heading:
+                current_manufacturer = MANUFACTURER_TRONICA
+            elif "game & watch" in heading or "game and watch" in heading:
+                current_manufacturer = MANUFACTURER_NINTENDO
+            continue
+
         if stripped.startswith("| No.") and "Filename" in stripped:
             in_table = True
             continue
@@ -158,6 +176,7 @@ def _load_game_metadata(script_dir: Path) -> Dict[str, GameMetadata]:
             title=title.strip(),
             display_title=display_title,
             release_date=release_date,
+            manufacturer=current_manufacturer,
         )
 
     return mapping
@@ -634,6 +653,11 @@ def generate_games_path(target_name: str | None = None) -> bool:
 
     for name, folder in folder_map.items():
         metadata = metadata_map.get(name.lower())
+
+        if metadata is None:
+            skipped.append((name, "unsupported game: not in GNW_LIST.md"))
+            continue
+
         layout_path, source = _resolve_default_lay(name, folder, folder_map)
         fallback_folder = folder_map.get(source) if source not in {"", "self"} else None
 
@@ -707,14 +731,17 @@ def generate_games_path(target_name: str | None = None) -> bool:
         else:
             ref_value = ""
 
-        display_source = metadata.display_title if metadata else _strip_title_prefix(display_name or "")
+        display_source = metadata.display_title
         key_candidate = _sanitize_key(display_source or name, name)
         index = key_counts.get(key_candidate, 0)
         key_counts[key_candidate] = index + 1
         key = key_candidate if index == 0 else f"{key_candidate}_{index + 1}"
 
         display_label = display_source or key_candidate.replace("_", " ")
-        date_value = metadata.release_date if metadata else None
+        date_value = metadata.release_date
+
+        # Manufacturer is authored via GNW_LIST section headings and copied from metadata.
+        manufacturer = int(metadata.manufacturer)
 
         # Determine if mask should be True (Panorama games and specific models)
         needs_mask = (
@@ -737,6 +764,7 @@ def generate_games_path(target_name: str | None = None) -> bool:
             key=key,
             display_name=display_label,
             ref=ref_value,
+            manufacturer=manufacturer,
             rom_path=rom_path,
             visual_paths=visuals,
             background_paths=background_paths,
