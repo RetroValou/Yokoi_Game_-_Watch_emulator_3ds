@@ -2,6 +2,13 @@
 
 This folder includes utility scripts that are **not required** for normal conversion/build flows, but can be useful for development and maintenance.
 
+## Links
+
+Useful sites with large databases on 1980s and 1990s LCD Games:
+- http://handheldempire.com/
+- https://electronicplastic.com/
+- https://www.lucklessheaven.com/gameandwatch-release-order
+
 ## Scripts
 
 ### extract_games_from_mame_dat.py
