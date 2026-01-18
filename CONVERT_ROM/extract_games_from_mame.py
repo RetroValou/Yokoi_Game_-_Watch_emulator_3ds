@@ -45,12 +45,8 @@ def get_mame_lcd_list():
     else:
         print(f"Using existing {TEMP_XML} for parsing...")
 
-    lines = [
-        "| No. | Model   | Filename            | Game Title                                                   | Release Date | CPU |\n",
-        "|-----|---------|---------------------|--------------------------------------------------------------|--------------|-----|\n"
-    ]
-
-    count = 1
+    groups = {}
+    found_total = 0
     # In newer MAME, the <chip name="..."> field is often a descriptive string
     # like "Sharp SM511" rather than a raw id like "sm511".
     target_cpu_re = re.compile(r"(?<![a-z0-9])(sm5a|sm510|sm511)(?![a-z0-9])")
@@ -75,6 +71,7 @@ def get_mame_lcd_list():
                     zip_name = f"{elem.get('name')}.zip"
                     title = elem.findtext('description', 'Unknown')
                     year = elem.get('year', 'Unknown')
+                    manufacturer = (elem.findtext('manufacturer', 'Unknown') or 'Unknown').strip() or 'Unknown'
                     
                     # Enhanced Model Detection: Search ROM nodes or ZIP prefix
                     model = "(N/A)"
@@ -89,17 +86,41 @@ def get_mame_lcd_list():
                     if model == "(N/A)" and zip_name.startswith("gnw_"):
                         model = zip_name.split("_")[1].replace(".zip", "").upper()
 
-                    lines.append(f"| {count:02}  | {model:<7} | {zip_name:<19} | {title:<60} | {year:<12} | {found_cpu:<4} |\n")
-                    count += 1
+                    groups.setdefault(manufacturer, []).append(
+                        {
+                            "model": model,
+                            "zip_name": zip_name,
+                            "title": title,
+                            "year": year,
+                            "cpu": found_cpu,
+                        }
+                    )
+                    found_total += 1
                 
                 elem.clear() # Free memory after each system
     except Exception as e:
         print(f"Parsing error: {e}")
 
+    # Build output Markdown grouped by manufacturer.
+    lines = []
+    for manufacturer in sorted(groups.keys(), key=lambda s: s.lower()):
+        entries = groups[manufacturer]
+        entries.sort(key=lambda e: e["zip_name"].lower())
+
+        lines.append(f"## {manufacturer}\n\n")
+        lines.append("| No. | Model   | Filename            | Game Title                                                   | Release Date | CPU |\n")
+        lines.append("|-----|---------|---------------------|--------------------------------------------------------------|--------------|-----|\n")
+
+        for i, e in enumerate(entries, start=1):
+            lines.append(
+                f"| {i:02}  | {e['model']:<7} | {e['zip_name']:<19} | {e['title']:<60} | {e['year']:<12} | {e['cpu']:<4} |\n"
+            )
+        lines.append("\n")
+
     with open(OUTPUT_MD, "w", encoding="utf-8") as f:
         f.writelines(lines)
 
-    found_count = count - 1
+    found_count = found_total
 
     # Cleanup large intermediate files if we got a meaningful result.
     if found_count > 1:
