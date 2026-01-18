@@ -2,6 +2,8 @@ import subprocess
 import xml.etree.ElementTree as ET
 import os
 import re
+import urllib.request
+import urllib.error
 
 # --- RESTORED CONFIGURATION ---
 try:
@@ -13,6 +15,181 @@ MAME_EXE = os.path.join(MAME_PATH, "mame.exe")
 TEMP_XML = os.path.join(os.path.dirname(__file__), "mame_raw.xml")
 OUTPUT_MD = os.path.join(os.path.dirname(__file__), "EXTRACTED_LIST.md")
 MAME_LISTXML_STDERR = os.path.join(os.path.dirname(__file__), "mame_listxml_stderr.txt")
+KEEP_INTERMEDIATE = False
+
+# Upstream MAME driver source contains explicit model codes in comment headers,
+# e.g. "Nintendo Game & Watch: Chef (model FP-24)".
+HH_SM510_URL = "https://raw.githubusercontent.com/mamedev/mame/master/src/mame/handheld/hh_sm510.cpp"
+HH_SM510_CACHE = os.path.join(os.path.dirname(__file__), "tmp", "mame_hh_sm510.cpp")
+
+
+def _ensure_parent_dir(file_path: str) -> None:
+    parent = os.path.dirname(file_path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+
+
+def _read_text(path: str) -> str:
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+
+def _download_text(url: str) -> str:
+    req = urllib.request.Request(url, headers={"User-Agent": "yokoi-extractor/1.0"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        raw = resp.read()
+    return raw.decode("utf-8", errors="replace")
+
+
+def _normalize_model_token(value: str) -> str:
+    # Normalize model/ROM ID tokens so that (model FP-24) matches ROM_LOAD("fp-24").
+    token = (value or "").strip()
+    token = token.replace("_", "-").replace(" ", "")
+    return token.lower()
+
+
+def _canonical_model(value: str) -> str:
+    token = (value or "").strip()
+    token = re.sub(r"\s+", " ", token)
+    return token.upper()
+
+
+def load_models_from_hh_sm510(url: str = HH_SM510_URL, cache_path: str = HH_SM510_CACHE) -> dict[str, str]:
+    """Build mapping from MAME set shortname -> Nintendo-style model code.
+
+    Strategy:
+    - Parse model codes from comment headers: '(model XX-YY)'
+    - Parse ROM_START blocks and their ROM_LOAD labels
+    - If a ROM_LOAD base token matches a known model code, assign it to that set
+    """
+
+    source: str | None = None
+    if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+        source = _read_text(cache_path)
+    else:
+        try:
+            source = _download_text(url)
+            _ensure_parent_dir(cache_path)
+            with open(cache_path, "w", encoding="utf-8", errors="replace") as f:
+                f.write(source)
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            print(f"WARNING: Could not download MAME source for model codes: {e}")
+            return {}
+
+    # 1) Collect known model codes from comment headers.
+    model_norm_to_canon: dict[str, str] = {}
+    model_header_re = re.compile(r"\(model\s+([^)]+)\)")
+    for line in source.splitlines():
+        for raw_model in model_header_re.findall(line):
+            canon = _canonical_model(raw_model)
+            norm = _normalize_model_token(raw_model)
+            if norm:
+                model_norm_to_canon.setdefault(norm, canon)
+
+    if not model_norm_to_canon:
+        return {}
+
+    # 2) Parse ROM_START blocks and match ROM_LOAD labels against model codes.
+    set_to_model: dict[str, str] = {}
+    rom_start_re = re.compile(r"^\s*ROM_START\(\s*([a-z0-9_]+)\s*\)")
+    rom_end_re = re.compile(r"^\s*ROM_END\b")
+    rom_load_re = re.compile(r"\bROM_LOAD\w*\(\s*\"([^\"]+)\"")
+
+    current_set: str | None = None
+    current_rom_labels: list[str] = []
+
+    model_like_re = re.compile(r"^([a-z]{1,3})-?(\d{2,3})([a-z])?$", re.IGNORECASE)
+
+    def _finalize_current() -> None:
+        nonlocal current_set, current_rom_labels
+        if not current_set:
+            return
+
+        for label in current_rom_labels:
+            base = (label.split(".")[0] if label else "").strip()
+            if not base:
+                continue
+
+            # Some ROM labels include extra suffixes after '_' (e.g. "bx-301_744").
+            # Try the full token and the prefix before '_' as candidates.
+            candidates = [base]
+            if "_" in base:
+                candidates.append(base.split("_", 1)[0])
+
+            for cand in candidates:
+                cand_clean = cand.replace("_", "-").strip()
+                cand_norm = _normalize_model_token(cand_clean)
+                if not cand_norm:
+                    continue
+
+                model = model_norm_to_canon.get(cand_norm)
+                if model:
+                    set_to_model[current_set] = model
+                    return
+
+                # Fallback: if the ROM label itself looks like a model code (common for G&W),
+                # use it even if it wasn't present in a '(model ...)' header.
+                m_like = model_like_re.match(cand_clean)
+                if m_like:
+                    prefix, digits, suffix = m_like.group(1), m_like.group(2), m_like.group(3)
+                    set_to_model[current_set] = _format_model_code(prefix, digits, suffix)
+                    return
+
+        current_set = None
+        current_rom_labels = []
+
+    for line in source.splitlines():
+        m_start = rom_start_re.match(line)
+        if m_start:
+            _finalize_current()
+            current_set = m_start.group(1)
+            current_rom_labels = []
+            continue
+
+        if current_set:
+            m_load = rom_load_re.search(line)
+            if m_load:
+                current_rom_labels.append(m_load.group(1))
+                continue
+
+            if rom_end_re.match(line):
+                _finalize_current()
+
+    _finalize_current()
+    return set_to_model
+
+
+def _format_model_code(prefix: str, digits: str, suffix: str | None) -> str:
+    # Example outputs: AC-01, BF-803, CM-72A
+    code = f"{prefix.upper()}-{digits}"
+    if suffix:
+        code += suffix.upper()
+    return code
+
+
+def detect_model_from_mame_roms(machine_elem: ET.Element) -> str:
+    """Best-effort model code extraction using MAME ROM filenames.
+
+    Many MAME handheld sets embed catalog/model IDs at the start of ROM names
+    (e.g. ac01_*, bf803_*, cm72a_*). If not present, returns "(N/A)".
+    """
+    model_from_rom_re = re.compile(r"^([a-z]{1,3})(\d{2,3})([a-z])?(?:[_\-.]|$)", re.IGNORECASE)
+
+    for rom in machine_elem.iter('rom'):
+        name = (rom.get('name', '') or '').strip()
+        if not name:
+            continue
+        m = model_from_rom_re.match(name)
+        if not m:
+            continue
+        prefix, digits, suffix = m.group(1), m.group(2), m.group(3)
+        # Filter out obvious false positives: model codes are typically 2 letters.
+        # If MAME includes other prefixes, we still allow 3-letter codes.
+        if len(prefix) < 2:
+            continue
+        return _format_model_code(prefix, digits, suffix)
+
+    return "(N/A)"
 
 def get_mame_lcd_list():
     if not os.path.exists(MAME_EXE):
@@ -44,6 +221,10 @@ def get_mame_lcd_list():
             return
     else:
         print(f"Using existing {TEMP_XML} for parsing...")
+
+    # Optional: augment model codes using upstream MAME driver source.
+    # If download fails, we fall back to ROM-name heuristics.
+    models_by_set = load_models_from_hh_sm510()
 
     groups = {}
     found_total = 0
@@ -77,18 +258,13 @@ def get_mame_lcd_list():
                     )
                     manufacturer = (elem.findtext('manufacturer', 'Unknown') or 'Unknown').strip() or 'Unknown'
                     
-                    # Enhanced Model Detection: Search ROM nodes or ZIP prefix
-                    model = "(N/A)"
-                    # Search all rom tags within this machine
-                    rom_node = elem.find('.//rom')
-                    if rom_node is not None:
-                        r_name = rom_node.get('name', '')
-                        if "_" in r_name:
-                            model = r_name.split("_")[0].upper()
-                    
-                    # Fallback for G&W names
-                    if model == "(N/A)" and zip_name.startswith("gnw_"):
-                        model = zip_name.split("_")[1].replace(".zip", "").upper()
+                    # Model Detection:
+                    # 1) Prefer MAME driver source mapping (authoritative for G&W model codes)
+                    # 2) Fall back to ROM filename heuristics
+                    set_name = (elem.get('name') or '').strip()
+                    model = models_by_set.get(set_name) if set_name else None
+                    if not model:
+                        model = detect_model_from_mame_roms(elem)
 
                     groups.setdefault(manufacturer, []).append(
                         {
@@ -127,7 +303,7 @@ def get_mame_lcd_list():
     found_count = found_total
 
     # Cleanup large intermediate files if we got a meaningful result.
-    if found_count > 1:
+    if found_count > 1 and not KEEP_INTERMEDIATE:
         for p in (TEMP_XML, MAME_LISTXML_STDERR):
             try:
                 os.remove(p)
