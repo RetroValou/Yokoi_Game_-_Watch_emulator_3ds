@@ -31,7 +31,7 @@ games_path_*.py
 CONVERT_ROM/external_apps.py
 
 # Dev script outputs
-CONVERT_ROM/EXTRACTED_LIST*.md
+CONVERT_ROM/utils/EXTRACTED_LIST*.md
 
 Yokoi*.3dsx
 Yokoi*.elf

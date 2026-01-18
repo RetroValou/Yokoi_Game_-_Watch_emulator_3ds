@@ -19,8 +19,3 @@ INKSCAPE_PATH = r"C:\Program Files\Inkscape\bin\inkscape.exe"
 # tex3ds executable (devkitPro tools).
 # Example Windows install path:
 TEX3DS_PATH = r"C:\devkitPro\tools\bin\tex3ds.exe"
-
-# MAME install directory.
-# Used by helper scripts that call MAME directly (e.g. to generate `-listxml`).
-# Example Windows install path:
-MAME_PATH = r"C:\MAME"

@@ -208,4 +208,4 @@ The rom pack files are named with the pack version and content version (i.e. `vX
 
 ## Developer SCripts
 
-For dev-only helper scripts (e.g. `extract_games_from_mame.py`), see [DEV_SCRIPTS.md](/CONVERT_ROM/DEV_SCRIPTS.md).
+For dev-only utility scripts (e.g. `extract_games_from_mame_dat.py`), see [utils/UTILS_SCRIPTS.md](/CONVERT_ROM/utils/UTILS_SCRIPTS.md).
