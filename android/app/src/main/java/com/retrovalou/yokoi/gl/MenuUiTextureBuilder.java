@@ -25,6 +25,7 @@ public final class MenuUiTextureBuilder {
         String[] info = YokoiNative.nativeGetSelectedGameInfo();
         String name = (info != null && info.length > 0) ? info[0] : "";
         String date = (info != null && info.length > 1) ? info[1] : "";
+        String mfr = (info != null && info.length > 2) ? info[2] : "";
 
         Paint titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         titlePaint.setColor(Color.WHITE);
@@ -43,16 +44,27 @@ public final class MenuUiTextureBuilder {
         subPaint.setTextSize(18.0f * s);
 
         float cx = w * 0.5f;
-        canvas.drawText(name, cx, 80.0f * s, titlePaint);
+
+        // Manufacturer header.
+        if (!mfr.isEmpty()) {
+            Paint mfrPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mfrPaint.setColor(Color.GRAY);
+            mfrPaint.setTextAlign(Paint.Align.CENTER);
+            mfrPaint.setTextSize(16.0f * s);
+            canvas.drawText(mfr, cx, 48.0f * s, mfrPaint);
+        }
+
+        canvas.drawText(name, cx, 90.0f * s, titlePaint);
         if (!date.isEmpty()) {
-            canvas.drawText(date, cx, 112.0f * s, subPaint);
+            canvas.drawText(date, cx, 122.0f * s, subPaint);
         }
 
         int mode = YokoiNative.nativeGetAppMode();
         if (mode == AppModes.MODE_MENU_SELECT) {
             subPaint.setColor(Color.GRAY);
-            canvas.drawText("Left/Right: select", cx, 170.0f * s, subPaint);
-            canvas.drawText("Tap center or press A", cx, 200.0f * s, subPaint);
+            canvas.drawText("Up/Down: manufacturer", cx, 170.0f * s, subPaint);
+            canvas.drawText("Left/Right: game", cx, 200.0f * s, subPaint);
+            canvas.drawText("Tap center or press A", cx, 230.0f * s, subPaint);
         } else if (mode == AppModes.MODE_MENU_LOAD_PROMPT) {
             boolean hasSave = YokoiNative.nativeMenuHasSaveState();
             int choice = YokoiNative.nativeGetMenuLoadChoice();
