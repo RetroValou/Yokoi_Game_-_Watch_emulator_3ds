@@ -70,7 +70,11 @@ def get_mame_lcd_list():
                 if found_cpu:
                     zip_name = f"{elem.get('name')}.zip"
                     title = elem.findtext('description', 'Unknown')
-                    year = elem.get('year', 'Unknown')
+                    year = (
+                        (elem.findtext('year') or '').strip()
+                        or (elem.get('year') or '').strip()
+                        or 'Unknown'
+                    )
                     manufacturer = (elem.findtext('manufacturer', 'Unknown') or 'Unknown').strip() or 'Unknown'
                     
                     # Enhanced Model Detection: Search ROM nodes or ZIP prefix
