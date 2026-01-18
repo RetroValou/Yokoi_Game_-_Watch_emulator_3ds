@@ -28,7 +28,10 @@ Supported games are all of the Game & Watch titles and a single Tronica game.
 - Save state support
 - Time synchronization
 - Stereoscopic 3D on 3ds
-- Camera support for Game & Watch Crystal Screen games on 3ds (reproduces the "transparent" screen) 
+- Camera support for Game & Watch Crystal Screen games on 3ds (reproduces the "transparent" screen)
+- Ajustable LCD Segment Shadow
+- Optional Full screen (Android only)
+- Optional Virtual Input (Android only) 
 
 # Installation
 
