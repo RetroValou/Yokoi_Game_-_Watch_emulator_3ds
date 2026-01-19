@@ -142,13 +142,15 @@ uint8_t yokoi_get_default_game_index_for_android() {
         return 0;
     }
 
-    // Prefer last selected game if we have one recorded.
-    if (g_settings.last_game_name[0] != '\0') {
-        uint8_t idx = load_last_game_index();
-        if (idx >= (uint8_t)n) {
-            idx = 0;
+    // Prefer last selected manufacturer, then restore last game for that manufacturer.
+    {
+        const uint8_t mfr = load_last_selected_manufacturer(GW_rom::MANUFACTURER_NINTENDO);
+        uint8_t idx = 0;
+        if (try_load_last_game_index_for_manufacturer(mfr, &idx)) {
+            if (idx < (uint8_t)n) {
+                return idx;
+            }
         }
-        return idx;
     }
 
     // No saved last game: fall back to a preferred title; if not present, use first game.

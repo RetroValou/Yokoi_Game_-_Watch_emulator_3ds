@@ -9,7 +9,7 @@
 # Steps:
 # =================================================
 # 1. Extract roms from rom/artwork and rom/roms folder into rom/gnw_<game> folders
-# 2. Generate games_path data to process files
+# 2. Generate games_path data to process files (includes numeric manufacturer id)
 # 3. Post process any games if needed (e.g. Crab Grab, Spit Sparky)
 # 4. Files and config now ready to run convert_3ds.py to generate build data in 3DS format
 

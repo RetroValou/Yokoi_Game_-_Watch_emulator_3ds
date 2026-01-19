@@ -29,6 +29,11 @@ std::string get_name(uint8_t i_game){
     return g ? g->name : std::string();
 }
 
+std::string get_ref(uint8_t i_game){
+    const GW_rom* g = load_game(i_game);
+    return g ? g->ref : std::string();
+}
+
 size_t get_nb_name(){
     if (gw_pack::is_loaded()) {
         return gw_pack::game_count();

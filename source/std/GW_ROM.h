@@ -7,9 +7,16 @@
 #include "segment.h"
 
 struct GW_rom {
+    static constexpr uint8_t MANUFACTURER_NINTENDO = 0;
+    static constexpr uint8_t MANUFACTURER_TRONICA = 1;
+    static constexpr uint8_t MANUFACTURER_COUNT = 2;
+
     const std::string name;
     const std::string ref;
     const std::string date;
+
+    // Manufacturer id used by the menu to group navigation (no extra rompack metadata).
+    const uint8_t manufacturer;
 
     const uint8_t* rom; const size_t size_rom;
     const uint8_t* melody; const size_t size_melody;
@@ -33,9 +40,11 @@ struct GW_rom {
         const std::string& path_bg,
         const uint16_t* bg_info,
         const std::string& path_cs,
-        const uint16_t* cs_info
+        const uint16_t* cs_info,
+        uint8_t manufacturer_ = MANUFACTURER_NINTENDO
         )
             : name(n), ref(r), date(d),
+            manufacturer(manufacturer_),
             rom(rom_), size_rom(rom_size),
             melody(melody_), size_melody(melody_size),
             path_segment(path_seg),

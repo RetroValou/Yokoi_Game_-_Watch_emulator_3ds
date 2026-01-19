@@ -22,8 +22,10 @@ constexpr uint32_t kPackMagic = 0x31504B59; // 'YKP1' little-endian
 // Pack format versions:
 // - v1: original header (no content version)
 // - v2: adds a per-pack "content_version" used to detect outdated packs
+// - v3: extends game entries with explicit manufacturer id
 constexpr uint32_t kPackVersionV1 = 1;
 constexpr uint32_t kPackVersionV2 = 2;
+constexpr uint32_t kPackVersionV3 = 3;
 
 #ifndef YOKOI_ROMPACK_REQUIRED_CONTENT_VERSION
 #define YOKOI_ROMPACK_REQUIRED_CONTENT_VERSION 1
@@ -72,6 +74,29 @@ struct GameEntryV1 {
 
     uint32_t path_console_off, path_console_len;
     uint32_t console_info_off, console_info_count; // uint16_t count
+};
+
+// v3: same as v1 plus a trailing uint32 manufacturer id.
+struct GameEntryV2 {
+    uint32_t name_off, name_len;
+    uint32_t ref_off, ref_len;
+    uint32_t date_off, date_len;
+
+    uint32_t rom_off, rom_size;
+    uint32_t melody_off, melody_size;
+
+    uint32_t path_segment_off, path_segment_len;
+    uint32_t segments_off, segments_count;
+
+    uint32_t segment_info_off, segment_info_count;     // uint16_t count
+
+    uint32_t path_background_off, path_background_len;
+    uint32_t background_info_off, background_info_count; // uint16_t count
+
+    uint32_t path_console_off, path_console_len;
+    uint32_t console_info_off, console_info_count; // uint16_t count
+
+    uint32_t manufacturer;
 };
 
 struct FileEntryV1 {
@@ -293,7 +318,7 @@ bool load(const std::string& path, std::string* error_out) {
         if (error_out) *error_out = "unsupported pack format v1 (regenerate/re-import a v2 pack)";
         GWPACK_LOG("gw_pack: v1 rejected");
         return false;
-    } else if (version == kPackVersionV2) {
+    } else if (version == kPackVersionV2 || version == kPackVersionV3) {
         PackHeaderV2 hdr{};
         if (!file_read_at(0, &hdr, sizeof(PackHeaderV2), total, error_out, "header")) {
             unload();
@@ -307,7 +332,8 @@ bool load(const std::string& path, std::string* error_out) {
         files_offset = hdr.files_offset;
         data_offset = hdr.data_offset;
         GWPACK_LOG(
-            "gw_pack: v2 platform=%u content=%u games=%u files=%u",
+            "gw_pack: v%u platform=%u content=%u games=%u files=%u",
+            (unsigned)version,
             (unsigned)platform,
             (unsigned)content_version,
             (unsigned)game_count,
@@ -335,7 +361,8 @@ bool load(const std::string& path, std::string* error_out) {
         return false;
     }
 
-    const size_t games_bytes = (size_t)game_count * sizeof(GameEntryV1);
+    const size_t game_entry_size = (version >= kPackVersionV3) ? sizeof(GameEntryV2) : sizeof(GameEntryV1);
+    const size_t games_bytes = (size_t)game_count * game_entry_size;
     const size_t files_bytes = (size_t)file_count * sizeof(FileEntryV1);
 
     if (!bounds_ok(games_offset, games_bytes, total) || !bounds_ok(files_offset, files_bytes, total)) {
@@ -386,15 +413,32 @@ bool load(const std::string& path, std::string* error_out) {
         GameRecord rec;
 
         GameEntryV1 ge{};
-        if (!file_read_at(
-                games_offset + (size_t)i * sizeof(GameEntryV1),
-                &ge,
-                sizeof(GameEntryV1),
-                total,
-                error_out,
-                "game entry")) {
-            unload();
-            return false;
+        uint32_t manufacturer_id = GW_rom::MANUFACTURER_NINTENDO;
+        if (version >= kPackVersionV3) {
+            GameEntryV2 ge2{};
+            if (!file_read_at(
+                    games_offset + (size_t)i * game_entry_size,
+                    &ge2,
+                    sizeof(GameEntryV2),
+                    total,
+                    error_out,
+                    "game entry")) {
+                unload();
+                return false;
+            }
+            std::memcpy(&ge, &ge2, sizeof(GameEntryV1));
+            manufacturer_id = ge2.manufacturer;
+        } else {
+            if (!file_read_at(
+                    games_offset + (size_t)i * game_entry_size,
+                    &ge,
+                    sizeof(GameEntryV1),
+                    total,
+                    error_out,
+                    "game entry")) {
+                unload();
+                return false;
+            }
         }
 
         const std::string name = file_read_string(ge.name_off, ge.name_len, total);
@@ -542,7 +586,8 @@ bool load(const std::string& path, std::string* error_out) {
             path_background,
             bg_info_ptr,
             path_console,
-            cs_info_ptr));
+            cs_info_ptr,
+            (uint8_t)manufacturer_id));
 
         g_games.push_back(std::move(rec));
     }

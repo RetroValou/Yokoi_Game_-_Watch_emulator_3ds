@@ -44,12 +44,15 @@ static void write_banner() {
 
 void init() {
 #if defined(__3DS__)
-    // Ensure SD is initialized.
-    static bool sd_ok = false;
-    if (!sd_ok) {
-        Result rc = romfsInit();
-        (void)rc;
-        sd_ok = true;
+    // Best-effort: ensure FS services are up before using sdmc:/ paths.
+    // Do NOT call romfsInit() here; it's unrelated to SD logging and can be unsafe
+    // to invoke early in startup.
+    static bool fs_ok = false;
+    if (!fs_ok) {
+        Result rc = fsInit();
+        if (R_SUCCEEDED(rc)) {
+            fs_ok = true;
+        }
     }
 #endif
 

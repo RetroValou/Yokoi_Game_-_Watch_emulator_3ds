@@ -50,7 +50,7 @@ SHOW_MSG_ROM ?= 1
 
 # Minimum external pack content version that this build accepts.
 # Bump this when the app expects newer pack contents (textures/layout/etc.).
-ROMPACK_CONTENT_VERSION_REQUIRED ?= 2
+ROMPACK_CONTENT_VERSION_REQUIRED ?= 3
 
 # Extra defines for embedded/pack builds (appended after CFLAGS is set).
 ROMPACK_DEFINES ?=
@@ -68,7 +68,7 @@ ifeq ($(strip $(EMBEDDED)),0)
 	GRAPHICS := gfx
 	ROMFS := romfs
 	GFXBUILD := $(ROMFS)/gfx
-	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s
+	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s noise.t3s
 endif
 
 ifneq ($(strip $(EMBEDDED)),0)

@@ -63,6 +63,7 @@ std::atomic<int> g_app_mode{0};
 std::atomic<int> g_menu_load_choice{1};
 
 std::atomic<int> g_pending_game_delta{0};
+std::atomic<int> g_pending_manufacturer_delta{0};
 std::atomic<bool> g_start_requested{false};
 std::atomic<int> g_action_mask{0};
 std::atomic<uint32_t> g_texture_generation{1};

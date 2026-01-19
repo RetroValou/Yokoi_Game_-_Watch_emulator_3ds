@@ -15,9 +15,14 @@ from typing import Iterable
 from source import convert_svg as cs
 from source import img_manipulation as im
 from source.target_profiles import get_target
+from source.manufacturer_ids import (
+    MANUFACTURER_NINTENDO,
+    MANUFACTURER_TRONICA,
+    normalize_manufacturer_id,
+)
 
-ROMPACK_FORMAT_VERSION = 2
-ROMPACK_CONTENT_VERSION = 2
+ROMPACK_FORMAT_VERSION = 3
+ROMPACK_CONTENT_VERSION = 3
 
 # Configurable external apps.
 # Configure them by copying CONVERT_ROM/external_apps_template.py -> CONVERT_ROM/external_apps.py.
@@ -443,13 +448,19 @@ def rom_text(name:str, rom_path: str):
     return c_file
 
 
+def _manufacturer_to_id(value) -> int:
+    """Normalize manufacturer values into a small numeric id."""
+
+    return normalize_manufacturer_id(value, default=MANUFACTURER_NINTENDO)
+
+
 
 
 def generate_game_file(destination_game_file, name, display_name, ref, date
                 , rom_path, visual_path, size_visual, path_console
                 , melody_path = '', background_path = [], rotate = False, mask = False, color_segment = False, two_in_one_screen = False
                 , transform = [], alpha_bright = 1.7, fond_bright = 1.35, shadow = True
-                , background_in_front = False, camera = False):
+                , background_in_front = False, camera = False, manufacturer = MANUFACTURER_NINTENDO):
     
     c_file = f"""
 #include <cstdint>
@@ -493,6 +504,9 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
     
     c_file += "\n\n"
     
+    manufacturer_id = _manufacturer_to_id(manufacturer)
+    manufacturer_cpp = "GW_rom::MANUFACTURER_TRONICA" if manufacturer_id == MANUFACTURER_TRONICA else "GW_rom::MANUFACTURER_NINTENDO"
+
     c_file += f'''
 const GW_rom {name} (
     "{display_name}", "{ref}", "{date}"
@@ -505,6 +519,7 @@ const GW_rom {name} (
     , background_info_{name}
     , path_console_{name}
     , console_info_{name}
+    , {manufacturer_cpp}
 );
 
 '''   
@@ -526,6 +541,7 @@ extern const GW_rom {name};
         "display_name": display_name,
         "ref": ref,
         "date": date,
+        "manufacturer": manufacturer_id,
         "rom_path": rom_path,
         "melody_path": melody_path,
         "path_segment": f"{texture_path_prefix}segment_{name}{texture_path_ext}",
@@ -664,15 +680,19 @@ def process_single_game(args):
     shadow = game_data.get('shadow', True)
     date = game_data.get('date', '198X-XX-XX')
 
+    ref_norm = game_data["ref"].replace('-', '_').upper()
+    manufacturer = _manufacturer_to_id(game_data.get("manufacturer", 0))
+
     pack_meta = generate_game_file(
         destination_game_file, key, display_name,
-        game_data["ref"].replace('-', '_').upper(), date,
+        ref_norm, date,
         game_data["Rom"], game_data["Visual"], size_visual,
         path_console, melody_path, background_path,
         rotate, mask, color_segment, two_in_one_screen,
         game_data["transform_visual"],
         alpha_bright, fond_bright, shadow,
-        background_in_front, camera
+        background_in_front, camera,
+        manufacturer
     )
     
     return pack_meta
@@ -718,8 +738,8 @@ def _build_tex3ds_outputs_for_pack(t3s_dir: Path, t3x_out_dir: Path) -> None:
             )
         except FileNotFoundError as e:
             raise RuntimeError(
-                f"tex3ds was not found at '{TEX3DS_PATH}'. Install devkitPro/devkitARM and set TEX3DS_PATH "
-                "in CONVERT_ROM/external_apps.py (copy from external_apps_template.py), or put tex3ds on PATH."
+                f"external app tex3ds not found (configured as '{TEX3DS_PATH}'); "
+                "check CONVERT_ROM/external_apps.py (copy from external_apps_template.py), or put tex3ds on PATH."
             ) from e
         except subprocess.CalledProcessError as e:
             stderr = (e.stderr or "").strip()
@@ -760,7 +780,7 @@ def write_rom_pack_v1(pack_games: list[dict], gfx_dir: str, out_path: str, platf
         )
 
     header_size = 36  # PackHeaderV2
-    game_entry_size = 96  # GameEntryV1 (24 * uint32)
+    game_entry_size = 100  # GameEntryV2 (25 * uint32)
     file_entry_size = 16  # FileEntryV1
 
     games_offset = header_size
@@ -835,8 +855,10 @@ def write_rom_pack_v1(pack_games: list[dict], gfx_dir: str, out_path: str, platf
         path_console_off, path_console_len = append_string(g["path_console"])
         console_info_off, console_info_count = append_u16_list(g["console_info"])
 
+        manufacturer_id = _manufacturer_to_id(g.get("manufacturer", MANUFACTURER_NINTENDO))
+
         game_entries.append(struct.pack(
-            "<" + "I" * 24,
+            "<" + "I" * 25,
             name_off, name_len,
             ref_off, ref_len,
             date_off, date_len,
@@ -849,6 +871,7 @@ def write_rom_pack_v1(pack_games: list[dict], gfx_dir: str, out_path: str, platf
             background_info_off, background_info_count,
             path_console_off, path_console_len,
             console_info_off, console_info_count,
+            manufacturer_id,
         ))
 
     file_entries: list[bytes] = []

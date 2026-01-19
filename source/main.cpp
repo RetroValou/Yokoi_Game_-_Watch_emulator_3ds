@@ -213,8 +213,17 @@ void update_name_game_top(Virtual_Screen* v_screen, bool for_choose = true){
 
     std::string text = get_name(index_game); if(text.empty()) { text = "_not_valid_"; }
     std::string date = get_date(index_game); if(text.empty()) { text = "_not_valid_"; }
+    const GW_rom* g = load_game(index_game);
+    const uint8_t mfr_id = g ? g->manufacturer : GW_rom::MANUFACTURER_NINTENDO;
+    const std::string mfr = (mfr_id == GW_rom::MANUFACTURER_TRONICA) ? "Tronica" : "Nintendo";
 
     v_screen->delete_all_text();
+
+    if (!mfr.empty()) {
+        // Small header above the title.
+        const int16_t hx = (400 - (int16_t)(mfr.length() * 8)) / 2;
+        v_screen->set_text(mfr, hx, 18, 0, 1);
+    }
     
     // Check if text contains brackets for two-line display
     std::string line1 = text;
@@ -310,23 +319,136 @@ void update_name_game(Virtual_Screen* v_screen, bool for_choose = true){
 // Returns: 0 = stay in menu, 1 = start game, 2 = go to settings
 int handle_menu_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_manager){
 
-    if(input_manager->input_Held_Increase(KEY_DRIGHT, _TIME_MOVE_MENU_)){
-        index_game = (index_game+1)%(get_nb_name()+1);
-
-        if(index_game >= get_nb_name()){ update_credit(v_screen); }
-        else { 
-            update_name_game(v_screen);
-            save_last_game(get_name(index_game)); // Save the selected game
-        }
+    const size_t n_games = get_nb_name();
+    if (n_games == 0) {
+        return 0;
     }
-    else if(input_manager->input_Held_Increase(KEY_DLEFT, _TIME_MOVE_MENU_)){
-        if(index_game == 0){ index_game = (get_nb_name()+1);}
-        index_game = index_game-1;
 
-        if(index_game >= get_nb_name()){ update_credit(v_screen); }
-        else { 
+    auto get_mfr = [&](uint8_t idx) -> uint8_t {
+        const GW_rom* g = load_game(idx);
+        return g ? g->manufacturer : GW_rom::MANUFACTURER_NINTENDO;
+    };
+
+    auto wrap_index = [&](int i) -> uint8_t {
+        int n = (int)n_games;
+        while (i < 0) i += n;
+        i = i % n;
+        return (uint8_t)i;
+    };
+
+    auto find_next_with_mfr = [&](uint8_t start, int dir, uint8_t want_mfr, uint8_t& out_idx) -> bool {
+        for (size_t step = 0; step < n_games; step++) {
+            const uint8_t cand = wrap_index((int)start + dir * (int)(step + 1));
+            if (get_mfr(cand) == want_mfr) {
+                out_idx = cand;
+                return true;
+            }
+        }
+        return false;
+    };
+
+    auto find_next_other_mfr = [&](uint8_t start, int dir, uint8_t cur_mfr, uint8_t& out_idx) -> bool {
+        for (size_t step = 0; step < n_games; step++) {
+            const uint8_t cand = wrap_index((int)start + dir * (int)(step + 1));
+            if (get_mfr(cand) != cur_mfr) {
+                out_idx = cand;
+                return true;
+            }
+        }
+        return false;
+    };
+
+    const uint8_t cur_mfr = get_mfr(index_game);
+
+    // Remember the last selected index per manufacturer while navigating the menu.
+    // This is intentionally in-memory only (not persisted to settings).
+    static bool s_last_by_mfr_init = false;
+    static int16_t s_last_idx_by_mfr[GW_rom::MANUFACTURER_COUNT];
+    if (!s_last_by_mfr_init) {
+        for (int i = 0; i < (int)GW_rom::MANUFACTURER_COUNT; i++) {
+            s_last_idx_by_mfr[i] = -1;
+        }
+        s_last_by_mfr_init = true;
+    }
+
+    auto remember_current = [&](uint8_t mfr) {
+        if (mfr < GW_rom::MANUFACTURER_COUNT) {
+            s_last_idx_by_mfr[mfr] = (int16_t)index_game;
+        }
+    };
+
+    auto restore_for_mfr_or = [&](uint8_t mfr, uint8_t fallback_idx) -> uint8_t {
+        if (mfr >= GW_rom::MANUFACTURER_COUNT) {
+            return fallback_idx;
+        }
+
+        const int16_t saved = s_last_idx_by_mfr[mfr];
+        if (saved >= 0 && (size_t)saved < n_games) {
+            const uint8_t saved_idx = (uint8_t)saved;
+            if (get_mfr(saved_idx) == mfr) {
+                return saved_idx;
+            }
+        }
+
+        // If we don't have an in-memory selection yet (fresh boot), try persisted last selection.
+        uint8_t persisted_idx = 0;
+        if (try_load_last_game_index_for_manufacturer(mfr, &persisted_idx)) {
+            if ((size_t)persisted_idx < n_games && get_mfr(persisted_idx) == mfr) {
+                s_last_idx_by_mfr[mfr] = (int16_t)persisted_idx;
+                return persisted_idx;
+            }
+        }
+
+        return fallback_idx;
+    };
+
+    // Ensure current manufacturer has an entry.
+    if (s_last_idx_by_mfr[cur_mfr] < 0) {
+        remember_current(cur_mfr);
+    }
+
+    uint8_t next_idx = index_game;
+
+    // Single-list navigation with manufacturer filtering:
+    // - LEFT/RIGHT: next/prev game with same manufacturer id
+    // - UP/DOWN: jump to next/prev manufacturer by finding the nearest game with a different manufacturer
+    if (input_manager->input_Held_Increase(KEY_DRIGHT, _TIME_MOVE_MENU_)) {
+        remember_current(cur_mfr);
+        if (find_next_with_mfr(index_game, +1, cur_mfr, next_idx)) {
+            index_game = next_idx;
+            remember_current(cur_mfr);
             update_name_game(v_screen);
-            save_last_game(get_name(index_game)); // Save the selected game
+            save_last_selected_game(cur_mfr, get_ref(index_game));
+        }
+    } else if (input_manager->input_Held_Increase(KEY_DLEFT, _TIME_MOVE_MENU_)) {
+        remember_current(cur_mfr);
+        if (find_next_with_mfr(index_game, -1, cur_mfr, next_idx)) {
+            index_game = next_idx;
+            remember_current(cur_mfr);
+            update_name_game(v_screen);
+            save_last_selected_game(cur_mfr, get_ref(index_game));
+        }
+    } else if (input_manager->input_Held_Increase(KEY_DUP, _TIME_MOVE_MENU_)) {
+        remember_current(cur_mfr);
+        if (find_next_other_mfr(index_game, -1, cur_mfr, next_idx)) {
+            const uint8_t new_mfr = get_mfr(next_idx);
+            index_game = restore_for_mfr_or(new_mfr, next_idx);
+            if (new_mfr < GW_rom::MANUFACTURER_COUNT) {
+                s_last_idx_by_mfr[new_mfr] = (int16_t)index_game;
+            }
+            update_name_game(v_screen);
+            save_last_selected_game(new_mfr, get_ref(index_game));
+        }
+    } else if (input_manager->input_Held_Increase(KEY_DDOWN, _TIME_MOVE_MENU_)) {
+        remember_current(cur_mfr);
+        if (find_next_other_mfr(index_game, +1, cur_mfr, next_idx)) {
+            const uint8_t new_mfr = get_mfr(next_idx);
+            index_game = restore_for_mfr_or(new_mfr, next_idx);
+            if (new_mfr < GW_rom::MANUFACTURER_COUNT) {
+                s_last_idx_by_mfr[new_mfr] = (int16_t)index_game;
+            }
+            update_name_game(v_screen);
+            save_last_selected_game(new_mfr, get_ref(index_game));
         }
     }
 
@@ -336,7 +458,8 @@ int handle_menu_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_manager
         return 2; // Go to settings
     }
 
-    if(index_game >= get_nb_name()){ return 0; } // credit, stay in menu
+    // No credit entry in manufacturer-grouped mode.
+    if(index_game >= get_nb_name()){ return 0; }
 
     // Use kDown for action buttons to only trigger once per press
     if( input_manager->input_justPressed(KEY_A) 
@@ -648,8 +771,16 @@ int main()
     }
 #endif
 
-    // Load the last selected game index
-    index_game = load_last_game_index();
+    // Load the last selected manufacturer, then restore the last game for that manufacturer.
+    {
+        const uint8_t mfr = load_last_selected_manufacturer(GW_rom::MANUFACTURER_NINTENDO);
+        uint8_t idx = 0;
+        if (try_load_last_game_index_for_manufacturer(mfr, &idx)) {
+            index_game = idx;
+        } else {
+            index_game = 0;
+        }
+    }
 
     // If the current pack has fewer games than when settings were saved, default to first game.
     {
