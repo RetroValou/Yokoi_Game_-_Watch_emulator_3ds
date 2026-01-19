@@ -69,6 +69,7 @@ inline const TimeAddress* get_time_addresses(const std::string& ref_game) {
         {"NH_103", {0,10, 0,11, 0,12, 0,13, 0,14, 0,15, 8}}, // Manhole (New Wide Screen)
         {"BU_201", {0,10, 0,11, 0,12, 0,13, 0,14, 0,15, 8}}, // Spitball Sparky
         {"MG_8", {3,0, 3,1, 3,3, 3,4, 3,6, 3,7, 2}}, // Shuttle Voyage
+        {"TG_18", {3,0, 3,1, 3,3, 3,4, 3,6, 3,7, 2}}, // Thief in Garden
     };
 
     // --- SM511/SM512 ---

@@ -113,6 +113,8 @@ extern const GW_rom squish;
 extern const GW_rom super_mario_bros_crystal_screen;
 #include "GW_ROM_RGDS/super_mario_bros_new_wide_screen.h"
 extern const GW_rom super_mario_bros_new_wide_screen;
+#include "GW_ROM_RGDS/thief_in_garden.h"
+extern const GW_rom thief_in_garden;
 #include "GW_ROM_RGDS/tropical_fish.h"
 extern const GW_rom tropical_fish;
 #include "GW_ROM_RGDS/turtle_bridge.h"
@@ -125,6 +127,6 @@ extern const GW_rom zelda;
 
 
 
-const GW_rom* GW_list[] = {&ball, &balloon_fight_crystal_screen, &balloon_fight_new_wide_screen, &black_jack, &bomb_sweeper, &boxing, &chef, &climber_crystal_screen, &climber_new_wide_screen, &crab_grab, &donkey_kong, &donkey_kong_3, &donkey_kong_circus, &donkey_kong_hockey, &donkey_kong_ii, &donkey_kong_jr_new_wide_screen, &donkey_kong_jr_panorama_screen, &egg, &fire_attack, &fire_silver, &fire_wide_screen, &flagman, &gold_cliff, &green_house, &helmet_version_cn_07, &helmet_version_cn_17, &judge_green_version, &judge_purple_version, &life_boat, &lion, &manhole_gold, &manhole_new_wide_screen, &mario_bros, &mario_s_bombs_away, &mario_s_cement_factory_new_wide_screen, &mario_s_cement_factory_table_top_cm_72, &mario_s_cement_factory_table_top_cm_72a, &mario_the_juggler, &mickey_donald, &mickey_mouse_panorama_screen, &mickey_mouse_wide_screen, &octopus, &oil_panic, &parachute, &pinball, &popeye_panorama_screen, &popeye_wide_screen, &rain_shower, &safe_buster, &shuttle_voyage, &snoopy_panorama_screen, &snoopy_tennis, &spitball_sparky, &squish, &super_mario_bros_crystal_screen, &super_mario_bros_new_wide_screen, &tropical_fish, &turtle_bridge, &vermin, &zelda};
-const size_t nb_games = 60;
+const GW_rom* GW_list[] = {&ball, &balloon_fight_crystal_screen, &balloon_fight_new_wide_screen, &black_jack, &bomb_sweeper, &boxing, &chef, &climber_crystal_screen, &climber_new_wide_screen, &crab_grab, &donkey_kong, &donkey_kong_3, &donkey_kong_circus, &donkey_kong_hockey, &donkey_kong_ii, &donkey_kong_jr_new_wide_screen, &donkey_kong_jr_panorama_screen, &egg, &fire_attack, &fire_silver, &fire_wide_screen, &flagman, &gold_cliff, &green_house, &helmet_version_cn_07, &helmet_version_cn_17, &judge_green_version, &judge_purple_version, &life_boat, &lion, &manhole_gold, &manhole_new_wide_screen, &mario_bros, &mario_s_bombs_away, &mario_s_cement_factory_new_wide_screen, &mario_s_cement_factory_table_top_cm_72, &mario_s_cement_factory_table_top_cm_72a, &mario_the_juggler, &mickey_donald, &mickey_mouse_panorama_screen, &mickey_mouse_wide_screen, &octopus, &oil_panic, &parachute, &pinball, &popeye_panorama_screen, &popeye_wide_screen, &rain_shower, &safe_buster, &shuttle_voyage, &snoopy_panorama_screen, &snoopy_tennis, &spitball_sparky, &squish, &super_mario_bros_crystal_screen, &super_mario_bros_new_wide_screen, &thief_in_garden, &tropical_fish, &turtle_bridge, &vermin, &zelda};
+const size_t nb_games = 61;
 

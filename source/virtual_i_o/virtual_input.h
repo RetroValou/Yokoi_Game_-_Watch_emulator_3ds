@@ -1670,7 +1670,7 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "TF_104") { return new TF_104(cpu); } // Tropical Fish
     else if (ref_game == "BU_201") { return new BU_201(cpu); } // Spitball Sparky
     else if (ref_game == "UD_202") { return new UD_202(cpu); } // Crab Grab
-    else if (ref_game == "MG_8")   { return new MG_8(cpu); }   // Shuttle Voyage (Tronica)
+    else if (ref_game == "MG_8" || ref_game == "TG_18")   { return new MG_8(cpu); }   // Shuttle Voyage / Thief in Garden (Tronica)
     
 
     /* SM511/SM512 */

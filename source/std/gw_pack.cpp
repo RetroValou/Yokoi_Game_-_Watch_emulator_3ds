@@ -27,6 +27,11 @@ constexpr uint32_t kPackVersionV1 = 1;
 constexpr uint32_t kPackVersionV2 = 2;
 constexpr uint32_t kPackVersionV3 = 3;
 
+// Pack "platform" ids (written by CONVERT_ROM/convert_3ds.py).
+// These are used to prevent loading the wrong pack for a given frontend.
+constexpr uint32_t kPlatform3ds = 1;
+constexpr uint32_t kPlatformRgds = 2; // RGDS/Android runtime PNG pathing
+
 #ifndef YOKOI_ROMPACK_REQUIRED_CONTENT_VERSION
 #define YOKOI_ROMPACK_REQUIRED_CONTENT_VERSION 1
 #endif
@@ -162,6 +167,25 @@ static bool bounds_ok(size_t off, size_t len, size_t total) {
     if (len > total) return false;
     if (off + len > total) return false;
     return true;
+}
+
+static constexpr uint32_t expected_platform_id() {
+#if defined(__3DS__)
+    return kPlatform3ds;
+#elif defined(__ANDROID__)
+    return kPlatformRgds;
+#else
+    // Unknown/desktop builds: allow any.
+    return 0;
+#endif
+}
+
+static const char* platform_name(uint32_t id) {
+    switch (id) {
+        case kPlatform3ds: return "3ds";
+        case kPlatformRgds: return "rgds";
+        default: return "unknown";
+    }
 }
 
 #if defined(__ANDROID__)
@@ -345,7 +369,25 @@ bool load(const std::string& path, std::string* error_out) {
         return false;
     }
 
-    (void)platform;
+    // Validate platform id for known frontends (reject wrong pack for device).
+    {
+        const uint32_t want = expected_platform_id();
+        if (want != 0 && platform != want) {
+            unload();
+            if (error_out) {
+                *error_out = "wrong pack platform (have " + std::to_string(platform) + ":" + platform_name(platform) +
+                             ", need " + std::to_string(want) + ":" + platform_name(want) + ")";
+            }
+            GWPACK_LOG(
+                "gw_pack: wrong platform have=%u(%s) need=%u(%s)",
+                (unsigned)platform,
+                platform_name(platform),
+                (unsigned)want,
+                platform_name(want));
+            return false;
+        }
+    }
+
     (void)data_offset;
 
     if (content_version < kRequiredContentVersion) {

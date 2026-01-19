@@ -30,7 +30,7 @@ If you are looking for how to build the apps themselves, see [BUILDING.md](/BUIL
 
 ## Supported games
 
-Supported games are all of the Game & Watch titles and a single Tronica game.
+Supported games are all of the Game & Watch titles and some Tronica games.
 
 Full list: [GNW_LIST.md](/CONVERT_ROM/GNW_LIST.md)
 

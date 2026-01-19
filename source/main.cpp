@@ -97,6 +97,7 @@ static void show_pack_required_console(const std::string& err) {
 }
 #endif // !defined(YOKOI_EMBEDDED_ASSETS)
 
+#if defined(YOKOI_SHOW_MSG_ROM) && !defined(YOKOI_EMBEDDED_ASSETS)
 static void show_pack_required_screen(Virtual_Screen& v_screen, const std::string& err) {
     v_screen.delete_all_text();
     v_screen.delete_all_img();
@@ -127,6 +128,7 @@ static void show_pack_required_screen(Virtual_Screen& v_screen, const std::strin
         gspWaitForVBlank();
     }
 }
+#endif // defined(YOKOI_SHOW_MSG_ROM) && !defined(YOKOI_EMBEDDED_ASSETS)
 
 static void show_start_game_error(Virtual_Screen& v_screen, const std::string& msg) {
     v_screen.delete_all_text();
@@ -730,9 +732,9 @@ int main()
     Input_Manager_3ds input_manager;
     SM5XX* cpu = nullptr;
 
-    // Try loading the external ROM pack first.
-    // In pack-only builds, show a console-based blocking screen if it's missing/outdated.
-    // (This avoids relying on romfs textures/font rendering, which may not be present.)
+    // Pack-only build: require external ROM pack.
+    // Embedded build: do NOT load the pack (even if present), always use compiled-in list.
+#if !defined(YOKOI_EMBEDDED_ASSETS)
     bool pack_ok = false;
     {
 		YOKOI_LOG("main: load pack '%s'", k3dsRomPackPath);
@@ -746,13 +748,12 @@ int main()
             g_pack_load_error.clear();
         }
 
-#if !defined(YOKOI_EMBEDDED_ASSETS)
         if (!pack_ok) {
             show_pack_required_console(g_pack_load_error);
             return 0;
         }
-#endif
     }
+#endif
 
     YOKOI_LOG("main: config_screen");
     v_screen.config_screen();
@@ -764,8 +765,8 @@ int main()
     load_settings();
 	YOKOI_LOG("main: settings loaded");
 
-#if defined(YOKOI_SHOW_MSG_ROM)    
-    // If pack load failed but we're not pack-only, surface it in-app.
+#if defined(YOKOI_SHOW_MSG_ROM) && !defined(YOKOI_EMBEDDED_ASSETS)
+    // Pack-only builds can also surface pack errors in-app.
     if (!pack_ok && !g_pack_load_error.empty()) {
         show_pack_required_screen(v_screen, g_pack_load_error);
     }

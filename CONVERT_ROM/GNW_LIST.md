@@ -86,4 +86,5 @@ Special editions are not supported in the emulator, refer to the Notes column fo
 
 | No. | Model   | Filename            | Game Title                                                   | Release Date | CPU |
 |-----|---------|---------------------|--------------------------------------------------------------|--------------|-----|
-| 01  | MG-8    | trshutvoy.zip       | Shuttle Voyage                                               | 1983.01.01   | SM510 |
+| 01  | TG-18   | tigarden.zip        | Thief in Garden                                              | 1983.01.01   | SM510 |
+| 02  | MG-8    | trshutvoy.zip       | Shuttle Voyage                                               | 1983.01.01   | SM510 |

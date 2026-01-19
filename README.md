@@ -12,7 +12,7 @@ A Game & Watch emulator for 3DS & Android: SM5A, SM510, and SM511/SM512.
 
 # Supported games
 
-Supported games are all of the Game & Watch titles and a single Tronica game.
+Supported games are all of the Game & Watch titles and some Tronica games.
 
 - Full list: [CONVERT_ROM/GNW_LIST.md](/CONVERT_ROM/GNW_LIST.md)
 - Compatible Game & Watch models are those equipped with Sharp processors SM5A, SM510, SM511, SM512
