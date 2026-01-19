@@ -565,6 +565,8 @@ def _rom_fallback_candidates(name: str) -> List[str]:
         candidates.append("gnw_mmouse")
     if name == "gnw_dkcirc":
         candidates.append("gnw_mmousep")
+    if name == "tigarden":
+        candidates.append("trshutvoy")
 
     return candidates
 
@@ -599,7 +601,9 @@ def _iter_artwork_folders(root: Path) -> Iterable[Tuple[str, Path]]:
         if not entry.is_dir():
             continue
         name = entry.name
-        if name.lower().startswith("gnw_") or name.lower().startswith("tr"):
+        lowered = name.lower()
+        # Need to make sure this covers the names of all the relevant files
+        if lowered.startswith("gnw_") or lowered.startswith("tr") or lowered.startswith("ti"):
             yield name, entry
 
 
@@ -608,7 +612,7 @@ def _resolve_default_lay(
     folder: Path,
     folder_map: Dict[str, Path],
 ) -> Tuple[Optional[Path], str]:
-    """Check for default.lay in folder, falling back to the shortened name.
+    """Check for default.lay in folder, falling back to related folders.
 
     Returns a tuple (layout_path, source_name) where:
       * layout_path: path to default.lay when found, otherwise None.
@@ -620,12 +624,12 @@ def _resolve_default_lay(
     if layout_path.exists():
         return layout_path, "self"
 
-    fallback_name = name[:-1]
-    if len(fallback_name) < 3:  # avoid empty or trivial fallbacks
-        return None, ""
-
-    fallback_folder = folder_map.get(fallback_name)
-    if fallback_folder:
+    # Reuse ROM fallback candidates so special clone mappings (e.g., tigarden -> trshutvoy)
+    # can also supply the layout and backgrounds.
+    for fallback_name in _rom_fallback_candidates(name):
+        fallback_folder = folder_map.get(fallback_name)
+        if not fallback_folder:
+            continue
         fallback_path = fallback_folder / "default.lay"
         if fallback_path.exists():
             return fallback_path, fallback_name
