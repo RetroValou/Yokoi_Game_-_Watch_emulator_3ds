@@ -36,7 +36,26 @@ class Virtual_Input {
         Virtual_Input(SM5XX* c) : cpu(c) {}   
         virtual ~Virtual_Input() = default; 
         virtual void set_input(uint8_t, uint8_t, bool, uint8_t = 1){};
+
     protected : 
+        // Important: If multiple physical buttons map to the same K bit ("Down").
+        // We must OR them together; otherwise an unpressed button will clear the bit
+        // each frame and the game will never see it.
+        struct OrKBit {
+            bool primary_held = false;
+            bool secondary_held = false;
+
+            void set_primary(SM5XX* cpu, int group, int line, bool pressed) {
+                primary_held = pressed;
+                cpu->input_set(group, line, primary_held || secondary_held);
+            }
+
+            void set_secondary(SM5XX* cpu, int group, int line, bool pressed) {
+                secondary_held = pressed;
+                cpu->input_set(group, line, primary_held || secondary_held);
+            }
+        };
+
         SM5XX* cpu;
 };
 
@@ -1622,15 +1641,12 @@ class CC_38V : public Virtual_Input{
                         default: break; } break;
                 case PART_LEFT:
                     switch (button) {
-                        // Important: multiple physical buttons map to the same K bit ("Down").
-                        // We must OR them together; otherwise an unpressed button will clear the bit
-                        // each frame and the game will never see it.
-                        case BUTTON_UP: down_left = state; apply_down(); break;      // D-pad Up -> DOWN input
+                        case BUTTON_UP: down.set_primary(cpu, 0, 3, state); break;  // D-pad Up -> DOWN input
                         case BUTTON_DOWN: cpu->input_set(0, 1, state); break;        // LEFT input
                         default: break; } break;
                 case PART_RIGHT:
                     switch (button) {
-                        case BUTTON_UP: down_right = state; apply_down(); break;    // X -> DOWN input
+                        case BUTTON_UP: down.set_secondary(cpu, 0, 3, state); break; // X -> DOWN input
                         case BUTTON_DOWN: cpu->input_set(0, 0, state); break;      // RIGHT input
                         default: break; } break;
                 default: break;
@@ -1638,12 +1654,7 @@ class CC_38V : public Virtual_Input{
         }
 
     private:
-        bool down_left = false;
-        bool down_right = false;
-
-        void apply_down() {
-            cpu->input_set(0, 3, down_left || down_right);
-        }
+        OrKBit down;
 };
 
 ////// punch_out : SM11 //////
