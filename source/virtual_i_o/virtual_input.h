@@ -1589,7 +1589,7 @@ class DA_37 : public Virtual_Input{
                         default: break; } break;
                 case PART_LEFT:
                     switch (button) {
-                        case BUTTON_LEFT: cpu->input_set(0, 3, state); break;
+                        case BUTTON_ACTION: cpu->input_set(0, 3, state); break;
                         default: break; } break;
                 case PART_RIGHT:
                     switch (button) {
@@ -1598,6 +1598,51 @@ class DA_37 : public Virtual_Input{
                         default: break; } break;
                 default: break;
             }
+        }
+};
+
+
+////// Clever Chicken (Tronica) : SM11 //////
+class CC_38V : public Virtual_Input{
+    public : 
+        CC_38V(SM5XX* c) : Virtual_Input(c) {
+            // Based on MAME hh_sm510.cpp (trclchick): IN.0 uses Right/Left/Down (no Up).
+            left_configuration = CONF_4_BUTTON_DIRECTION;
+            right_configuration = CONF_4_BUTTON_DIRECTION;
+        }
+
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_SETUP:
+                    switch (button) {
+                        case BUTTON_TIME: cpu->input_set(1, 0, state); break;
+                        case BUTTON_GAMEB: cpu->input_set(1, 1, state); break;
+                        case BUTTON_GAMEA: cpu->input_set(1, 2, state); break;
+                        case BUTTON_ALARM: cpu->input_set(1, 3, state); break;
+                        default: break; } break;
+                case PART_LEFT:
+                    switch (button) {
+                        // Important: multiple physical buttons map to the same K bit ("Down").
+                        // We must OR them together; otherwise an unpressed button will clear the bit
+                        // each frame and the game will never see it.
+                        case BUTTON_UP: down_left = state; apply_down(); break;      // D-pad Up -> DOWN input
+                        case BUTTON_DOWN: cpu->input_set(0, 1, state); break;        // LEFT input
+                        default: break; } break;
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_UP: down_right = state; apply_down(); break;    // X -> DOWN input
+                        case BUTTON_DOWN: cpu->input_set(0, 0, state); break;      // RIGHT input
+                        default: break; } break;
+                default: break;
+            }
+        }
+
+    private:
+        bool down_left = false;
+        bool down_right = false;
+
+        void apply_down() {
+            cpu->input_set(0, 3, down_left || down_right);
         }
 };
 
@@ -1701,7 +1746,8 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "BU_201") { return new BU_201(cpu); } // Spitball Sparky
     else if (ref_game == "UD_202") { return new UD_202(cpu); } // Crab Grab
     else if (ref_game == "MG_8" || ref_game == "TG_18")   { return new MG_8(cpu); }   // Shuttle Voyage / Thief in Garden (Tronica)
-    else if (ref_game == "CC_38V" || ref_game == "DA_37")   { return new DA_37(cpu); }   // Diver's Adventure / Clever Chicken (Tronica)
+    else if (ref_game == "DA_37")   { return new DA_37(cpu); }   // Diver's Adventure (Tronica)
+    else if (ref_game == "CC_38V")  { return new CC_38V(cpu); }  // Clever Chicken (Tronica)
     
 
     /* SM511/SM512 */
