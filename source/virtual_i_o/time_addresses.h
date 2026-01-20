@@ -70,8 +70,8 @@ inline const TimeAddress* get_time_addresses(const std::string& ref_game) {
         {"BU_201", {0,10, 0,11, 0,12, 0,13, 0,14, 0,15, 8}}, // Spitball Sparky
         {"MG_8", {3,0, 3,1, 3,3, 3,4, 3,6, 3,7, 2}}, // Shuttle Voyage
         {"TG_18", {3,0, 3,1, 3,3, 3,4, 3,6, 3,7, 2}}, // Thief in Garden
-        {"CC_38V", {5,4, 5,5, 5,6, 5,7, 5,8, 5,9, 8}}, // Clever Chicken
-        {"DA_37", {5,4, 5,5, 5,6, 5,7, 5,8, 5,9, 8}}, // Diving Adventure
+        {"CC_38V", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Clever Chicken
+        {"DA_37", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Diving Adventure
     };
 
     // --- SM511/SM512 ---
