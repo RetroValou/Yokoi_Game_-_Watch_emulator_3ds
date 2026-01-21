@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import hashlib
 from pathlib import Path
 
 from .manufacturer_ids import MANUFACTURER_NINTENDO, normalize_manufacturer_id
@@ -133,11 +134,14 @@ def try_load_pack_meta(key: str, game_data: dict, *, clean_mode: bool) -> dict |
 
     cached_sig = payload.get("signature")
     cached_meta = payload.get("pack_meta")
+    prev_hints = payload.get("file_hints")
+    if not isinstance(prev_hints, dict):
+        prev_hints = {}
     if not isinstance(cached_sig, dict) or not isinstance(cached_meta, dict):
         print(f"(cache) Rebuild {key}: cache missing required fields")
         return None
 
-    current_sig = _build_game_signature(key, game_data)
+    current_sig = _build_game_signature(key, game_data, prev_hints=prev_hints)
     if cached_sig != current_sig:
         reasons = _describe_cache_mismatch(cached_sig, current_sig)
         if reasons:
@@ -164,8 +168,11 @@ def write_game_cache(key: str, game_data: dict, pack_meta: dict) -> None:
 
     try:
         _cache_dir.mkdir(parents=True, exist_ok=True)
+
+        signature, file_hints = _build_game_signature_and_hints(key, game_data)
         payload = {
-            "signature": _build_game_signature(key, game_data),
+            "signature": signature,
+            "file_hints": file_hints,
             "pack_meta": pack_meta,
             "written_at": int(time.time()),
         }
@@ -180,26 +187,62 @@ def _cache_file_for_game(key: str) -> Path:
     return _cache_dir / f"gamecache_{_target_name}_{safe_key}.json"
 
 
-def _safe_stat_signature(path: str) -> dict:
+def _file_digest(path: str) -> str:
+    """Compute a stable, reasonably fast content digest for a file."""
+
+    h = hashlib.blake2b(digest_size=16)
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _input_signature(path: str, prev_hints: dict | None = None) -> tuple[dict, dict]:
+    """Return (signature_entry, hint_entry) for a path.
+
+    signature_entry is used for cache equality (content-based).
+    hint_entry helps avoid re-hashing unchanged files (mtime+size based).
+    """
+
+    path = str(path)
     try:
         st = os.stat(path)
-        return {
-            "path": str(path),
-            "exists": True,
-            "mtime": float(st.st_mtime),
-            "size": int(st.st_size),
-        }
+        size = int(st.st_size)
+        mtime = float(st.st_mtime)
     except OSError:
-        return {"path": str(path), "exists": False, "mtime": 0.0, "size": 0}
+        sig = {"path": path, "exists": False, "size": 0, "digest": ""}
+        hint = {"path": path, "exists": False, "size": 0, "mtime": 0.0, "digest": ""}
+        return sig, hint
+
+    prev = None
+    if isinstance(prev_hints, dict):
+        prev = prev_hints.get(path)
+        if not isinstance(prev, dict):
+            prev = None
+
+    digest = ""
+    if prev is not None and prev.get("exists") is True and prev.get("size") == size and prev.get("mtime") == mtime and isinstance(prev.get("digest"), str):
+        digest = str(prev.get("digest"))
+    else:
+        digest = _file_digest(path)
+
+    sig = {"path": path, "exists": True, "size": size, "digest": digest}
+    hint = {"path": path, "exists": True, "size": size, "mtime": mtime, "digest": digest}
+    return sig, hint
 
 
 def _manufacturer_id(value) -> int:
     return normalize_manufacturer_id(value, default=MANUFACTURER_NINTENDO)
 
 
-def _build_game_signature(key: str, game_data: dict) -> dict:
+def _build_game_signature(key: str, game_data: dict, *, prev_hints: dict | None = None) -> dict:
+    signature, _hints = _build_game_signature_and_hints(key, game_data, prev_hints=prev_hints)
+    return signature
+
+
+def _build_game_signature_and_hints(key: str, game_data: dict, *, prev_hints: dict | None = None) -> tuple[dict, dict]:
     signature: dict = {
-        "version": 1,
+        "version": 2,
         "key": str(key),
         "target": str(_target_name),
         "export_dpi": int(_context.get("export_dpi", 0)),
@@ -250,8 +293,16 @@ def _build_game_signature(key: str, game_data: dict) -> dict:
     if console_path:
         paths.append(console_path)
 
-    signature["inputs"] = [_safe_stat_signature(p) for p in paths]
-    return signature
+    # Build content-based signatures for inputs (digest+size), using hints to avoid re-hashing.
+    hints_out: dict[str, dict] = {}
+    inputs: list[dict] = []
+    for p in paths:
+        sig, hint = _input_signature(p, prev_hints=prev_hints)
+        inputs.append(sig)
+        hints_out[str(p)] = hint
+
+    signature["inputs"] = inputs
+    return signature, hints_out
 
 
 def _expected_outputs_exist_for_game(key: str, game_data: dict) -> bool:
@@ -317,9 +368,9 @@ def _describe_cache_mismatch(old_sig: dict, new_sig: dict) -> list[str]:
         if o.get("path") != n.get("path"):
             reasons.append(f"inputs[{i}].path: {o.get('path')!r} -> {n.get('path')!r}")
             continue
-        if (o.get("exists"), o.get("size"), o.get("mtime")) != (n.get("exists"), n.get("size"), n.get("mtime")):
+        if (o.get("exists"), o.get("size"), o.get("digest")) != (n.get("exists"), n.get("size"), n.get("digest")):
             reasons.append(
-                f"inputs[{i}] changed: {path} (exists/size/mtime {o.get('exists')}/{o.get('size')}/{o.get('mtime')} -> {n.get('exists')}/{n.get('size')}/{n.get('mtime')})"
+                f"inputs[{i}] changed: {path} (exists/size/digest {o.get('exists')}/{o.get('size')}/{o.get('digest')} -> {n.get('exists')}/{n.get('size')}/{n.get('digest')})"
             )
 
     return reasons[:25]
