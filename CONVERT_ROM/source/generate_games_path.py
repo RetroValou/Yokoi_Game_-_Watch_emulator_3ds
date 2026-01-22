@@ -31,6 +31,8 @@ VIEW_PRIORITY: Sequence[Tuple[str, bool]] = (
     ("Backgrounds Only (No Reflection)", True),
     ("Background Only", False),
     ("Backgrounds Only", True),
+    ("Version 1 - Background Only (No Shadow)", False),
+    ("Version 1 - Background Only (No Shadow)", True),
 )
 
 # set default img when console img is not set for a game
@@ -570,6 +572,10 @@ def _rom_fallback_candidates(name: str) -> List[str]:
         candidates.append("trshutvoy")
     if name == "trclchick":
         candidates.append("trdivadv")
+    if name == "trspider":
+        candidates.append("trspacmis")
+    if name == "trthuball":
+        candidates.append("trsrescue")
 
     return candidates
 
