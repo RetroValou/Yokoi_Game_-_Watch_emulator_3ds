@@ -28,6 +28,12 @@
 #include "virtual_i_o/virtual_input.h"
 #include "virtual_i_o/3ds_input.h"
 
+// Debug helper: runtime RAM snapshots.
+// Set to 1 (e.g. via compiler -D flag) to enable L+SELECT RAM dumps to sdmc:/3ds/debug/.
+#ifndef YOKOI_ENABLE_RUNTIME_RAM_SNAPSHOT
+#define YOKOI_ENABLE_RUNTIME_RAM_SNAPSHOT 0
+#endif
+
 
 const float _3DS_FPS_SCREEN_ = 60;
 const int _INPUT_SETTING_ = (KEY_L|KEY_B);
@@ -565,7 +571,7 @@ bool init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
         load_game_state(*cpu, index_game);
     }
 
-    //(*cpu)->debug_dump_ram_state("last_ram_state_before_load.txt");
+    (*cpu)->debug_dump_ram_state("last_ram_state_before_load.txt");
 
     v_sound->initialize((*cpu)->frequency, (*cpu)->sound_divide_frequency, _3DS_FPS_SCREEN_);
     v_sound->play_sample();
@@ -582,7 +588,7 @@ bool init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
     set_time_cpu(*cpu);
     YOKOI_LOG("init_game: success");
 
-    //(*cpu)->debug_dump_ram_state("post_time_set.txt");
+    (*cpu)->debug_dump_ram_state("post_time_set.txt");
 
     return true;
 }
@@ -889,6 +895,17 @@ int main()
                 {
                     v_sound.play_sample();
                     input_manager.input_GW_Update(v_input);
+
+#if YOKOI_ENABLE_RUNTIME_RAM_SNAPSHOT
+                    // L + SELECT: dump current emulated RAM state (append) to SD card.
+                    if (cpu && input_manager.input_isHeld(KEY_L) && input_manager.input_justPressed(KEY_SELECT)) {
+                        static unsigned s_runtime_dump_counter = 0;
+                        char fname[64];
+                        snprintf(fname, sizeof(fname), "runtime_ram_%03u.txt", s_runtime_dump_counter++);
+                        cpu->debug_dump_ram_state(fname);
+                    }
+#endif
+
                     curr_rate += cpu->frequency;
                     uint32_t step = curr_rate/_3DS_FPS_SCREEN_;
                     curr_rate -= step*_3DS_FPS_SCREEN_;
