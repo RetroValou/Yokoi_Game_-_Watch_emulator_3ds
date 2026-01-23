@@ -19,6 +19,8 @@ from source.extract_assets import extract_assets
 from source.generate_games_path import generate_games_path
 from source.crab_grab_game_processor import CrabGrabGameProcessor
 from source.spitball_sparky_game_processor import SpitballSparkyGameProcessor
+from source.space_adventure_game_processor import SpaceAdventureGameProcessor
+from source.spider_tronica_game_processor import SpiderTronicaGameProcessor
 
 
 def main() -> int:
@@ -42,7 +44,8 @@ def main() -> int:
         return 1
 
     # Optional: post-process specific games that need special handling.
-    processors = [CrabGrabGameProcessor(args.target), SpitballSparkyGameProcessor(args.target)]
+    processors = [CrabGrabGameProcessor(args.target), SpitballSparkyGameProcessor(args.target), 
+                  SpaceAdventureGameProcessor(args.target), SpiderTronicaGameProcessor(args.target)]
     for processor in processors:
         if processor.load_info():
             processor.post_process()
