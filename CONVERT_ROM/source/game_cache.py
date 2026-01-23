@@ -98,15 +98,20 @@ def ensure_cache_dir() -> None:
         return
 
 
-def invalidate_game(key: str) -> None:
-    """Remove a game's cache file (best-effort)."""
+def invalidate_game(key: str) -> Path | None:
+    """Remove a game's cache file (best-effort).
+
+    Returns the deleted cache path when a file was removed, else None.
+    """
 
     try:
         p = _cache_file_for_game(str(key))
         if p.exists():
             p.unlink()
+            return p
     except Exception:
-        return
+        return None
+    return None
 
 
 def try_load_pack_meta(key: str, game_data: dict, *, clean_mode: bool) -> dict | None:
@@ -162,9 +167,9 @@ def try_load_pack_meta(key: str, game_data: dict, *, clean_mode: bool) -> dict |
     return cached_meta
 
 
-def write_game_cache(key: str, game_data: dict, pack_meta: dict) -> None:
+def write_game_cache(key: str, game_data: dict, pack_meta: dict) -> Path | None:
     if not _enabled:
-        return
+        return None
 
     try:
         _cache_dir.mkdir(parents=True, exist_ok=True)
@@ -176,10 +181,12 @@ def write_game_cache(key: str, game_data: dict, pack_meta: dict) -> None:
             "pack_meta": pack_meta,
             "written_at": int(time.time()),
         }
-        with open(_cache_file_for_game(key), "w", encoding="utf-8") as f:
+        out_path = _cache_file_for_game(key)
+        with open(out_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
+        return out_path
     except Exception:
-        return
+        return None
 
 
 def _cache_file_for_game(key: str) -> Path:

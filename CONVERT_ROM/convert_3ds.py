@@ -67,6 +67,11 @@ default_fond_bright = 1.35
 default_rotate = False
 default_console = r'.\rom\default.png'
 
+# Cache behavior:
+# - Cache files are always written after a successful rebuild (best-effort).
+# - Reading cache to skip rebuilding is only enabled with --use-cache.
+USE_CACHE_READ = False
+
 
 def _load_games_path_for_target(target_name: str) -> dict:
     """Load games_path dict for the given target.
@@ -654,27 +659,34 @@ def process_single_game(args):
     print(f"\n--------\n{key}\n")
 
     if reset_img_svg:
-        try: 
-            # Remove existing ./tmp/img/<game> directory if it exists
+        # Best-effort cleanup. Each step is isolated so a missing folder doesn't
+        # prevent cache invalidation or gfx cleanup.
+
+        # Remove existing ./tmp/img/<game> directory if it exists
+        try:
             shutil.rmtree("./tmp/img/" + key)
             print(f"Removed cache folder: tmp/img/{key}")
-
-            # Also invalidate the per-game build cache.
-            game_cache.invalidate_game(key)
-
-            # Clean up gfx for this game: remove all .t3s and .png files
-            # whose filenames contain the current game key, using glob
-            if os.path.exists(destination_graphique_file):
-                pattern = os.path.join(destination_graphique_file, f"*{key}*")
-                for file_path in glob.glob(pattern):
-                    filename = os.path.basename(file_path)
-                    try:
-                        os.remove(file_path)
-                        print(f"Removed: {filename}")
-                    except Exception as e:
-                        print(f"Error removing {filename}: {e}")
-        except: 
+        except FileNotFoundError:
             pass
+        except Exception as e:
+            print(f"Warning: unable to remove tmp/img/{key}: {e}")
+
+        # Also invalidate the per-game build cache (even if tmp/img didn't exist).
+        deleted_cache = game_cache.invalidate_game(key)
+        if deleted_cache is not None:
+            print(f"Removed cache file: {deleted_cache}")
+
+        # Clean up gfx for this game: remove all .t3s/.png/.t3x files
+        # whose filenames contain the current game key.
+        if os.path.exists(destination_graphique_file):
+            pattern = os.path.join(destination_graphique_file, f"*{key}*")
+            for file_path in glob.glob(pattern):
+                filename = os.path.basename(file_path)
+                try:
+                    os.remove(file_path)
+                    print(f"Removed: {filename}")
+                except Exception as e:
+                    print(f"Error removing {filename}: {e}")
                 
     # Set default values if not exist
     alpha_bright = game_data.get('alpha_bright', default_alpha_bright)
@@ -698,10 +710,11 @@ def process_single_game(args):
     ref_norm = game_data["ref"].replace('-', '_').upper()
     manufacturer = _manufacturer_to_id(game_data.get("manufacturer", 0))
 
-    cached = game_cache.try_load_pack_meta(key, game_data, clean_mode=reset_img_svg)
-    if cached is not None:
-        print(f"(cache) Up-to-date: {key}")
-        return cached
+    if USE_CACHE_READ:
+        cached = game_cache.try_load_pack_meta(key, game_data, clean_mode=reset_img_svg)
+        if cached is not None:
+            print(f"(cache) Up-to-date: {key}")
+            return cached
 
     pack_meta = generate_game_file(
         destination_game_file, key, display_name,
@@ -715,7 +728,9 @@ def process_single_game(args):
         manufacturer
     )
 
-    game_cache.write_game_cache(key, game_data, pack_meta)
+    wrote_cache = game_cache.write_game_cache(key, game_data, pack_meta)
+    if wrote_cache is not None:
+        print(f"(cache) Wrote: {wrote_cache}")
     
     return pack_meta
 
@@ -994,13 +1009,13 @@ if __name__ == "__main__":
         "--clean",
         dest="reset_img_svg",
         action="store_true",
-        help="Delete and regenerate ./tmp/img/<game> before processing",
+        help="Delete and regenerate ./tmp/img/<game> before processing, and invalidate the per-game cache entry",
     )
 
     parser.add_argument(
         "--use-cache",
         action="store_true",
-        help="Enable per-game up-to-date cache (skip rebuilding games that are unchanged)",
+        help="Use per-game cache to skip rebuilding unchanged games (cache files are still written after rebuilds)",
     )
 
     args = parser.parse_args()
@@ -1009,7 +1024,10 @@ if __name__ == "__main__":
 
     apply_profile(args.target, args.out_gfx, args.out_gw_all, args.out_gw_rom_dir, args.export_dpi, args.scale)
 
-    cache_enabled = bool(args.use_cache) and (not bool(args.game))
+    # Always enable cache *writing* so rebuilt games produce fresh cache files.
+    # Cache *reading* (skip rebuilds) is controlled separately by --use-cache.
+    cache_enabled = True
+    USE_CACHE_READ = bool(args.use_cache)
     game_cache.configure(
         enabled=cache_enabled,
         target_name=str(args.target),
