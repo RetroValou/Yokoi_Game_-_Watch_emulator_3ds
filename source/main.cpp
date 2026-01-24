@@ -571,7 +571,9 @@ bool init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
         load_game_state(*cpu, index_game);
     }
 
+#if YOKOI_ENABLE_RUNTIME_RAM_SNAPSHOT
     (*cpu)->debug_dump_ram_state("last_ram_state_before_load.txt");
+#endif
 
     v_sound->initialize((*cpu)->frequency, (*cpu)->sound_divide_frequency, _3DS_FPS_SCREEN_);
     v_sound->play_sample();
@@ -588,7 +590,9 @@ bool init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
     set_time_cpu(*cpu);
     YOKOI_LOG("init_game: success");
 
+#if YOKOI_ENABLE_RUNTIME_RAM_SNAPSHOT
     (*cpu)->debug_dump_ram_state("post_time_set.txt");
+#endif
 
     return true;
 }
