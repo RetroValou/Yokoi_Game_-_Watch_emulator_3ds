@@ -8,6 +8,7 @@
 #include <malloc.h>
 #include <time.h>
 #include <stdio.h>
+#include <sstream>
 
 #include "std/timer.h"
 #include "std/load_file.h"
@@ -949,8 +950,28 @@ int main()
                         step -= 1;
                     }
 
+                    #if defined(YOKOI_DEBUG)
+                        v_screen.delete_all_text();
+                        std::string value = cpu->debug_var_cpu();
+                        std::stringstream ss(value);
+                        std::string segment;
+                        int i = 0;
+                        while (std::getline(ss, segment, '(')) {
+                            if (segment.empty()) { continue; }
+                            v_screen.set_text(segment , 20, 20+i*16 , 1, 1);      
+                            i += 1;      
+                        }
+                        
+                    #endif
+
                     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
                     v_screen.update_screen();
+
+                    #if defined(YOKOI_DEBUG)
+                        if(v_screen.nb_screen == 1){ v_screen.update_text(true); }
+                        else { v_screen.update_text(false); }                        
+                    #endif
+
                     C3D_FrameEnd(0);
 
                     if(input_manager.input_isHeld(_INPUT_MENU_)){

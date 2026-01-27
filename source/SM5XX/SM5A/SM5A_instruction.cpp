@@ -244,13 +244,19 @@ void SM5A::op_ws(){
 void SM5A::op_atr(){ r_output_control = accumulator & 0x0F; };
 
 void SM5A::op_kta(){
+	// Need to be more study
+	// doubt whether the multiplexing index (the pin most often used for sound) should be shifted
+	// In theorie, accumulator -> r_output_control -> pin multiplexing but accumulator directly seems to work better
 	uint8_t pin_activate = (~accumulator) & 0x0F;/*(~r_output_control) & 0x0F;*/ // 0 -> Activate R_i ouput, 1-> desactivate R_i ouput
-    accumulator = 0x00;
-    for(int i = 0; i < 8; i++){
+    debug_multiplexage_activate = pin_activate;
+	
+	accumulator = 0x00;
+    for(int i = 0; i < 8; i++){ 
         if( (((pin_activate >> i) & 0x01) == 0x01) || input_no_multiplex){ // multiplexage by S
             accumulator = accumulator | k_input[i];
         }
     }
+	debug_value_read_input = accumulator;
 };
 
 // Divider

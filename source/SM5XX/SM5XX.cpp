@@ -2,7 +2,8 @@
 #include "std/timer.h"
 #include "virtual_i_o/time_addresses.h"
 #include <sys/stat.h>
-
+#include <sstream>
+#include <iomanip>
 
 bool SM5XX::step(){ // loop of CPU
     // output -> is opcode are executed or not
@@ -175,6 +176,27 @@ void SM5XX::copy_buffer(const ProgramCounter& src, ProgramCounter& dst) {
 }
 
 ///////////////////////////////////// Debug ////////////////////////////////////
+
+std::string SM5XX::debug_var_cpu(){
+    std::ostringstream oss;
+    oss << "Acc : " ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(accumulator);
+
+    oss << "(K input : " ;
+    for(int i = 0; i < 8; i++){
+        oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(k_input[i]);
+        oss << " ";
+    }
+
+    oss << "(Input read during op code : " ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(debug_value_read_input);
+    
+    oss << "(Multiplexage during op code : " ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(debug_multiplexage_activate);
+
+    return oss.str();
+}
+
 
 void SM5XX::debug_dump_ram_state(const char* filename) {
     // Dump the current RAM state to a file for debugging on the sd card here: "sdmc:/3ds/debug/"

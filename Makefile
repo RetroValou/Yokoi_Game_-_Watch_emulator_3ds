@@ -48,6 +48,9 @@ EMBEDDED ?= 0
 # Set SHOW_MSG_ROM=0 to build without show Warning rom data
 SHOW_MSG_ROM ?= 1
 
+# Set DEBUG=0 to build with debug text
+DEBUG ?= 0
+
 # Minimum external pack content version that this build accepts.
 # Bump this when the app expects newer pack contents (textures/layout/etc.).
 ROMPACK_CONTENT_VERSION_REQUIRED ?= 3
@@ -74,6 +77,11 @@ endif
 ifneq ($(strip $(EMBEDDED)),0)
 	ROMPACK_DEFINES += -DYOKOI_EMBEDDED_ASSETS=1
 endif
+
+ifneq ($(strip $(DEBUG)),0)
+	ROMPACK_DEFINES += -DYOKOI_DEBUG=1
+endif
+
 
 ifneq ($(strip $(SHOW_MSG_ROM)),0)
 	ROMPACK_DEFINES += -DYOKOI_SHOW_MSG_ROM

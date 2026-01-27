@@ -209,6 +209,10 @@ public :
     uint8_t debug_cycle_curr_opcode;
     uint16_t debug_curr_opcode;
 
+    uint8_t debug_multiplexage_activate;
+    uint8_t debug_value_read_input;
+
+
     int debug_program_counter_col() { return program_counter.col; }
     int debug_program_counter_line() { return program_counter.line; }
     int debug_program_counter_word() { return program_counter.word; }
@@ -221,6 +225,7 @@ public :
     int debug_ram_adress_line(){ return ram_address.line; }
 
     void debug_dump_ram_state(const char* filename);
+    std::string debug_var_cpu();
 
     virtual uint8_t debug_get_elem_rom(int, int, int) { return 0x00; }
     virtual int debug_rom_adress_size_col(){ return 0; }

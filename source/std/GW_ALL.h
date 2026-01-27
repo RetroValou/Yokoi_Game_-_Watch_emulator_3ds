@@ -113,10 +113,30 @@ extern const GW_rom zelda;
 extern const GW_rom gold_cliff;
 #include "GW_ROM/mario_the_juggle.h"
 extern const GW_rom mario_the_juggle;
+#include "GW_ROM/clever_chicken.h"
+extern const GW_rom clever_chicken;
+#include "GW_ROM/diver_s_adventure.h"
+extern const GW_rom diver_s_adventure;
+#include "GW_ROM/shuttle_voyage.h"
+extern const GW_rom shuttle_voyage;
+#include "GW_ROM/space_adventure.h"
+extern const GW_rom space_adventure;
+#include "GW_ROM/space_mission_tronica.h"
+extern const GW_rom space_mission_tronica;
+#include "GW_ROM/space_rescue.h"
+extern const GW_rom space_rescue;
+#include "GW_ROM/spider_tronica.h"
+extern const GW_rom spider_tronica;
+#include "GW_ROM/super_goal_keeper_tronica.h"
+extern const GW_rom super_goal_keeper_tronica;
+#include "GW_ROM/thief_in_garden.h"
+extern const GW_rom thief_in_garden;
+#include "GW_ROM/thunder_ball_tronica.h"
+extern const GW_rom thunder_ball_tronica;
 
 
 
 
-const GW_rom* GW_list[] = {&ball, &flagman, &vermin, &fire, &judge, &manhole, &helmet, &lion, &parachute, &octopus, &popeye, &chef, &mickey_mouse, &egg, &fire_wide_screen, &turtle_bridge, &fire_attack, &snoopy_tennis, &oil_panic, &donkey_kong, &donkey_kong_jr, &mickey_donald, &green_house, &donkey_kong_2, &mario_bros, &mario_cement_factory_panorama, &mario_cement_factory, &rain_shower, &manhole_wide_screen, &snoopy_table_top, &popeye_table_top, &donkey_kong_circus, &dk_jr_panorama, &life_boat, &mario_bombs_away, &pinball, &mickey_mouse_panorama, &crab_grab, &spitball_sparky, &boxing, &donkey_kong_3, &donkey_kong_hockey, &black_jack, &tropical_fish, &squish, &super_mario_bros_cristal_screen, &ice_climber_cristal_screen, &balloon_fight_cristal_screen, &bomb_sweeper, &safe_buster, &super_mario_bros, &ice_climber, &balloon_fight, &zelda, &gold_cliff, &mario_the_juggle};
-const size_t nb_games = 56;
+const GW_rom* GW_list[] = {&ball, &flagman, &vermin, &fire, &judge, &manhole, &helmet, &lion, &parachute, &octopus, &popeye, &chef, &mickey_mouse, &egg, &fire_wide_screen, &turtle_bridge, &fire_attack, &snoopy_tennis, &oil_panic, &donkey_kong, &donkey_kong_jr, &mickey_donald, &green_house, &donkey_kong_2, &mario_bros, &mario_cement_factory_panorama, &mario_cement_factory, &rain_shower, &manhole_wide_screen, &snoopy_table_top, &popeye_table_top, &donkey_kong_circus, &dk_jr_panorama, &life_boat, &mario_bombs_away, &pinball, &mickey_mouse_panorama, &crab_grab, &spitball_sparky, &boxing, &donkey_kong_3, &donkey_kong_hockey, &black_jack, &tropical_fish, &squish, &super_mario_bros_cristal_screen, &ice_climber_cristal_screen, &balloon_fight_cristal_screen, &bomb_sweeper, &safe_buster, &super_mario_bros, &ice_climber, &balloon_fight, &zelda, &gold_cliff, &mario_the_juggle, &clever_chicken, &diver_s_adventure, &shuttle_voyage, &space_adventure, &space_mission_tronica, &space_rescue, &spider_tronica, &super_goal_keeper_tronica, &thief_in_garden, &thunder_ball_tronica};
+const size_t nb_games = 66;
 

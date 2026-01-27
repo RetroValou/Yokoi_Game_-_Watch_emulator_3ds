@@ -95,3 +95,4 @@ Special editions are not supported in the emulator, refer to the Notes column fo
 | 07  | SG-21   | trspider.zip        | Spider (Tronica)                                             | 1982.01.01   | SM5A |
 | 08  | MG-9    | trsrescue.zip       | Space Rescue                                                 | 1982.01.01   | SM510 |
 | 09  | FR-23   | trthuball.zip       | Thunder Ball (Tronica)                                       | 1983.01.01   | SM510 |
+| 10  | SK-10   | trsgkeep.zip        | Super Goal Keeper  (Tronica)                                 | 1983.01.01   | SM5A |

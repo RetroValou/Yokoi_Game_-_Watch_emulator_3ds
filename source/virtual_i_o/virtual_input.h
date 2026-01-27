@@ -521,7 +521,7 @@ class SM_11 : public Virtual_Input{
 }; 
 
 ////// Super Goal Keeper SK_10 : SM5A //////
-/*class SK_10 : public Virtual_Input{
+class SK_10 : public Virtual_Input{
     public : 
         SK_10(SM5XX* c) : Virtual_Input(c) {
             left_configuration = CONF_2_BUTTON_UPDOWN;
@@ -538,18 +538,18 @@ class SM_11 : public Virtual_Input{
                         default: break; } break;
                 case PART_LEFT:
                     switch (button) {
-                        case BUTTON_UP: cpu->input_set(1, 3, !state); break;
-                        case BUTTON_DOWN: cpu->input_set(1, 2, !state); break;
+                        case BUTTON_UP: cpu->input_set(3, 3, state); break;
+                        case BUTTON_DOWN: cpu->input_set(3, 2, state); break;
                         default: break; } break;
                 case PART_RIGHT:
                     switch (button) {
-                        case BUTTON_UP: cpu->input_set(1, 1, !state); break;
-                        case BUTTON_DOWN: cpu->input_set(1, 0, !state); break;
+                        case BUTTON_UP: cpu->input_set(3, 1, state); break;
+                        case BUTTON_DOWN: cpu->input_set(3, 0, state); break;
                         default: break; } break;
                 default: break;
             }
         }
-};*/
+};
 
 ////// Turtle Bridge : SM10 //////
 class TL_28 : public Virtual_Input{
@@ -1845,7 +1845,7 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "MC_25"|| ref_game == "EG_26") { return new MC_25(cpu); } // Mickey Mouse / Egg
     else if (ref_game == "FR_27") { return new FR_27(cpu); } // Fire (Wide Screen)
     else if (ref_game == "SM_11"|| ref_game == "SG_21") { return new SM_11(cpu); } // Space Mission / Spider (Tronica)
-    //else if (ref_game == "SK_10") { return new SK_10(cpu); } // Super Goal Keeper (Tronica)
+    else if (ref_game == "SK_10") { return new SK_10(cpu); } // Super Goal Keeper (Tronica)
 
     /* SM510 */
     else if (ref_game == "TL_28") { return new TL_28(cpu); } // Turtle Bridge
