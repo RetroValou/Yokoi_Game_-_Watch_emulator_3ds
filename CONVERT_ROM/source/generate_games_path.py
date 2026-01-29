@@ -13,12 +13,12 @@ from typing import Dict, List, Optional, Sequence, Tuple, Iterable
 try:
     # When imported as part of the 'source' package
     from source.games_path_utils import GameEntry, write_games_path
-    from source.manufacturer_ids import MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA
+    from source.manufacturer_ids import MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA, MANUFACTURER_ELEKTRONIKA
     from source.target_profiles import get_target
 except ImportError:
     # When run directly from the 'source' directory
     from games_path_utils import GameEntry, write_games_path
-    from manufacturer_ids import MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA
+    from manufacturer_ids import MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA, MANUFACTURER_ELEKTRONIKA
     from target_profiles import get_target
 
 # Preferred background views ordered by desirability. Boolean marks multi-screen views.
@@ -72,6 +72,7 @@ class GameMetadata:
     display_title: str
     release_date: Optional[str]
     manufacturer: int
+    clone_of: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -138,10 +139,13 @@ def _load_game_metadata(script_dir: Path) -> Dict[str, GameMetadata]:
             # Heading-driven manufacturer:
             # - Nintendo section headings usually include "Game & Watch"
             # - Tronica section headings include "Tronica"
+            # - Elektronika section headings include "Elektronika"
             # Keep the current value for unrelated headings like "Special Editions".
             in_table = False
             if "tronica" in heading:
                 current_manufacturer = MANUFACTURER_TRONICA
+            elif "elektronika" in heading:
+                current_manufacturer = MANUFACTURER_ELEKTRONIKA
             elif "game & watch" in heading or "game and watch" in heading:
                 current_manufacturer = MANUFACTURER_NINTENDO
             continue
@@ -169,6 +173,12 @@ def _load_game_metadata(script_dir: Path) -> Dict[str, GameMetadata]:
         title = columns[3]
         release_raw = columns[4]
 
+        clone_raw = columns[6] if len(columns) >= 7 else ""
+        clone_value = clone_raw.strip()
+        if clone_value.lower().endswith(".zip"):
+            clone_value = clone_value.rsplit(".", 1)[0]
+        clone_of = clone_value.lower() if clone_value else None
+
         base_name = filename.rsplit(".", 1)[0].lower()
         display_title = _strip_title_prefix(title)
         release_date = _normalize_release_date(release_raw)
@@ -179,6 +189,7 @@ def _load_game_metadata(script_dir: Path) -> Dict[str, GameMetadata]:
             display_title=display_title,
             release_date=release_date,
             manufacturer=current_manufacturer,
+            clone_of=clone_of,
         )
 
     return mapping
@@ -472,6 +483,7 @@ def _resolve_rom_file(
     folder: Path,
     fallback_folder: Optional[Path],
     folder_map: Dict[str, Path],
+    clone_of_map: Dict[str, str],
 ) -> Optional[Path]:
     rom_path = _find_rom_in_folder(folder)
     if rom_path is not None:
@@ -482,7 +494,7 @@ def _resolve_rom_file(
         if rom_path is not None:
             return rom_path
 
-    for fallback_name in _rom_fallback_candidates(name):
+    for fallback_name in _rom_fallback_candidates(name, clone_of_map):
         candidate_folder = folder_map.get(fallback_name)
         if candidate_folder is None:
             continue
@@ -498,6 +510,7 @@ def _find_melody_file(
     folder: Path,
     fallback: Optional[Path],
     folder_map: Dict[str, Path],
+    clone_of_map: Dict[str, str],
     rom_path: Optional[Path] = None,
 ) -> Optional[Path]:
     candidates: List[Path] = [folder]
@@ -509,7 +522,7 @@ def _find_melody_file(
         if rom_folder not in candidates:
             candidates.append(rom_folder)
 
-    for fallback_name in _rom_fallback_candidates(name):
+    for fallback_name in _rom_fallback_candidates(name, clone_of_map):
         candidate_folder = folder_map.get(fallback_name)
         if candidate_folder is not None and candidate_folder not in candidates:
             candidates.append(candidate_folder)
@@ -555,7 +568,7 @@ def _sanitize_key(display_name: str, fallback: str) -> str:
     return base or fallback
 
 
-def _rom_fallback_candidates(name: str) -> List[str]:
+def _rom_fallback_candidates(name: str, clone_of_map: Dict[str, str]) -> List[str]:
     candidates: List[str] = []
 
     if len(name) > 1:
@@ -563,19 +576,10 @@ def _rom_fallback_candidates(name: str) -> List[str]:
         if len(trimmed) >= 3:
             candidates.append(trimmed)
 
-    # List of child and parent roms, used for fallback when no rom found
-    if name == "gnw_egg":
-        candidates.append("gnw_mmouse")
-    if name == "gnw_dkcirc":
-        candidates.append("gnw_mmousep")
-    if name == "tigarden":
-        candidates.append("trshutvoy")
-    if name == "trclchick":
-        candidates.append("trdivadv")
-    if name == "trspider":
-        candidates.append("trspacmis")
-    if name == "trthuball":
-        candidates.append("trsrescue")
+    # Clone mapping is authored in GNW_LIST.md (Clone Of column).
+    clone_of = clone_of_map.get(name.lower())
+    if clone_of:
+        candidates.append(clone_of)
 
     return candidates
 
@@ -604,15 +608,19 @@ def _parse_layout(lay_path: Path) -> Tuple[Optional[str], Optional[str], List[st
 
     return display_name, ref_candidate, background_files, surfaces
 
-def _iter_artwork_folders(root: Path) -> Iterable[Tuple[str, Path]]:
-    """Yield (name, path) for every gnw_* folder plus tr* folder."""
+def _iter_artwork_folders(root: Path, metadata_map: Dict[str, GameMetadata]) -> Iterable[Tuple[str, Path]]:
+    """Yield (name, path) for every artwork folder that exists in GNW_LIST.md.
+
+    This used to hardcode prefix checks (gnw_/tr/ti). Now that we load authoritative
+    game keys from GNW_LIST.md at runtime (including additional manufacturers),
+    filter by that map instead.
+    """
     for entry in sorted(root.iterdir()):
         if not entry.is_dir():
             continue
         name = entry.name
         lowered = name.lower()
-        # Need to make sure this covers the names of all the relevant files
-        if lowered.startswith("gnw_") or lowered.startswith("tr") or lowered.startswith("ti"):
+        if lowered in metadata_map:
             yield name, entry
 
 
@@ -620,6 +628,7 @@ def _resolve_default_lay(
     name: str,
     folder: Path,
     folder_map: Dict[str, Path],
+    clone_of_map: Dict[str, str],
 ) -> Tuple[Optional[Path], str]:
     """Check for default.lay in folder, falling back to related folders.
 
@@ -635,7 +644,7 @@ def _resolve_default_lay(
 
     # Reuse ROM fallback candidates so special clone mappings (e.g., tigarden -> trshutvoy)
     # can also supply the layout and backgrounds.
-    for fallback_name in _rom_fallback_candidates(name):
+    for fallback_name in _rom_fallback_candidates(name, clone_of_map):
         fallback_folder = folder_map.get(fallback_name)
         if not fallback_folder:
             continue
@@ -652,12 +661,17 @@ def generate_games_path(target_name: str | None = None) -> bool:
 
     script_dir = Path(__file__).resolve().parent.parent
     metadata_map = _load_game_metadata(script_dir)
+    clone_of_map: Dict[str, str] = {
+        name: (meta.clone_of or "")
+        for name, meta in metadata_map.items()
+        if (meta.clone_of or "").strip()
+    }
     rom_root = script_dir / "rom" / "decompress"
     if not rom_root.exists():
         print("rom/ directory not found", file=sys.stderr)
         raise SystemExit(1)
 
-    folder_map = {name: path for name, path in _iter_artwork_folders(rom_root)}
+    folder_map = {name: path for name, path in _iter_artwork_folders(rom_root, metadata_map)}
 
     entries: List[GameEntry] = []
     skipped: List[Tuple[str, str]] = []
@@ -671,7 +685,7 @@ def generate_games_path(target_name: str | None = None) -> bool:
             skipped.append((name, "unsupported game: not in GNW_LIST.md"))
             continue
 
-        layout_path, source = _resolve_default_lay(name, folder, folder_map)
+        layout_path, source = _resolve_default_lay(name, folder, folder_map, clone_of_map)
         fallback_folder = folder_map.get(source) if source not in {"", "self"} else None
 
         if layout_path is None:
@@ -687,7 +701,7 @@ def generate_games_path(target_name: str | None = None) -> bool:
 
         display_name, model_ref, background_files, surfaces = _parse_layout(layout_path)
 
-        rom_path = _resolve_rom_file(name, folder, fallback_folder, folder_map)
+        rom_path = _resolve_rom_file(name, folder, fallback_folder, folder_map, clone_of_map)
         if rom_path is None:
             skipped.append((name, "no ROM candidate"))
             continue
@@ -729,6 +743,7 @@ def generate_games_path(target_name: str | None = None) -> bool:
             folder,
             fallback_folder,
             folder_map,
+            clone_of_map,
             rom_path=rom_path,
         )
 

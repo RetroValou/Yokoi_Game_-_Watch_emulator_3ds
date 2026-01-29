@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include "GW_ROM_RGDS/ataka_asteroidov.h"
+extern const GW_rom ataka_asteroidov;
 #include "GW_ROM_RGDS/ball.h"
 extern const GW_rom ball;
 #include "GW_ROM_RGDS/balloon_fight_crystal_screen.h"
@@ -121,6 +123,8 @@ extern const GW_rom spider_tronica;
 extern const GW_rom spitball_sparky;
 #include "GW_ROM_RGDS/squish.h"
 extern const GW_rom squish;
+#include "GW_ROM_RGDS/super_goal_keeper.h"
+extern const GW_rom super_goal_keeper;
 #include "GW_ROM_RGDS/super_mario_bros_crystal_screen.h"
 extern const GW_rom super_mario_bros_crystal_screen;
 #include "GW_ROM_RGDS/super_mario_bros_new_wide_screen.h"
@@ -141,6 +145,6 @@ extern const GW_rom zelda;
 
 
 
-const GW_rom* GW_list[] = {&ball, &balloon_fight_crystal_screen, &balloon_fight_new_wide_screen, &black_jack, &bomb_sweeper, &boxing, &chef, &clever_chicken, &climber_crystal_screen, &climber_new_wide_screen, &crab_grab, &diver_s_adventure, &donkey_kong, &donkey_kong_3, &donkey_kong_circus, &donkey_kong_hockey, &donkey_kong_ii, &donkey_kong_jr_new_wide_screen, &donkey_kong_jr_panorama_screen, &egg, &fire_attack, &fire_silver, &fire_wide_screen, &flagman, &gold_cliff, &green_house, &helmet_version_cn_07, &helmet_version_cn_17, &judge_green_version, &judge_purple_version, &life_boat, &lion, &manhole_gold, &manhole_new_wide_screen, &mario_bros, &mario_s_bombs_away, &mario_s_cement_factory_new_wide_screen, &mario_s_cement_factory_table_top_cm_72, &mario_s_cement_factory_table_top_cm_72a, &mario_the_juggler, &mickey_donald, &mickey_mouse_panorama_screen, &mickey_mouse_wide_screen, &octopus, &oil_panic, &parachute, &pinball, &popeye_panorama_screen, &popeye_wide_screen, &rain_shower, &safe_buster, &shuttle_voyage, &snoopy_panorama_screen, &snoopy_tennis, &space_adventure, &space_mission_tronica, &space_rescue, &spider_tronica, &spitball_sparky, &squish, &super_mario_bros_crystal_screen, &super_mario_bros_new_wide_screen, &thief_in_garden, &thunder_ball_tronica, &tropical_fish, &turtle_bridge, &vermin, &zelda};
-const size_t nb_games = 68;
+const GW_rom* GW_list[] = {&ataka_asteroidov, &ball, &balloon_fight_crystal_screen, &balloon_fight_new_wide_screen, &black_jack, &bomb_sweeper, &boxing, &chef, &clever_chicken, &climber_crystal_screen, &climber_new_wide_screen, &crab_grab, &diver_s_adventure, &donkey_kong, &donkey_kong_3, &donkey_kong_circus, &donkey_kong_hockey, &donkey_kong_ii, &donkey_kong_jr_new_wide_screen, &donkey_kong_jr_panorama_screen, &egg, &fire_attack, &fire_silver, &fire_wide_screen, &flagman, &gold_cliff, &green_house, &helmet_version_cn_07, &helmet_version_cn_17, &judge_green_version, &judge_purple_version, &life_boat, &lion, &manhole_gold, &manhole_new_wide_screen, &mario_bros, &mario_s_bombs_away, &mario_s_cement_factory_new_wide_screen, &mario_s_cement_factory_table_top_cm_72, &mario_s_cement_factory_table_top_cm_72a, &mario_the_juggler, &mickey_donald, &mickey_mouse_panorama_screen, &mickey_mouse_wide_screen, &octopus, &oil_panic, &parachute, &pinball, &popeye_panorama_screen, &popeye_wide_screen, &rain_shower, &safe_buster, &shuttle_voyage, &snoopy_panorama_screen, &snoopy_tennis, &space_adventure, &space_mission_tronica, &space_rescue, &spider_tronica, &spitball_sparky, &squish, &super_goal_keeper, &super_mario_bros_crystal_screen, &super_mario_bros_new_wide_screen, &thief_in_garden, &thunder_ball_tronica, &tropical_fish, &turtle_bridge, &vermin, &zelda};
+const size_t nb_games = 70;
 

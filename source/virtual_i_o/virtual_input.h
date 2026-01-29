@@ -429,7 +429,7 @@ class FP_24 : public Virtual_Input{
         }
 };
 
-////// Mickey_Mouse/Egg : SM5A //////
+////// Mickey_Mouse/Egg/Ataka asteroidov : SM5A //////
 class MC_25 : public Virtual_Input{
     public : 
         MC_25(SM5XX* c) : Virtual_Input(c) {
@@ -1842,9 +1842,9 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "OC_22") { return new OC_22(cpu); } // Octopus
     else if (ref_game == "PP_23") { return new PP_23(cpu); } // Popeye
     else if (ref_game == "FP_24") { return new FP_24(cpu); } // Chef
-    else if (ref_game == "MC_25"|| ref_game == "EG_26") { return new MC_25(cpu); } // Mickey Mouse / Egg
+    else if (ref_game == "MC_25" || ref_game == "EG_26" || ref_game == "IM_53") { return new MC_25(cpu); } // Mickey Mouse / Egg / Ataka asteroidov
     else if (ref_game == "FR_27") { return new FR_27(cpu); } // Fire (Wide Screen)
-    else if (ref_game == "SM_11"|| ref_game == "SG_21") { return new SM_11(cpu); } // Space Mission / Spider (Tronica)
+    else if (ref_game == "SM_11" || ref_game == "SG_21") { return new SM_11(cpu); } // Space Mission / Spider (Tronica)
     else if (ref_game == "SK_10") { return new SK_10(cpu); } // Super Goal Keeper (Tronica)
 
     /* SM510 */
