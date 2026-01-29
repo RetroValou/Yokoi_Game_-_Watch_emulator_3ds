@@ -19,6 +19,14 @@ static std::string last_games_by_mfr_file_path() {
 
 static constexpr size_t kLastGameRefMax = 16;
 
+// Backwards-compatible layout for when MANUFACTURER_COUNT was 2.
+// We keep this so older installs don't lose their last-selected games after adding new manufacturers.
+struct LastGamesByManufacturerV1 {
+    uint8_t last_manufacturer;
+    uint8_t _pad[3];
+    char last_game_ref_by_mfr[2][kLastGameRefMax];
+};
+
 struct LastGamesByManufacturer {
     // Last selected manufacturer id (used to choose which manufacturer to open on boot).
     uint8_t last_manufacturer;
@@ -35,10 +43,47 @@ static bool try_load_last_games_by_mfr(LastGamesByManufacturer& out) {
         return false;
     }
 
-    const size_t read_v1 = fread(&out, sizeof(LastGamesByManufacturer), 1, file);
+    // Read based on on-disk size for forward/backward compatibility.
+    if (fseek(file, 0, SEEK_END) != 0) {
+        fclose(file);
+        return false;
+    }
+    const long size = ftell(file);
+    if (size < 0) {
+        fclose(file);
+        return false;
+    }
+    (void)fseek(file, 0, SEEK_SET);
+
+    bool ok = false;
+    if ((size_t)size == sizeof(LastGamesByManufacturer)) {
+        ok = (fread(&out, sizeof(LastGamesByManufacturer), 1, file) == 1);
+    } else if ((size_t)size == sizeof(LastGamesByManufacturerV1)) {
+        LastGamesByManufacturerV1 v1;
+        memset(&v1, 0, sizeof(v1));
+        if (fread(&v1, sizeof(v1), 1, file) == 1) {
+            out.last_manufacturer = v1.last_manufacturer;
+            // Copy known manufacturers.
+            // Use memcpy to avoid -Wstringop-truncation warnings; both buffers are fixed-size.
+            memcpy(
+                out.last_game_ref_by_mfr[GW_rom::MANUFACTURER_NINTENDO],
+                v1.last_game_ref_by_mfr[0],
+                sizeof(v1.last_game_ref_by_mfr[0])
+            );
+            out.last_game_ref_by_mfr[GW_rom::MANUFACTURER_NINTENDO][kLastGameRefMax - 1] = '\0';
+            memcpy(
+                out.last_game_ref_by_mfr[GW_rom::MANUFACTURER_TRONICA],
+                v1.last_game_ref_by_mfr[1],
+                sizeof(v1.last_game_ref_by_mfr[1])
+            );
+            out.last_game_ref_by_mfr[GW_rom::MANUFACTURER_TRONICA][kLastGameRefMax - 1] = '\0';
+            ok = true;
+        }
+    }
+
     fclose(file);
 
-    if (read_v1 != 1) {
+    if (!ok) {
         YOKOI_LOG("settings: last_games_by_mfr unreadable (path='%s'); deleting", path.c_str());
         (void)remove(path.c_str());
         memset(&out, 0, sizeof(out));
