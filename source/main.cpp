@@ -244,7 +244,11 @@ void update_name_game_top(Virtual_Screen* v_screen, bool for_choose = true){
     std::string date = get_date(index_game); if(text.empty()) { text = "_not_valid_"; }
     const GW_rom* g = load_game(index_game);
     const uint8_t mfr_id = g ? g->manufacturer : GW_rom::MANUFACTURER_NINTENDO;
-    const std::string mfr = (mfr_id == GW_rom::MANUFACTURER_TRONICA) ? "Tronica" : "Nintendo";
+    const std::string mfr = (mfr_id == GW_rom::MANUFACTURER_TRONICA)
+        ? "Tronica"
+        : (mfr_id == GW_rom::MANUFACTURER_ELEKTRONIKA)
+            ? "Elektronika"
+            : "Nintendo";
 
     v_screen->delete_all_text();
 
@@ -380,11 +384,31 @@ int handle_menu_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_manager
         return false;
     };
 
-    auto find_next_other_mfr = [&](uint8_t start, int dir, uint8_t cur_mfr, uint8_t& out_idx) -> bool {
-        for (size_t step = 0; step < n_games; step++) {
-            const uint8_t cand = wrap_index((int)start + dir * (int)(step + 1));
-            if (get_mfr(cand) != cur_mfr) {
-                out_idx = cand;
+    const int mfr_count = (int)GW_rom::MANUFACTURER_COUNT;
+    std::vector<uint8_t> has_mfr(mfr_count, 0);
+    for (uint8_t i = 0; i < (uint8_t)n_games; i++) {
+        const uint8_t m = get_mfr(i);
+        if (m < GW_rom::MANUFACTURER_COUNT) {
+            has_mfr[(int)m] = 1;
+        }
+    }
+
+    auto next_available_mfr = [&](uint8_t cur, int dir, uint8_t& out_mfr) -> bool {
+        if (mfr_count <= 1) {
+            return false;
+        }
+        if (cur >= GW_rom::MANUFACTURER_COUNT) {
+            cur = GW_rom::MANUFACTURER_NINTENDO;
+        }
+        // Try at most MANUFACTURER_COUNT candidates to avoid infinite loops.
+        for (int step = 1; step <= mfr_count; step++) {
+            int cand = (int)cur + (dir * step);
+            cand %= mfr_count;
+            if (cand < 0) {
+                cand += mfr_count;
+            }
+            if (has_mfr[cand]) {
+                out_mfr = (uint8_t)cand;
                 return true;
             }
         }
@@ -445,7 +469,7 @@ int handle_menu_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_manager
 
     // Single-list navigation with manufacturer filtering:
     // - LEFT/RIGHT: next/prev game with same manufacturer id
-    // - UP/DOWN: jump to next/prev manufacturer by finding the nearest game with a different manufacturer
+    // - UP/DOWN: jump to next/prev available manufacturer id (skipping ids with no games)
     if (input_manager->input_Held_Increase(KEY_DRIGHT, _TIME_MOVE_MENU_)) {
         remember_current(cur_mfr);
         if (find_next_with_mfr(index_game, +1, cur_mfr, next_idx)) {
@@ -464,25 +488,27 @@ int handle_menu_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_manager
         }
     } else if (input_manager->input_Held_Increase(KEY_DUP, _TIME_MOVE_MENU_)) {
         remember_current(cur_mfr);
-        if (find_next_other_mfr(index_game, -1, cur_mfr, next_idx)) {
-            const uint8_t new_mfr = get_mfr(next_idx);
-            index_game = restore_for_mfr_or(new_mfr, next_idx);
-            if (new_mfr < GW_rom::MANUFACTURER_COUNT) {
+        uint8_t new_mfr = cur_mfr;
+        if (next_available_mfr(cur_mfr, 1, new_mfr) && new_mfr != cur_mfr) {
+            uint8_t cand_idx = index_game;
+            if (find_next_with_mfr(index_game, -1, new_mfr, cand_idx)) {
+                index_game = restore_for_mfr_or(new_mfr, cand_idx);
                 s_last_idx_by_mfr[new_mfr] = (int16_t)index_game;
+                update_name_game(v_screen);
+                save_last_selected_game(new_mfr, get_ref(index_game));
             }
-            update_name_game(v_screen);
-            save_last_selected_game(new_mfr, get_ref(index_game));
         }
     } else if (input_manager->input_Held_Increase(KEY_DDOWN, _TIME_MOVE_MENU_)) {
         remember_current(cur_mfr);
-        if (find_next_other_mfr(index_game, +1, cur_mfr, next_idx)) {
-            const uint8_t new_mfr = get_mfr(next_idx);
-            index_game = restore_for_mfr_or(new_mfr, next_idx);
-            if (new_mfr < GW_rom::MANUFACTURER_COUNT) {
+        uint8_t new_mfr = cur_mfr;
+        if (next_available_mfr(cur_mfr, -1, new_mfr) && new_mfr != cur_mfr) {
+            uint8_t cand_idx = index_game;
+            if (find_next_with_mfr(index_game, +1, new_mfr, cand_idx)) {
+                index_game = restore_for_mfr_or(new_mfr, cand_idx);
                 s_last_idx_by_mfr[new_mfr] = (int16_t)index_game;
+                update_name_game(v_screen);
+                save_last_selected_game(new_mfr, get_ref(index_game));
             }
-            update_name_game(v_screen);
-            save_last_selected_game(new_mfr, get_ref(index_game));
         }
     }
 

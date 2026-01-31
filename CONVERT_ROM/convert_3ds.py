@@ -19,6 +19,7 @@ from source.target_profiles import get_target
 from source.manufacturer_ids import (
     MANUFACTURER_NINTENDO,
     MANUFACTURER_TRONICA,
+    MANUFACTURER_ELEKTRONIKA,
     normalize_manufacturer_id,
 )
 
@@ -524,7 +525,12 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
     c_file += "\n\n"
     
     manufacturer_id = _manufacturer_to_id(manufacturer)
-    manufacturer_cpp = "GW_rom::MANUFACTURER_TRONICA" if manufacturer_id == MANUFACTURER_TRONICA else "GW_rom::MANUFACTURER_NINTENDO"
+    if manufacturer_id == MANUFACTURER_TRONICA:
+        manufacturer_cpp = "GW_rom::MANUFACTURER_TRONICA"
+    elif manufacturer_id == MANUFACTURER_ELEKTRONIKA:
+        manufacturer_cpp = "GW_rom::MANUFACTURER_ELEKTRONIKA"
+    else:
+        manufacturer_cpp = "GW_rom::MANUFACTURER_NINTENDO"
 
     c_file += f'''
 const GW_rom {name} (

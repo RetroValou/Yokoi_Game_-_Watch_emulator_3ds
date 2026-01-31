@@ -2,14 +2,17 @@ import os
 import re
 import ssl
 import subprocess
+import time
 import html as _html
 import urllib.error
 import urllib.request
+import urllib.parse
 import xml.etree.ElementTree as ET
 
 
 PROGETTOSNAPS_MAME_DATS_PACK_URL_TEMPLATE = "https://www.progettosnaps.net/dats/MAME/packs/MAME_Dats_{pack}.7z"
 LUCKLESSHEAVEN_GNW_RELEASE_ORDER_URL = "https://www.lucklessheaven.com/gameandwatch-release-order"
+MDK_CAB_GAME_URL_TEMPLATE = "https://mdk.cab/game/{set_name}"
 
 SCRIPT_DIR = os.path.dirname(__file__)
 CONVERT_ROM_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
@@ -34,6 +37,9 @@ CROSS_REFERENCE_NINTENDO_RELEASE_DATES = True
 # Output stays in CONVERT_ROM/utils
 DEFAULT_OUTPUT_MD = os.path.join(SCRIPT_DIR, "EXTRACTED_LIST_FROM_MAMEDAT.md")
 
+# Cache scraped mdk.cab pages under CONVERT_ROM/tmp
+MDK_CAB_CACHE_SUBDIR = "mdk_cab_game_pages"
+
 # Manual overrides for cases where the model code can't be reliably derived.
 # Key is the MAME machine shortname (the zip name without extension).
 # Example: if you know the real model code for a set, add it here.
@@ -51,7 +57,8 @@ SET_MODEL_OVERRIDES: dict[str, str] = {
     "trspider": "SG-21",
     "trsrescue": "MG-9",
     "trthuball": "FR-23",
-    "trtreisl": "TI-31"
+    "trtreisl": "TI-31",
+    "vinnpukh": "IM-12"
 }
 
 
@@ -92,6 +99,73 @@ def _html_to_text(html: str) -> str:
     s = re.sub(r"[ \t\f\v]+", " ", s)
     s = re.sub(r"\n{3,}", "\n\n", s)
     return s
+
+
+def _safe_set_name_for_url(set_name: str) -> str:
+    # mdk.cab uses the machine shortname in the URL. Still, quote defensively.
+    return urllib.parse.quote((set_name or "").strip(), safe="")
+
+
+def _load_or_download_mdk_game_page(cache_dir: str, set_name: str) -> str:
+    subdir = os.path.join(cache_dir, MDK_CAB_CACHE_SUBDIR)
+    _ensure_dir(subdir)
+
+    safe_name = re.sub(r"[^A-Za-z0-9_\-]+", "_", (set_name or "").strip()) or "_"
+    cache_path = os.path.join(subdir, f"{safe_name}.html")
+
+    if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+        with open(cache_path, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
+
+    url = MDK_CAB_GAME_URL_TEMPLATE.format(set_name=_safe_set_name_for_url(set_name))
+    html_text = _download_text(url)
+    with open(cache_path, "w", encoding="utf-8") as f:
+        f.write(html_text)
+    return html_text
+
+
+def parse_mdk_clone_from_game_page(html_text: str) -> str:
+    """Return the clone set shortname from an mdk.cab game page.
+
+    Observed formats:
+    - "clone of:<shortname>" (the page's set is the clone)
+    Returns "" when not present.
+    """
+
+    text = _html_to_text(html_text)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    m = re.search(r"(?i)\bclone\s+of\b\s*:?(?:\s+|\s*\n\s*)([A-Za-z0-9_\-]+)\b", text)
+    if m:
+        return m.group(1).strip()
+
+    return ""
+
+
+def populate_mdk_clone_column(entries: list[dict[str, str]], cache_dir: str) -> None:
+    """Populate entries[*]['mdk_clone'] with clone set name (or "")."""
+
+    seen: dict[str, str] = {}
+    for e in entries:
+        set_name = (e.get("set_name") or "").strip()
+        if not set_name:
+            e["mdk_clone"] = ""
+            continue
+        if set_name in seen:
+            e["mdk_clone"] = seen[set_name]
+            continue
+
+        try:
+            html_text = _load_or_download_mdk_game_page(cache_dir, set_name)
+            clone = parse_mdk_clone_from_game_page(html_text)
+        except Exception:
+            clone = ""
+
+        seen[set_name] = clone
+        e["mdk_clone"] = clone
+
+        # Be polite to the server during cold-cache runs.
+        time.sleep(0.15)
 
 
 def load_gnw_release_dates(cache_dir: str) -> dict[str, str]:
@@ -456,13 +530,18 @@ def write_markdown(entries: list[dict[str, str]], output_md: str) -> None:
         items.sort(key=lambda x: x["zip_name"].lower())
 
         lines.append(f"## {manufacturer}\n\n")
-        lines.append("| No. | Model   | Filename            | Game Title                                                   | Release Date | CPU |\n")
-        lines.append("|-----|---------|---------------------|--------------------------------------------------------------|--------------|-----|\n")
+        lines.append(
+            "| No. | Model   | Filename            | Game Title                                                   | Release Date | CPU | Clone Of |\n"
+        )
+        lines.append(
+            "|-----|---------|---------------------|--------------------------------------------------------------|--------------|-----|-------|\n"
+        )
 
         for i, e in enumerate(items, start=1):
             release_date = format_release_date(e.get("release_date", e.get("year", "Unknown")))
+            clone = (e.get("mdk_clone") or "").strip()
             lines.append(
-                f"| {i:02}  | {e.get('model_display', e['model']):<7} | {e['zip_name']:<19} | {e['title']:<60} | {release_date:<12} | {e['cpu']:<4} |\n"
+                f"| {i:02}  | {e.get('model_display', e['model']):<7} | {e['zip_name']:<19} | {e['title']:<60} | {release_date:<12} | {e['cpu']:<4} | {clone} |\n"
             )
         lines.append("\n")
 
@@ -626,6 +705,12 @@ def main() -> int:
                         e["release_date"] = best
         except Exception as ex:
             print(f"WARNING: Failed to cross-reference Nintendo release dates: {ex}")
+
+    # Populate extra clone column from mdk.cab (best-effort).
+    try:
+        populate_mdk_clone_column(entries, cache_dir)
+    except Exception as ex:
+        print(f"WARNING: Failed to populate Clone column from mdk.cab: {ex}")
 
     # Make the model column unique when multiple sets share the same ROM/model.
     disambiguate_duplicate_models(entries)

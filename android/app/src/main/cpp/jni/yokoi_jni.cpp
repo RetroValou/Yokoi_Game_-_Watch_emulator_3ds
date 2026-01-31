@@ -457,7 +457,13 @@ Java_com_retrovalou_yokoi_MainActivity_nativeGetSelectedGameInfo(JNIEnv* env, jc
     const GW_rom* g = load_game(g_game_index);
     std::string mfr;
     if (g) {
-        mfr = (g->manufacturer == GW_rom::MANUFACTURER_TRONICA) ? "Tronica" : "Nintendo";
+        if (g->manufacturer == GW_rom::MANUFACTURER_TRONICA) {
+            mfr = "Tronica";
+        } else if (g->manufacturer == GW_rom::MANUFACTURER_ELEKTRONIKA) {
+            mfr = "Elektronika";
+        } else {
+            mfr = "Nintendo";
+        }
     }
     env->SetObjectArrayElement(arr, 0, env->NewStringUTF(name.c_str()));
     env->SetObjectArrayElement(arr, 1, env->NewStringUTF(date.c_str()));
@@ -550,24 +556,57 @@ static void render_frame(GlResources& r, int panel) {
             }
         };
 
+        const int mfr_count = (int)GW_rom::MANUFACTURER_COUNT;
+        std::vector<uint8_t> has_mfr(mfr_count, 0);
+        {
+            const int n = (int)get_nb_name();
+            for (uint8_t i = 0; i < (uint8_t)n; i++) {
+                const uint8_t m = get_mfr(i);
+                if (m < GW_rom::MANUFACTURER_COUNT) {
+                    has_mfr[(int)m] = 1;
+                }
+            }
+        }
+
+        auto next_available_mfr = [&](uint8_t cur, int dir, uint8_t& out_mfr) -> bool {
+            if (mfr_count <= 1) {
+                return false;
+            }
+            if (cur >= GW_rom::MANUFACTURER_COUNT) {
+                cur = GW_rom::MANUFACTURER_NINTENDO;
+            }
+            // Try at most MANUFACTURER_COUNT candidates to avoid infinite loops.
+            for (int step = 1; step <= mfr_count; step++) {
+                int cand = (int)cur + (dir * step);
+                cand %= mfr_count;
+                if (cand < 0) {
+                    cand += mfr_count;
+                }
+                if (has_mfr[cand]) {
+                    out_mfr = (uint8_t)cand;
+                    return true;
+                }
+            }
+            return false;
+        };
+
         auto select_next_other_mfr = [&](int dir) {
             const int n = (int)get_nb_name();
             if (n <= 0) return;
             const uint8_t cur_mfr = get_mfr(g_game_index);
-            const int start = (int)g_game_index;
-            for (int step = 0; step < n; step++) {
-                const uint8_t cand = wrap_index(start + dir * (step + 1), n);
-                if (get_mfr(cand) != cur_mfr) {
-                    const uint8_t new_mfr = get_mfr(cand);
-                    uint8_t saved_idx = 0;
-                    if (yokoi_menu_try_get_last_index_for_manufacturer(new_mfr, &saved_idx)) {
-                        menu_select_game_by_index(saved_idx);
-                    } else {
-                        menu_select_game_by_index(cand);
-                    }
-                    return;
-                }
+            uint8_t new_mfr = cur_mfr;
+            if (!next_available_mfr(cur_mfr, dir, new_mfr) || new_mfr == cur_mfr) {
+                return;
             }
+
+            uint8_t saved_idx = 0;
+            if (yokoi_menu_try_get_last_index_for_manufacturer(new_mfr, &saved_idx)) {
+                menu_select_game_by_index(saved_idx);
+                return;
+            }
+
+            // No saved selection yet: pick the nearest game in the requested direction.
+            select_next_with_mfr(dir, new_mfr);
         };
 
         const int mfr_delta = g_pending_manufacturer_delta.exchange(0);
@@ -599,10 +638,10 @@ static void render_frame(GlResources& r, int panel) {
                 g_pending_game_delta.fetch_sub(1);
             }
             if (ctl_down & CTL_DPAD_UP) {
-                g_pending_manufacturer_delta.fetch_sub(1);
+                g_pending_manufacturer_delta.fetch_add(1);
             }
             if (ctl_down & CTL_DPAD_DOWN) {
-                g_pending_manufacturer_delta.fetch_add(1);
+                g_pending_manufacturer_delta.fetch_sub(1);
             }
             if (ctl_down & CTL_A) {
                 g_menu_load_choice.store(get_default_menu_load_choice_for_game(g_game_index));
@@ -1164,9 +1203,9 @@ Java_com_retrovalou_yokoi_MainActivity_nativeTouch(JNIEnv*, jclass, jfloat x, jf
                 } else {
                     // Top half: manufacturer switch.
                     if (left_third) {
-                        g_pending_manufacturer_delta.fetch_sub(1);
-                    } else if (right_third) {
                         g_pending_manufacturer_delta.fetch_add(1);
+                    } else if (right_third) {
+                        g_pending_manufacturer_delta.fetch_sub(1);
                     }
                 }
                 break;

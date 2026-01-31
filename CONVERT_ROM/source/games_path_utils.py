@@ -17,6 +17,7 @@ try:
 	from .manufacturer_ids import (
 		MANUFACTURER_NINTENDO,
 		MANUFACTURER_TRONICA,
+		MANUFACTURER_ELEKTRONIKA,
 		normalize_manufacturer_id,
 	)
 except ImportError:
@@ -24,6 +25,7 @@ except ImportError:
 	from manufacturer_ids import (
 		MANUFACTURER_NINTENDO,
 		MANUFACTURER_TRONICA,
+		MANUFACTURER_ELEKTRONIKA,
 		normalize_manufacturer_id,
 	)
 

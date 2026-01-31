@@ -166,7 +166,7 @@ class MT_03 : public Virtual_Input{
 };
 
 
-////// Fire (first version) : SM5A //////
+////// Fire (first version) / Kosmicheskiy most : SM5A //////
 class RC_04 : public Virtual_Input{
     public : 
         RC_04(SM5XX* c) : Virtual_Input(c) {
@@ -442,7 +442,9 @@ class FP_24 : public Virtual_Input{
         }
 };
 
-////// Mickey_Mouse/Egg : SM5A //////
+////// Mickey_Mouse/Egg/Ataka asteroidov/Biathlon/Circus/Hockey/Kosmicheskiy polyot/Kot-rybolov/
+////// Kvaka-zadavaka/Morskaja ataka/Nochnye vorishki/Nu, pogodi!/Okhota/Razvedchiki kosmosa/
+////// Vesyolye futbolisty : SM5A //////
 class MC_25 : public Virtual_Input{
     public : 
         MC_25(SM5XX* c) : Virtual_Input(c) {
@@ -557,6 +559,37 @@ class SK_10 : public Virtual_Input{
                 case PART_RIGHT:
                     switch (button) {
                         case BUTTON_UP: cpu->input_set(2, 1, state); break;
+                        case BUTTON_DOWN: cpu->input_set(2, 0, state); break;
+                        default: break; } break;
+                default: break;
+            }
+        }
+};
+
+////// Autoslalom IM_23 : SM5A //////
+class IM_23 : public Virtual_Input{
+    public : 
+        IM_23(SM5XX* c) : Virtual_Input(c) {
+            left_configuration = CONF_2_BUTTON_UPDOWN;
+            right_configuration = CONF_2_BUTTON_UPDOWN;
+        }
+
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_SETUP:
+                    switch (button) {
+                        case BUTTON_GAMEA: cpu->input_set(3, 2, state); break;
+                        case BUTTON_GAMEB: cpu->input_set(3, 1, state); break;
+                        case BUTTON_TIME: cpu->input_set(3, 0, state); break;
+                        default: break; } break;
+                case PART_LEFT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(2, 1, state); break;
+                        case BUTTON_DOWN: cpu->input_set(2, 2, state); break;
+                        default: break; } break;
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(2, 3, state); break;
                         case BUTTON_DOWN: cpu->input_set(2, 0, state); break;
                         default: break; } break;
                 default: break;
@@ -1852,13 +1885,18 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "CN_07" || ref_game == "CN_17") { return new CN_07(cpu); } // Helmet    
     else if (ref_game == "LN_08") { return new LN_08(cpu); } // Lion
     else if (ref_game == "PR_21") { return new PR_21(cpu); } // Parachute
-    else if (ref_game == "OC_22") { return new OC_22(cpu); } // Octopus
+    else if (ref_game == "OC_22" || ref_game == "IM_03") { return new OC_22(cpu); } // Octopus / Tayny okeana
     else if (ref_game == "PP_23") { return new PP_23(cpu); } // Popeye
-    else if (ref_game == "FP_24") { return new FP_24(cpu); } // Chef
-    else if (ref_game == "MC_25"|| ref_game == "EG_26") { return new MC_25(cpu); } // Mickey Mouse / Egg
-    else if (ref_game == "FR_27") { return new FR_27(cpu); } // Fire (Wide Screen)
-    else if (ref_game == "SM_11"|| ref_game == "SG_21") { return new SM_11(cpu); } // Space Mission / Spider (Tronica)
+    else if (ref_game == "FP_24" || ref_game == "IM_04") { return new FP_24(cpu); } // Chef / Vesyolyy povar
+    else if (ref_game == "MC_25" || ref_game == "EG_26" || ref_game == "IM_53") { return new MC_25(cpu); } // Mickey Mouse / Egg / Ataka asteroidov
+    else if (ref_game == "IM_19" || ref_game == "ECIRCUS" || ref_game == "IM_10") { return new MC_25(cpu); } // Biathlon / Circus / Hockey
+    else if (ref_game == "IM_50" || ref_game == "IM_32" || ref_game == "IM_33") { return new MC_25(cpu); } // Kosmicheskiy polyot / Kot-rybolov / Kvaka-zadavaka
+    else if (ref_game == "IM_51" || ref_game == "IM_49" || ref_game == "IM_02") { return new MC_25(cpu); } // Morskaja ataka / Nochnye vorishki / Nu, pogodi!
+    else if (ref_game == "IM_16" || ref_game == "IM_13" || ref_game == "IM_22") { return new MC_25(cpu); } // Okhota / Razvedchiki kosmosa / Vesyolye futbolisty
+    else if (ref_game == "FR_27" || ref_game == "IM_09") { return new FR_27(cpu); } // Fire (Wide Screen) / Kosmicheskiy most
+    else if (ref_game == "SM_11" || ref_game == "SG_21") { return new SM_11(cpu); } // Space Mission / Spider (Tronica)
     else if (ref_game == "SK_10") { return new SK_10(cpu); } // Super Goal Keeper (Tronica)
+    else if (ref_game == "IM_23") { return new IM_23(cpu); } // Autoslalom (Elektronika)
 
     /* SM510 */
     else if (ref_game == "TL_28") { return new TL_28(cpu); } // Turtle Bridge
@@ -1895,7 +1933,7 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "CM_72" || ref_game == "CM_72A") { return new CM_72(cpu); } // Mario's Cement Factory
     else if (ref_game == "SM_91") { return new SM_91(cpu); } // Snoopy (table top)
     else if (ref_game == "PG_92") { return new PG_92(cpu); } // Popeye (table top)
-    else if (ref_game == "CJ_93") { return new CJ_93(cpu); } // DK JR (Panorama)
+    else if (ref_game == "CJ_93" || ref_game == "IM_12") { return new CJ_93(cpu); } // DK JR (Panorama) / Vinni-Pukh
     else if (ref_game == "TB_94") { return new TB_94(cpu); } // Mario's Bombs Away
     else if (ref_game == "DC_95" || ref_game == "MK_96") { return new DC_95(cpu); } // Donkey Kong Circus / Mickey Mouse
     else if (ref_game == "YM_801" || ref_game == "YM_105") { return new YM_801(cpu); } // Super Mario Bros

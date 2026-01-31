@@ -9,7 +9,8 @@
 struct GW_rom {
     static constexpr uint8_t MANUFACTURER_NINTENDO = 0;
     static constexpr uint8_t MANUFACTURER_TRONICA = 1;
-    static constexpr uint8_t MANUFACTURER_COUNT = 2;
+    static constexpr uint8_t MANUFACTURER_ELEKTRONIKA = 2;
+    static constexpr uint8_t MANUFACTURER_COUNT = 3;
 
     const std::string name;
     const std::string ref;
