@@ -1889,7 +1889,7 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "PP_23") { return new PP_23(cpu); } // Popeye
     else if (ref_game == "FP_24" || ref_game == "IM_04") { return new FP_24(cpu); } // Chef / Vesyolyy povar
     else if (ref_game == "MC_25" || ref_game == "EG_26" || ref_game == "IM_53") { return new MC_25(cpu); } // Mickey Mouse / Egg / Ataka asteroidov
-    else if (ref_game == "IM_19" || ref_game == "ECIRCUS" || ref_game == "IM_10") { return new MC_25(cpu); } // Biathlon / Circus / Hockey
+    else if (ref_game == "IM_19" || ref_game == "IM_11" || ref_game == "IM_10") { return new MC_25(cpu); } // Biathlon / Circus / Hockey
     else if (ref_game == "IM_50" || ref_game == "IM_32" || ref_game == "IM_33") { return new MC_25(cpu); } // Kosmicheskiy polyot / Kot-rybolov / Kvaka-zadavaka
     else if (ref_game == "IM_51" || ref_game == "IM_49" || ref_game == "IM_02") { return new MC_25(cpu); } // Morskaja ataka / Nochnye vorishki / Nu, pogodi!
     else if (ref_game == "IM_16" || ref_game == "IM_13" || ref_game == "IM_22") { return new MC_25(cpu); } // Okhota / Razvedchiki kosmosa / Vesyolye futbolisty

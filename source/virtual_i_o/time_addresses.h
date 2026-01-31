@@ -53,6 +53,7 @@ inline const TimeAddress* get_time_addresses(const std::string& ref_game) {
         {"IM_13", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Razvedchiki kosmosa 
         {"IM_22", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Vesyolye futbolisty 
         {"FR_27", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Fire (Wide Screen)
+        {"IM_09", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Kosmicheskiy most
         {"SK_10", {0,3, 0,2, 0,1, 0,0, 99,99, 99,99, 8}}, // Super Goal Keeper
         {"SM_11", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Space Mission (Tronica)
         {"SG_21", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Spider (Tronica)

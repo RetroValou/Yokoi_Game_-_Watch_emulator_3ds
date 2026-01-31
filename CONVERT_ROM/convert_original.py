@@ -22,6 +22,11 @@ from source.spitball_sparky_game_processor import SpitballSparkyGameProcessor
 from source.space_adventure_game_processor import SpaceAdventureGameProcessor
 from source.spider_tronica_game_processor import SpiderTronicaGameProcessor
 from source.diver_s_adventure_game_processor import DiversAdventureGameProcessor
+from source.kosmicheskiy_most_game_processor import KosmicheskiyMostGameProcessor
+from source.kosmicheskiy_polyot_game_processor import KosmicheskiyPolyotGameProcessor
+from source.hockey_game_processor import HockeyGameProcessor
+from source.biathlon_game_processor import BiathlonGameProcessor
+from source.ataka_asteroidov_game_processor import AtakaAsteroidovGameProcessor
 
 
 def main() -> int:
@@ -47,7 +52,9 @@ def main() -> int:
     # Optional: post-process specific games that need special handling.
     processors = [CrabGrabGameProcessor(args.target), SpitballSparkyGameProcessor(args.target), 
                   SpaceAdventureGameProcessor(args.target), SpiderTronicaGameProcessor(args.target),
-                  DiversAdventureGameProcessor(args.target)]
+                  DiversAdventureGameProcessor(args.target), KosmicheskiyMostGameProcessor(args.target), 
+                  KosmicheskiyPolyotGameProcessor(args.target), HockeyGameProcessor(args.target),
+                  BiathlonGameProcessor(args.target), AtakaAsteroidovGameProcessor(args.target)]
     for processor in processors:
         if processor.load_info():
             processor.post_process()
