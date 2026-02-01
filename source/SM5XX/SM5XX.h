@@ -198,6 +198,8 @@ protected:
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 public :
+    void init_debug();
+
     bool debug_gamma_flag(){ return gamma_flag_second; }
     uint16_t debug_divider_time(){ return f_clock_divider; }
 

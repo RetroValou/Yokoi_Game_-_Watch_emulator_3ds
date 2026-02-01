@@ -1871,6 +1871,35 @@ class SA_12 : public Virtual_Input{
 
 
 
+//////////////////// David and John (Open source Game) ////////////////////
+
+class d_and_j_climber : public Virtual_Input{
+    public : 
+        d_and_j_climber(SM5XX* c) : Virtual_Input(c) {
+            left_configuration = CONF_1_BUTTON_ACTION;
+            right_configuration = CONF_2_BUTTON_LEFTRIGHT;
+        }
+
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_LEFT:
+                    switch (button) {
+                        case BUTTON_ACTION: cpu->input_set(0, 0, state); break;
+                        default: break; } break;
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_LEFT: cpu->input_set(1, 0, state); break;
+                        case BUTTON_RIGHT: cpu->input_set(1, 1, state); break;
+                        default: break; } break;
+                default: break;
+            }
+        }
+};
+
+
+
+
+
 
 //////////////////// Get good Game & Watch input Configuration ////////////////////
 
@@ -1943,5 +1972,7 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "BX_301" || ref_game == "AK_302" || ref_game == "HK_303") { return new BX_301(cpu); } // all vs g&w (3)
     else if (ref_game == "SA_12") { return new SA_12(cpu); } // Space Adventure (Tronica)
     
+    /* David and John */
+    else if(ref_game == "d_and_j_climber"){ return new d_and_j_climber(cpu); }
     return nullptr;
 }

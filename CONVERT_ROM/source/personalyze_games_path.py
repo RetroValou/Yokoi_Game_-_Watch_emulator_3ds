@@ -945,4 +945,226 @@ games_path = {
                     , "console" : r'.\rom\default_console.png'
                 }
               
+            , "Nu_pogodi" :
+                    { "ref" : "im-02"
+                    , "manufacturer" : 2
+                    , "display_name" : "Nu, pogodi!"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\nupogodi\nupogodi.svg']
+                    , "Background" : [r'.\rom\decompress\nupogodi\BackgroundNS.png']
+                    , "transform_visual" : [[[1161,0,0],[742,0,0]]]
+                    , "date" : "1983-01-01"
+                    , "console" : r'.\rom\decompress\nupogodi\nupogodi.png'
+                }
+              
+              
+              
+            , "Tayny_okeana" :
+                    { "ref" : "im-03"
+                    , "manufacturer" : 2
+                    , "display_name" : "Tayny okeana"
+                    , "Rom" : r'.\rom\decompress\gnw_octopus\oc-22'
+                    , "Visual" : [r'.\rom\decompress\taynyoke\taynyoke.svg']
+                    , "Background" : [r'.\rom\decompress\taynyoke\BackgroundNS.png']
+                    , "transform_visual" : [[[1195,0,0],[785,0,0]]]
+                    , "date" : "1988-01-01"
+                    , "console" : r'.\rom\decompress\taynyoke\taynyoke.png'
+                }
+              
+            , "Hockey_Elektronika" :
+                    { "ref" : "im-10"
+                    , "manufacturer" : 2
+                    , "display_name" : "Hockey (Elektronika)"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\ehockey\ehockey.svg']
+                    , "Background" : [r'.\rom\decompress\ehockey\BackgroundNS.png']
+                    , "transform_visual" : [[[1380,27,43],[840,0,0]]]
+                    , "date" : "1988-01-01"
+                    , "console" : r'.\rom\decompress\ehockey\ehockey.png'
+                }
+              
+              
+            , "Kosmicheskiy_most" :
+                    { "ref" : "im-09"
+                    , "manufacturer" : 2
+                    , "display_name" : "Kosmicheskiy most"
+                    , "Rom" : r'.\rom\decompress\gnw_fire\fr-27'
+                    , "Visual" : [r'.\rom\decompress\kosmicmt\kosmicmt.svg']
+                    , "Background" : [r'.\rom\decompress\kosmicmt\Background.png']
+                    , "transform_visual" : [[[1327,53,53],[856,30,25]]]
+                    , "date" : "1989-01-01"
+                    , "console" : r'.\rom\decompress\kosmicmt\kosmicmt.png'
+                }
+              
+            , "Razvedchiki_kosmosa" :
+                    { "ref" : "im-13"
+                    , "manufacturer" : 2
+                    , "display_name" : "Razvedchiki kosmosa"
+                    , "Rom" : r'.\rom\decompress\rkosmosa\im-13.bin'
+                    , "Visual" : [r'.\rom\decompress\rkosmosa\rkosmosa.svg']
+                    , "Background" : [r'.\rom\decompress\rkosmosa\BackgroundNS.png']
+                    , "transform_visual" : [[[1161,0,0],[742,0,0]]]
+                    , "date" : "1989-01-01"
+                    , "console" : r'.\rom\decompress\rkosmosa\rkosmosa.png'
+                }
+              
+            , "Biathlon" :
+                    { "ref" : "im-19"
+                    , "manufacturer" : 2
+                    , "display_name" : "Biathlon"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\biathlon\biathlon.svg']
+                    , "Background" : [r'.\rom\decompress\biathlon\BackgroundNS.png']
+                    , "transform_visual" : [[[1330,10,10],[870,4,6]]]
+                    , "date" : "1989-01-01"
+                    , "console" : r'.\rom\decompress\biathlon\biathlon.png'
+                }
+
+            , "Kot_rybolov_Elektronika" :
+                    { "ref" : "im-32"
+                    , "manufacturer" : 2
+                    , "display_name" : "Kot-rybolov (Elektronika)"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\krybolov\krybolov.svg']
+                    , "Background" : [r'.\rom\decompress\krybolov\BackgroundNS.png']
+                    , "transform_visual" : [[[1240,0,0],[820,0,0]]]
+                    , "date" : "1989-01-01"
+                    , "console" : r'.\rom\decompress\krybolov\krybolov.png'
+                }
+              
+            , "Kvaka_zadavaka" :
+                    { "ref" : "im-33"
+                    , "manufacturer" : 2
+                    , "display_name" : "Kvaka-zadavaka"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\kvakazad\kvakazad.svg']
+                    , "Background" : [r'.\rom\decompress\kvakazad\BackgroundNS.png']
+                    , "transform_visual" : [[[1200,0,0],[775,0,0]]]
+                    , "date" : "1989-01-01"
+                    , "console" : r'.\rom\decompress\kvakazad\kvakazad.png'
+                }
+              
+
+            , "Okhota" :
+                    { "ref" : "im-16"
+                    , "manufacturer" : 2
+                    , "display_name" : "Okhota"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\okhota\okhota.svg']
+                    , "Background" : [r'.\rom\decompress\okhota\BackgroundNS.png']
+                    , "transform_visual" : [[[1315,0,5],[900,14,26]]]
+                    , "date" : "1989-01-01"
+                    , "console" : r'.\rom\decompress\okhota\okhota.png'
+                }
+              
+              
+            , "Vesyolye_futbolisty" :
+                    { "ref" : "im-22"
+                    , "manufacturer" : 2
+                    , "display_name" : "Vesyolye futbolisty"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\vfutbol\vfutbol.svg']
+                    , "Background" : [r'.\rom\decompress\vfutbol\BackgroundNS.png']
+                    , "transform_visual" : [[[1255,0,0],[870,4,6]]]
+                    , "date" : "1989-01-01"
+                    , "console" : r'.\rom\decompress\vfutbol\vfutbol.png'
+                }
+              
+            , "Vesyolyy_povar" :
+                    { "ref" : "im-04"
+                    , "manufacturer" : 2
+                    , "display_name" : "Vesyolyy povar"
+                    , "Rom" : r'.\rom\decompress\gnw_chef\fp-24'
+                    , "Visual" : [r'.\rom\decompress\vespovar\vespovar.svg']
+                    , "Background" : [r'.\rom\decompress\vespovar\BackgroundNS.png']
+                    , "transform_visual" : [[[1209,0,0],[798,0,8]]]
+                    , "date" : "1989-01-01"
+                    , "console" : r'.\rom\decompress\vespovar\vespovar.png'
+                }
+              
+            , "Vinni_Pukh_Panorama_Screen" :
+                    { "ref" : "im-12"
+                    , "manufacturer" : 2
+                    , "display_name" : "Vinni-Pukh (Panorama Screen)"
+                    , "Rom" : r'.\rom\decompress\gnw_dkjrp\cj-93.program'
+                    , "Melody_Rom" : r'.\rom\decompress\gnw_dkjrp\cj-93.melody'
+                    , "Visual" : [r'.\rom\decompress\vinnpukh\vinnpukh.svg']
+                    , "Background" : [r'.\rom\decompress\vinnpukh\Background.png']
+                    , "transform_visual" : [[[2048,0,0],[1170,0,0]]]
+                    , "mask" : True
+                    , "date" : "1990-01-01"
+                    , "console" : r'.\rom\decompress\vinnpukh\vinnpukh.png'
+                }
+
+            , "Autoslalom" :
+                    { "ref" : "im-23"
+                    , "manufacturer" : 2
+                    , "display_name" : "Autoslalom"
+                    , "Rom" : r'.\rom\decompress\auslalom\im-23.bin'
+                    , "Visual" : [r'.\rom\decompress\auslalom\auslalom.svg']
+                    , "Background" : [r'.\rom\decompress\auslalom\BackgroundNS.png']
+                    , "transform_visual" : [[[1265,0,0],[910,24,26]]]
+                    , "date" : "1990-01-01"
+                    , "console" : r'.\rom\decompress\auslalom\auslalom.png'
+                }
+            
+            , "Morskaja_ataka" :
+                    { "ref" : "im-51"
+                    , "manufacturer" : 2
+                    , "display_name" : "Morskaja ataka"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\morataka\morataka.svg']
+                    , "Background" : [r'.\rom\decompress\morataka\BackgroundNS.png']
+                    , "transform_visual" : [[[1346,13,23],[900,14,26]]]
+                    , "date" : "1992-01-01"
+                    , "console" : r'.\rom\decompress\morataka\morataka.png'
+                }
+            
+            , "Kosmicheskiy_polyot" :
+                    { "ref" : "im-50"
+                    , "manufacturer" : 2
+                    , "display_name" : "Kosmicheskiy polyot"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\kosmicpt\kosmicpt.svg']
+                    , "Background" : [r'.\rom\decompress\kosmicpt\BackgroundNS.png']
+                    , "transform_visual" : [[[1315,0,5],[900,14,26]]]
+                    , "date" : "1992-01-01"
+                    , "console" : r'.\rom\decompress\kosmicpt\kosmicpt.png'
+                }
+
+              , "Ataka_asteroidov" :
+                    { "ref" : "im-53"
+                    , "manufacturer" : 2
+                    , "display_name" : "Ataka asteroidov"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\atakaast\atakaast.svg']
+                    , "Background" : [r'.\rom\decompress\atakaast\BackgroundNS.png']
+                    , "transform_visual" : [[[1380,30,40],[910,34,16]]]
+                    , "date" : "1992-01-01"
+                    , "console" : r'.\rom\decompress\atakaast\atakaast.png'
+                }
+
+            , "Nochnye_vorishki" :
+                    { "ref" : "im-49"
+                    , "manufacturer" : 2
+                    , "display_name" : "Nochnye vorishki"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\nochnyev\nochnyev.svg']
+                    , "Background" : [r'.\rom\decompress\nochnyev\BackgroundNS.png']
+                    , "transform_visual" : [[[1380,33,27],[920,33,7]]]
+                    , "date" : "1993-01-01"
+                    , "console" : r'.\rom\decompress\nochnyev\nochnyev.png'
+                }
+
+            , "Circus_Elektronika" :
+                    { "ref" : "im-11"
+                    , "manufacturer" : 2
+                    , "display_name" : "Circus (Elektronika)"
+                    , "Rom" : r'.\rom\decompress\gnw_mmouse\mc-25'
+                    , "Visual" : [r'.\rom\decompress\ecircus\ecircus.svg']
+                    , "Background" : [r'.\rom\decompress\ecircus\BackgroundNS.png']
+                    , "transform_visual" : [[[1295,0,0],[858,20,0]]]
+                    , "date" : "1993-01-01"
+                    , "console" : r'.\rom\decompress\ecircus\ecircus.png'
+                }     
 }

@@ -1,6 +1,7 @@
 #include "load_file.h"
 
 #include "gw_pack.h"
+#include "OPEN_SOURCE_ROM_ALL.h"
 
 #if defined(YOKOI_EMBEDDED_ASSETS)
     #if defined(__ANDROID__)
@@ -13,14 +14,17 @@
 
 const GW_rom* load_game(uint8_t i_game){
     if (gw_pack::is_loaded()) {
-        return gw_pack::game_at(i_game);
+        if(gw_pack::game_count() < i_game){ return gw_pack::game_at(i_game); }
+        else { return OPEN_SOURCE_list[i_game - gw_pack::game_count()]; }
     }
 
 #if defined(YOKOI_EMBEDDED_ASSETS)
-    if (i_game < nb_games) {
-        return GW_list[i_game];
-    }
+    if (i_game < nb_games) { return GW_list[i_game]; }
+    else { return OPEN_SOURCE_list[i_game - nb_games]; }
 #endif
+
+    if(i_game < nb_games_OPEN_SOURCE){ return OPEN_SOURCE_list[i_game];}
+    
     return nullptr;
 }
 
@@ -36,12 +40,12 @@ std::string get_ref(uint8_t i_game){
 
 size_t get_nb_name(){
     if (gw_pack::is_loaded()) {
-        return gw_pack::game_count();
+        return gw_pack::game_count() + nb_games_OPEN_SOURCE;
     }
 #if defined(YOKOI_EMBEDDED_ASSETS)
-    return nb_games;
+    return nb_games + nb_games_OPEN_SOURCE;
 #else
-    return 0;
+    return nb_games_OPEN_SOURCE;
 #endif
 }
 

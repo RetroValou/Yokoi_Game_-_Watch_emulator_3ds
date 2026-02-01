@@ -279,3 +279,22 @@ void SM5XX::debug_dump_ram_state(const char* filename) {
     fprintf(file, "\n");
     fclose(file);
 }
+
+
+
+void SM5XX::init_debug(){
+    debug_time_wait = 0x00;
+    debug_time_need = 0x00;
+    debug_opcode_time = 0x00;
+    debug_nb_jump_LAX = 0x00;
+    debug_theorie_time = 0x00;
+    debug_cycle_previous_opcode = 0x00;
+    debug_cycle_curr_opcode = 0x00;
+    debug_curr_opcode = 0x00;
+
+    debug_multiplexage_activate = 0x00;
+    debug_value_read_input = 0x00;
+}
+
+
+

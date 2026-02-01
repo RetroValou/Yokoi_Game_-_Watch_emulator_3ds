@@ -33,9 +33,17 @@ include $(DEVKITARM)/3ds_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source  source/std source/std/GW_ROM source/virtual_i_o  source/SM5XX  source/SM5XX/SM5A  source/SM5XX/SM510  source/SM5XX/SM511_SM512
+SOURCES		:=	source  source/std \ source/virtual_i_o \
+				source/std/GW_ROM source/std/David_And_John_ROM \
+				source/SM5XX  source/SM5XX/SM5A  source/SM5XX/SM510  source/SM5XX/SM511_SM512 \
+				source/David_and_John  source/David_and_John/Climber  source/David_and_John/common
+
 DATA		:=	data
-INCLUDES	:=	include source  source/std source/std/GW_ROM source/virtual_i_o  source/SM5XX  source/SM5XX/SM5A  source/SM5XX/SM510  source/SM5XX/SM511_SM512
+INCLUDES	:=	include  source  source/std \ source/virtual_i_o \
+				source/std/GW_ROM source/std/David_And_John_ROM \
+				source/SM5XX  source/SM5XX/SM5A  source/SM5XX/SM510  source/SM5XX/SM511_SM512 \
+				source/David_and_John  source/David_and_John/Climber  source/David_and_John/common
+
 GRAPHICS	:=	gfx
 #GFXBUILD	:=	$(BUILD)
 ROMFS		:=	romfs
@@ -71,7 +79,7 @@ ifeq ($(strip $(EMBEDDED)),0)
 	GRAPHICS := gfx
 	ROMFS := romfs
 	GFXBUILD := $(ROMFS)/gfx
-	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s noise.t3s
+	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s noise.t3s $(wildcard *d_and_j*.t3s)
 endif
 
 ifneq ($(strip $(EMBEDDED)),0)

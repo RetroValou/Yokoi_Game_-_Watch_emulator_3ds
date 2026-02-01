@@ -476,6 +476,8 @@ bool Virtual_Screen::init_visual(){
 								, segment_info[I_TEX_W], segment_info[I_TEX_H]); // texture max size
 	    memcpy(&vertex_data[curr_index], curr_vertex.data(), 6*sizeof(vertex));
         list_segment[i].index_vertex = curr_index;
+        list_segment[i].buffer_state = false;
+        list_segment[i].state = false;
         curr_index += 6;
         if(curr_index >= nb_segments_max*6){ break; }
     }

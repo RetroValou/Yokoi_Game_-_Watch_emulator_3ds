@@ -23,6 +23,7 @@
 #include "SM5XX/SM510/SM510.h"
 #include "SM5XX/SM511_SM512/SM511_2.h"
 #include "SM5XX/SM5A/SM5A.h"
+#include "David_and_John/David_And_John_fake_cpu.h"
 
 #include "virtual_i_o/3ds_screen.h"
 #include "virtual_i_o/3ds_sound.h"
@@ -59,7 +60,13 @@ bool debug_run_op_press = false;
 uint8_t index_game = 0;
 
 bool get_cpu(SM5XX*& cpu, const uint8_t* rom, uint16_t size_rom){
-    if(size_rom == 1856){
+    if(size_rom == 4){ //No CPU, personalyse game
+        if(rom[0] == 0xFF && rom[1] == 0xFF && rom[2] == 0xFF){
+            cpu = new David_And_John_fake_cpu();
+            return true;
+        }
+    }
+    else if(size_rom == 1856){
         cpu = new SM5A();
         return true;
     }
@@ -609,6 +616,7 @@ bool init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
         return false;
     }
     YOKOI_LOG("init_game: cpu=%p", (const void*)*cpu);
+    (*cpu)->init_debug();
     (*cpu)->init();
     YOKOI_LOG("init_game: cpu init ok");
     (*cpu)->load_rom(game->rom, game->size_rom);
