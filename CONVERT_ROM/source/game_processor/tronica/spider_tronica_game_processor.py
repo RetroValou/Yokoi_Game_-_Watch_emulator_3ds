@@ -3,6 +3,7 @@ from platform import processor
 from source.games_path_utils import GamesPathUpdater
 from source.game_processor import GameProcessor
 
+
 class SpiderTronicaGameProcessor(GameProcessor):
 	def __init__(self, target_name: str = "3ds"):
 		super().__init__(target_name)

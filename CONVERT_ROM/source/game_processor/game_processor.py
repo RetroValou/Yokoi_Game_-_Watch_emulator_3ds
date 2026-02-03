@@ -1,4 +1,4 @@
-"""Post-processing helpers for individual games.
+﻿"""Post-processing helpers for individual games.
 
 This module encapsulates per-game post-processing in a simple object-
 oriented API. The main entry point is :class:`GameProcessor`, which is
@@ -47,7 +47,8 @@ class GameProcessor:
 		self.game_folder = ""  # Folder name for the game
 		self.split_ratio_top = 0.50  # Default, set this in the specific game subclass
 
-		self.script_root = Path(__file__).parent.parent
+		# base.py -> game_processor -> source -> CONVERT_ROM
+		self.script_root = Path(__file__).resolve().parents[2]
 		self.rom_root = self.script_root / "rom" / "decompress"
 		self.info: Optional[GameEntry] = None
 
@@ -175,7 +176,7 @@ class GameProcessor:
 			band1_end  = h * (self.header_fraction + 0.10) # 10%
 			band2_end  = h * (self.header_fraction + 0.10 + 0.14) # 50%
 			band3_end  = h * (self.header_fraction + 0.10 + 0.14 + 0.20) # 68%
-			# remainder (68%–100%) is band 4
+			# remainder (68%ÔÇô100%) is band 4
 
 			# Note: header check is done separately in is_in_header,
 			# so anything below header_end should be in one of the colour bands.

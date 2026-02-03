@@ -17,16 +17,22 @@ import argparse
 
 from source.extract_assets import extract_assets
 from source.generate_games_path import generate_games_path
-from source.crab_grab_game_processor import CrabGrabGameProcessor
-from source.spitball_sparky_game_processor import SpitballSparkyGameProcessor
-from source.space_adventure_game_processor import SpaceAdventureGameProcessor
-from source.spider_tronica_game_processor import SpiderTronicaGameProcessor
-from source.diver_s_adventure_game_processor import DiversAdventureGameProcessor
-from source.kosmicheskiy_most_game_processor import KosmicheskiyMostGameProcessor
-from source.kosmicheskiy_polyot_game_processor import KosmicheskiyPolyotGameProcessor
-from source.hockey_game_processor import HockeyGameProcessor
-from source.biathlon_game_processor import BiathlonGameProcessor
-from source.ataka_asteroidov_game_processor import AtakaAsteroidovGameProcessor
+from source.game_processor.nintendo.crab_grab_game_processor import CrabGrabGameProcessor
+from source.game_processor.nintendo.spitball_sparky_game_processor import SpitballSparkyGameProcessor
+from source.game_processor.tronica.space_adventure_game_processor import SpaceAdventureGameProcessor
+from source.game_processor.tronica.spider_tronica_game_processor import SpiderTronicaGameProcessor
+from source.game_processor.tronica.diver_s_adventure_game_processor import DiversAdventureGameProcessor
+from source.game_processor.elektronika.kosmicheskiy_most_game_processor import KosmicheskiyMostGameProcessor
+from source.game_processor.elektronika.kosmicheskiy_polyot_game_processor import KosmicheskiyPolyotGameProcessor
+from source.game_processor.elektronika.hockey_game_processor import HockeyGameProcessor
+from source.game_processor.elektronika.biathlon_game_processor import BiathlonGameProcessor
+from source.game_processor.elektronika.ataka_asteroidov_game_processor import AtakaAsteroidovGameProcessor
+from source.game_processor.nintendo.turtle_bridge_game_processor import TurtleBridgeGameProcessor
+from source.game_processor.nintendo.fire_attack_game_processor import FireAttackGameProcessor
+from source.game_processor.nintendo.oil_panic_game_processor import OilPanicGameProcessor
+from source.game_processor.nintendo.rain_shower_game_processor import RainShowerGameProcessor
+from source.game_processor.nintendo.life_boat_game_processor import LifeBoatGameProcessor
+from source.game_processor.nintendo.pinball_game_processor import PinballGameProcessor
 
 
 def main() -> int:
@@ -54,7 +60,10 @@ def main() -> int:
                   SpaceAdventureGameProcessor(args.target), SpiderTronicaGameProcessor(args.target),
                   DiversAdventureGameProcessor(args.target), KosmicheskiyMostGameProcessor(args.target), 
                   KosmicheskiyPolyotGameProcessor(args.target), HockeyGameProcessor(args.target),
-                  BiathlonGameProcessor(args.target), AtakaAsteroidovGameProcessor(args.target)]
+                  BiathlonGameProcessor(args.target), AtakaAsteroidovGameProcessor(args.target),
+                  TurtleBridgeGameProcessor(args.target), FireAttackGameProcessor(args.target),
+                  OilPanicGameProcessor(args.target), RainShowerGameProcessor(args.target),
+                  LifeBoatGameProcessor(args.target), PinballGameProcessor(args.target)]
     for processor in processors:
         if processor.load_info():
             processor.post_process()
