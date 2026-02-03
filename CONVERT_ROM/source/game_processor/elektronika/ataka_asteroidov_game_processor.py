@@ -3,13 +3,14 @@ from platform import processor
 from source.games_path_utils import GamesPathUpdater
 from source.game_processor import GameProcessor
 
-class KosmicheskiyPolyotGameProcessor(GameProcessor):
+
+class AtakaAsteroidovGameProcessor(GameProcessor):
 	def __init__(self, target_name: str = "3ds"):
 		super().__init__(target_name)
 
-		# Specifics for Kosmicheskiy polyot
-		self.game_key = "Kosmicheskiy_polyot" # Key from games_path.py
-		self.game_folder = "kosmicpt" # Folder name for the game
+		# Specifics for Ataka asteroidov
+		self.game_key = "Ataka_asteroidov" # Key from games_path.py
+		self.game_folder = "atakaast" # Folder name for the game
 
 	def post_process(self):
 		updater = GamesPathUpdater(self.target_name)
