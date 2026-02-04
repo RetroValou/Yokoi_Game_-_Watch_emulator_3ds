@@ -325,7 +325,9 @@ def visual_data_file(name, size_list, background_path_list, rotate = False, mask
 
 
 def background_data_file(name, path_list = [], size_list = [], rotate = False, alpha_bright = 1.7, fond_bright = 1.35
-                            , shadow = True, background_in_front = False, camera = False):
+                            , shadow = True, background_in_front = False, camera = False
+                            , background_keep_white: bool = False
+                            , background_white_keep_threshold: int = 245):
     i = 0
     atlas_size = [1, 1]
     for size in size_list:
@@ -347,7 +349,16 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
             img = Image.open(path)
 
             img, x_size, y_size = im.transform_img(img, x_size, y_size, False, rotate, True)
-            data = im.make_alpha(img, fond_bright, alpha_bright)
+            if background_keep_white:
+                data = im.make_alpha_ex(
+                    img,
+                    fond_bright,
+                    alpha_bright,
+                    keep_white=True,
+                    white_keep_threshold=int(background_white_keep_threshold),
+                )
+            else:
+                data = im.make_alpha(img, fond_bright, alpha_bright)
 
             result_img[curr_ind_r_img:(data.shape[0]+curr_ind_r_img), 1:data.shape[1]+1, :] = data
             
@@ -480,7 +491,10 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
                 , rom_path, visual_path, size_visual, path_console
                 , melody_path = '', background_path = [], rotate = False, mask = False, color_segment = False, two_in_one_screen = False
                 , transform = [], alpha_bright = 1.7, fond_bright = 1.35, shadow = True
-                , background_in_front = False, camera = False, manufacturer = MANUFACTURER_NINTENDO):
+                , background_in_front = False, camera = False, manufacturer = MANUFACTURER_NINTENDO
+                , background_keep_white: bool = False
+                , background_white_keep_threshold: int = 245
+                ):
     
     c_file = f"""
 #include <cstdint>
@@ -516,6 +530,8 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
         shadow,
         background_in_front,
         camera,
+        background_keep_white,
+        background_white_keep_threshold,
     )
     c_file += bg_text
     
@@ -707,6 +723,8 @@ def process_single_game(args):
     background_path = game_data.get('Background', [])
     background_in_front = game_data.get('background_in_front', False)
     camera = game_data.get('camera', False)
+    background_keep_white = game_data.get('background_keep_white', False)
+    background_white_keep_threshold = game_data.get('background_white_keep_threshold', 245)
     size_visual = game_data.get('size_visual', [resolution_up, resolution_down])
     if size_scale != 1:
         size_visual = [[int(s[0] * size_scale), int(s[1] * size_scale)] for s in size_visual]
@@ -733,7 +751,9 @@ def process_single_game(args):
         game_data["transform_visual"],
         alpha_bright, fond_bright, shadow,
         background_in_front, camera,
-        manufacturer
+        manufacturer,
+        background_keep_white,
+        background_white_keep_threshold,
     )
 
     wrote_cache = game_cache.write_game_cache(key, game_data, pack_meta)

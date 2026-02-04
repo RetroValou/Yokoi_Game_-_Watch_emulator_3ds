@@ -34,6 +34,8 @@ class SpitballSparkyGameProcessor(GameProcessor):
 		target.fond_bright = 1.3
 		target.color_segment = True
 		target.shadow = False
+		target.background_keep_white = True
+		target.background_white_keep_threshold = 200
 
 		updater.write()
 
