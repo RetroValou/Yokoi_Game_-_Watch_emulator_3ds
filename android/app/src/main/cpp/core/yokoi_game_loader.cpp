@@ -84,7 +84,12 @@ void yokoi_load_game_by_index_and_init(uint8_t idx) {
     yokoi_cpu_set_time_if_needed(g_cpu.get());
 
     g_input.reset(get_input_config__android_game_loader_tu(g_cpu.get(), g_game->ref));
-
+    if (g_input) {
+        // Some early SM5A titles (e.g. Ball, Vermin, Fire) have buttons directly wired to
+        // K inputs (no multiplexing). Mirror the 3DS init path so KTA reads inputs correctly.
+        g_cpu->set_input_multiplexage(g_input->use_multiplexage);
+    }
+    
     g_segments.clear();
     if (g_game->segment && g_game->size_segment > 0) {
         g_segments.assign(g_game->segment, g_game->segment + g_game->size_segment);
