@@ -119,6 +119,8 @@ public :
     virtual bool load_state(FILE* file) = 0;
     virtual uint8_t get_cpu_type_id() = 0; // Return CPU type identifier
 
+    virtual void end_of_cpu() { }; // for fake cpu
+
 private :
     virtual void execute_curr_opcode() = 0; // switch case op_code function with curr hexa op_code value
 

@@ -1,8 +1,8 @@
 #include "std/timer.h"
 #include <cstring>
-#include "David_and_John/David_And_John_fake_cpu.h"
-#include "David_and_John/David_and_John_program.h"
-#include "David_and_John/Climber/D_And_J_Climber_program.h"
+#include "./David_And_John_fake_cpu.h"
+#include "./David_and_John_program.h"
+#include "./Climber/D_And_J_Climber_program.h"
 
 
 void David_And_John_fake_cpu::load_rom(const uint8_t* file_hex, size_t size_hex){     
@@ -110,4 +110,18 @@ bool David_And_John_fake_cpu::make_mark(){
         is_during_wait_mark = false;
     }
     return !is_during_wait_mark;
+}
+
+
+void David_And_John_fake_cpu::end_of_cpu() { 
+    curr_program->stop_program(); 
+}
+
+
+
+bool David_And_John_fake_cpu::get_input(uint8_t group, uint8_t line){
+    // special input -> says by line >= 8 (not exist in true K input)
+    if(line == 8){ return alpha_input; }
+    else if(line == 9){ return beta_input; }
+    return ((k_input[group] >> line) & 0x01) == 0x01;
 }

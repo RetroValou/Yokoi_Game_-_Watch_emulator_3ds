@@ -13,9 +13,11 @@ class David_And_John_fake_cpu: public SM5XX
             SM5XX("David_And_John\0")
             {}
 
-    private : 
+    public :
         uint64_t high_score = 0;
         uint64_t current_score = 0;
+
+    private : 
         David_And_John_program* curr_program;
         bool first_loop = true;
         bool show_all_segment = false;
@@ -36,6 +38,10 @@ class David_And_John_fake_cpu: public SM5XX
 
         bool screen_is_on() override { return bp_lcd_blackplate; };
         uint8_t get_cpu_type_id() override { return 255; }
+
+        void end_of_cpu() override;
+
+        bool get_input(uint8_t col, uint8_t line);
 
 
     /// ##### FUNCTION ################################################# ///
