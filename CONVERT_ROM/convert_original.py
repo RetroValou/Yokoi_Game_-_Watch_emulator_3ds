@@ -27,6 +27,7 @@ from source.game_processor.elektronika.kosmicheskiy_polyot_game_processor import
 from source.game_processor.elektronika.hockey_game_processor import HockeyGameProcessor
 from source.game_processor.elektronika.biathlon_game_processor import BiathlonGameProcessor
 from source.game_processor.elektronika.ataka_asteroidov_game_processor import AtakaAsteroidovGameProcessor
+from source.game_processor.elektronika.nu_pogodi_game_processor import NuPogodiGameProcessor
 from source.game_processor.nintendo.turtle_bridge_game_processor import TurtleBridgeGameProcessor
 from source.game_processor.nintendo.fire_attack_game_processor import FireAttackGameProcessor
 from source.game_processor.nintendo.oil_panic_game_processor import OilPanicGameProcessor
@@ -61,6 +62,7 @@ def main() -> int:
                   DiversAdventureGameProcessor(args.target), KosmicheskiyMostGameProcessor(args.target), 
                   KosmicheskiyPolyotGameProcessor(args.target), HockeyGameProcessor(args.target),
                   BiathlonGameProcessor(args.target), AtakaAsteroidovGameProcessor(args.target),
+                  NuPogodiGameProcessor(args.target),
                   TurtleBridgeGameProcessor(args.target), FireAttackGameProcessor(args.target),
                   OilPanicGameProcessor(args.target), RainShowerGameProcessor(args.target),
                   LifeBoatGameProcessor(args.target), PinballGameProcessor(args.target)]

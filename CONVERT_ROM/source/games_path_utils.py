@@ -64,6 +64,8 @@ class GameEntry:
 	rotate: bool = False
 	background_in_front: bool = False
 	active_cam: bool = False
+	background_keep_white: bool = False
+	background_white_keep_threshold: int = 245
 	# Numeric manufacturer id (matches source/std/GW_ROM.h constants).
 	manufacturer: int = MANUFACTURER_NINTENDO
 
@@ -129,6 +131,13 @@ class GameEntry:
 
 		if self.active_cam:
 			lines.append(f'{INDENT_FIELD}, "camera" : True')
+
+		if self.background_keep_white:
+			lines.append(f'{INDENT_FIELD}, "background_keep_white" : True')
+			if int(self.background_white_keep_threshold) != 245:
+				lines.append(
+					f'{INDENT_FIELD}, "background_white_keep_threshold" : {int(self.background_white_keep_threshold)}'
+				)
 
 		lines.append(INDENT_FOOTER)
 		return lines
@@ -301,6 +310,8 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 		fond_bright = float(data.get("fond_bright", default_fond_bright))
 		rotate = bool(data.get("rotate", False))
 		background_in_front = bool(data.get("background_in_front", False))
+		background_keep_white = bool(data.get("background_keep_white", False))
+		background_white_keep_threshold = int(data.get("background_white_keep_threshold", 245))
 		# Preferred key is "camera" (matches convert_3ds.py). Keep backward compat
 		# with any older intermediate key name.
 		active_cam = bool(data.get("camera", data.get("active_cam", False)))
@@ -332,6 +343,8 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 				rotate=rotate,
 				background_in_front=background_in_front,
 				active_cam=active_cam,
+				background_keep_white=background_keep_white,
+				background_white_keep_threshold=background_white_keep_threshold,
 				manufacturer=manufacturer,
 			),
 		)
