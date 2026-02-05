@@ -31,13 +31,16 @@ class Beat
                 speed_fall_limit[0] = v_speed_fall_limit[0]; speed_fall_limit[1] = v_speed_fall_limit[1];
             }
 
-    private :
+    public : 
+        bool new_index;
+        int index_now;
 
+
+    private :
         int time_wait_current;
+
         int time_wait_max;
         int min_time_wait;
-        bool index_now;
-        int new_index;
         int nb_bat;
 
         float speed_increase;
@@ -90,6 +93,7 @@ class Projectile
         float pos_y;
         bool flag_destroy;
         bool used;
+        int index_beat;
         Projectile_state curr_state;
 
     private :
@@ -97,10 +101,7 @@ class Projectile
 
         int limit_pos[2];
 
-        int index_beat;
-
         float speed_increase;
-
         float wait_before_move_limit[2];
         
         int* nb_projectile_before;

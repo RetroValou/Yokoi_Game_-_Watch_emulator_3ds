@@ -4,6 +4,12 @@
 #include <string>
 #include "../SM5XX/SM5XX.h"
 
+
+constexpr uint64_t DEFAULT_SOUND_TIME = 120000;
+constexpr uint64_t DEFAULT_NOTE = 8;
+constexpr uint64_t WAIT_BETWEEN_BIP = 40000;
+
+
 class David_And_John_program;
 
 class David_And_John_fake_cpu: public SM5XX
@@ -24,13 +30,29 @@ class David_And_John_fake_cpu: public SM5XX
 
         uint64_t wait_make_mark;
         bool is_during_wait_mark;
+
+        // Note
+        bool play_note;
+        uint8_t sound_note;
+        bool sound_curr_bit;
+        uint8_t sound_curr_index;
+
+        // size of note
+        uint64_t sound_time_length;
+        uint64_t sound_curr_time;
+
+        uint8_t sound_nb_bip;
+        uint8_t sound_curr_bip;
+        bool sound_wait_silence;
+
+
+
         
     public:
         void init() override;
         void load_rom(const uint8_t* file_hex, size_t size_hex) override;
 
         bool get_segments_state(uint8_t col, uint8_t line, uint8_t word) override;
-        bool get_active_sound() override;
         
         // Save/Load state
         bool save_state(FILE* file) override;
@@ -42,6 +64,8 @@ class David_And_John_fake_cpu: public SM5XX
         void end_of_cpu() override;
 
         bool get_input(uint8_t col, uint8_t line);
+
+        void play_sound(uint8_t note, uint64_t time_note = DEFAULT_SOUND_TIME, uint8_t nb_bip = 1);
 
 
     /// ##### FUNCTION ################################################# ///
@@ -62,11 +86,15 @@ class David_And_John_fake_cpu: public SM5XX
         void write_ram_value(uint8_t value) override { };
         void set_ram_value(uint8_t col, uint8_t line, uint8_t value) override { };
 
-
         bool make_mark();
+
+        bool get_active_sound() override;
+        void update_sound() override;
+        void update_note();
 
 
     public : // debug
-
+        void set_beat_value_for_debug();
+        void set_accumulator_for_debug(uint8_t value){ accumulator = value; }
 
 };

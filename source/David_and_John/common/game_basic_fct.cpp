@@ -102,7 +102,7 @@ void Projectile::move_down(){
 bool Projectile::verify_move_down(){
     if(!(beat->move_ok(index_beat))){ return false; }
     else if(curr_state == Projectile_state::before){
-        nb_projectile_before -= 1;
+        (*nb_projectile_before) -= 1;
         curr_state = Projectile_state::down;
         return true;
     }
@@ -113,12 +113,16 @@ bool Projectile::verify_move_down(){
 
 
 bool Projectile::is_same_pos(int p_pos_x, int p_pos_y){
-    return (p_pos_x == pos_x) and (p_pos_y == pos_y) and (curr_state == Projectile_state::down);
+    return (p_pos_x == pos_x) && (p_pos_y == pos_y) 
+            && (curr_state == Projectile_state::down)
+            && (used);
 }
         
 bool Projectile::destroy(){
     if(curr_state != Projectile_state::destroy){ 
-        curr_state = Projectile_state::destroy; return true;
+        curr_state = Projectile_state::destroy;
+        used = false;
+        return true;
     }
     return false;
 }
