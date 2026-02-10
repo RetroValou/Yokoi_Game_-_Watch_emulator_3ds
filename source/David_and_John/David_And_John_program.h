@@ -4,13 +4,13 @@
 #include <string>
 #include ".\common\game_basic_fct.h"
 
-constexpr uint64_t WAIT_BEFORE_PLAYER_MOVE = (1000000/15); /* move player 15 fps -> Reproduce eink latency */
+constexpr uint64_t WAIT_BEFORE_PLAYER_MOVE = (1000000/13); /* move player 13 fps -> Reproduce eink latency */
 constexpr uint64_t WAIT_BEFORE_STEP = (1000000/60); /* Logic rythm to 60 fps */
-constexpr uint64_t WAIT_BLINK = (200000);
+constexpr uint64_t WAIT_BLINK = (160000);
 
-constexpr uint8_t PIEZO_LOW = 24;
-constexpr uint8_t PIEZO_LITTLE_HIGHT = 16;
-constexpr uint8_t PIEZO_HIGHT = 14;
+constexpr uint8_t PIEZO_LOW = 16;//24;
+constexpr uint8_t PIEZO_LITTLE_HIGHT = 13;//16;
+constexpr uint8_t PIEZO_HIGHT = 12;//14;
 
 
 class David_And_John_fake_cpu;
@@ -41,6 +41,7 @@ class David_And_John_program {
     protected:
         David_And_John_fake_cpu* fake_cpu;
         Program_Phase curr_phase;
+        int life;
         bool show_player;
         bool show_last_life;
 
@@ -53,6 +54,10 @@ class David_And_John_program {
         void stop_blink_player();
         void blink_last_life();
         void stop_blink_last_life();
+
+        bool segment_life(uint8_t word);
+        bool segment_score(uint8_t word, uint8_t unit_score);
+
 
 
     private: 

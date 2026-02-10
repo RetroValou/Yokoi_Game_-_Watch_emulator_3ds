@@ -51,7 +51,24 @@ void David_And_John_program::blink_last_life(){
 }
 
 void David_And_John_program::stop_blink_last_life(){
-    show_last_life = true;
+    show_last_life = false;
 }
 
+
+
+bool David_And_John_program::segment_life(uint8_t word) {
+    return (2-life >= word) || (show_last_life && word == (3-life));
+}
+
+
+uint8_t get_digit(uint64_t number, uint8_t unit) {
+    for (uint8_t i = 0; i < unit; i++) { number /= 10; }
+    return number % 10;
+}
+
+bool David_And_John_program::segment_score(uint8_t word, uint8_t unit_score) {
+    uint64_t value = fake_cpu->current_score;
+    if(curr_phase == Program_Phase::Wait_Player){ value = fake_cpu->high_score; }
+    return get_digit(value, unit_score) == word;
+}
 

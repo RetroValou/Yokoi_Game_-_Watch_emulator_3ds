@@ -50,7 +50,6 @@ class D_And_J_Climber_program: public David_And_John_program
         bool wall[PLAYER_LOC[0]*PLAYER_LOC[1]];
         int index_gen_table;
         int nb_projectile_before;
-        int life;
 
         uint64_t last_gen_projectile = 0;
         Projectile* list_projectiles[MAX_PROJECTILES];
@@ -91,6 +90,9 @@ class D_And_J_Climber_program: public David_And_John_program
 
         void update_projectile();
         bool can_create_projectile(uint16_t nb_max = 1);
+
+        void go_to_play();
+        void play_logic();
 
         void go_to_dead(uint8_t id_projectile);
         void dead_logic();

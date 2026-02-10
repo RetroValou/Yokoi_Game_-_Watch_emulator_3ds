@@ -26,10 +26,6 @@ uint64_t projectile_creation_speed(uint32_t x){
     );
 }
 
-uint8_t get_digit(uint64_t number, uint8_t unit) {
-    for (uint8_t i = 0; i < unit; i++) { number /= 10; }
-    return number % 10;
-}
 
 
 bool D_And_J_Climber_program::get_segments_state(uint8_t line, uint8_t word){
@@ -70,13 +66,11 @@ bool D_And_J_Climber_program::get_segments_state(uint8_t line, uint8_t word){
             return false;
 
         case 5: // life
-            return (2-life >= word) || (show_last_life && word == (2-life-1));
+            return segment_life(word);
+            return (2-life >= word) || (show_last_life && word == (3-life));
 
         case 6: case 7: case 8: case 9: // scores
-            uint8_t unit = line-6;
-            uint64_t value = fake_cpu->current_score;
-            if(curr_phase == Program_Phase::Wait_Player){ value = fake_cpu->high_score; }
-            return get_digit(value, unit) == word;
+            return segment_score(word, line-6);
     }
     return false;
 }
@@ -159,46 +153,8 @@ void D_And_J_Climber_program::execute_program_loop(){
             }
             break;
 
-        case Program_Phase::Play:
-            if(player_autorize_to_move(read_input_action())){
-                if(movement_on_platform(false)){
-                    reset_fall_player(); 
-                    // Verify Projectile collider
-                    bool validate_up = true;
-                    for(int i = 0; i < MAX_PROJECTILES; i++){
-                        if(list_projectiles[i]->is_same_pos(pos_player[0], pos_player[1])){ 
-                            validate_up = false; go_to_dead(i); 
-                        }
-                    }
-                    if(validate_up){
-                        if(pos_player[1] == 0){ go_to_sucess(); }
-                        else { 
-                            fake_cpu->play_sound(PIEZO_HIGHT);
-                            pos_player[1]-=1; 
-                        }
-                    }
-                }
-            }
-            else if(player_autorize_to_move(read_input_left())){
-                if(pos_player[0] > 0){
-                    if(movement_on_platform(true, -1)){
-                        pos_player[0]-=1;
-                        fake_cpu->play_sound(PIEZO_LITTLE_HIGHT);
-                        reset_fall_player();
-                    }
-                }
-            }
-            else if(player_autorize_to_move(read_input_right())){
-                if(pos_player[0] < PLAYER_LOC[0]-1){
-                    if(movement_on_platform(true, 1)){
-                        pos_player[0]+=1;
-                        fake_cpu->play_sound(PIEZO_LITTLE_HIGHT);
-                        reset_fall_player();
-                    }
-                }
-            }
-            update_step(); break;
-
+        case Program_Phase::Play: 
+            play_logic(); break;
 
         case Program_Phase::Sucess:
             sucess_logic(); break;
@@ -212,14 +168,60 @@ void D_And_J_Climber_program::execute_program_loop(){
     }
 }
 
+void D_And_J_Climber_program::go_to_play(){
+    stop_blink_player();
+    stop_blink_last_life();
+    pos_player[0] = 1;
+    pos_player[1] = PLAYER_LOC[1]-1;
+    curr_phase = Program_Phase::Play;
+}
+
+void D_And_J_Climber_program::play_logic(){
+    if(player_autorize_to_move(read_input_action())){
+        if(movement_on_platform(false)){
+            reset_fall_player(); 
+            // Verify Projectile collider
+            bool validate_up = true;
+            for(int i = 0; i < MAX_PROJECTILES; i++){
+                if(list_projectiles[i]->is_same_pos(pos_player[0], pos_player[1])){ 
+                    validate_up = false; go_to_dead(i); 
+                }
+            }
+            if(validate_up){
+                if(pos_player[1] == 0){ go_to_sucess(); }
+                else { 
+                    fake_cpu->play_sound(PIEZO_HIGHT);
+                    pos_player[1]-=1; 
+                }
+            }
+        }
+    }
+    else if(player_autorize_to_move(read_input_left())){
+        if(pos_player[0] > 0){
+            if(movement_on_platform(true, -1)){
+                pos_player[0]-=1;
+                fake_cpu->play_sound(PIEZO_LITTLE_HIGHT);
+                reset_fall_player();
+            }
+        }
+    }
+    else if(player_autorize_to_move(read_input_right())){
+        if(pos_player[0] < PLAYER_LOC[0]-1){
+            if(movement_on_platform(true, 1)){
+                pos_player[0]+=1;
+                fake_cpu->play_sound(PIEZO_LITTLE_HIGHT);
+                reset_fall_player();
+            }
+        }
+    }
+    update_step(); 
+}
+
 void D_And_J_Climber_program::dead_logic(){
     //blink_player();
     if(life > 0){ // Little dead -> we have life
         if(last_wait_x_counter + WAIT_RETURN_AFTER_LITTLE_DEAD < time_us_64_p()){
-            stop_blink_player();
-            pos_player[0] = 1;
-            pos_player[1] = PLAYER_LOC[1]-1;
-            curr_phase = Program_Phase::Play;
+            go_to_play();
         }
     }
     else {  // Big dead -> life = 0 -> return to select screen
@@ -246,10 +248,7 @@ void D_And_J_Climber_program::go_to_dead(uint8_t id_projectile){
 
 void D_And_J_Climber_program::new_loop_gameplay(){
     change_wall();
-    stop_blink_player();
-    pos_player[0] = 1;
-    pos_player[1] = PLAYER_LOC[1]-1;
-    curr_phase = Program_Phase::Play;
+    go_to_play();
 }
 
 void D_And_J_Climber_program::go_to_sucess(){
@@ -294,7 +293,6 @@ void D_And_J_Climber_program::go_to_win_life(){
 void D_And_J_Climber_program::win_life_logic(){
     blink_last_life();
     if(last_wait_x_counter + WAIT_ADDING_LIFE < time_us_64_p()){
-        stop_blink_last_life();
         new_loop_gameplay();
     }
 }

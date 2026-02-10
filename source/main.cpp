@@ -255,7 +255,9 @@ void update_name_game_top(Virtual_Screen* v_screen, bool for_choose = true){
         ? "Tronica"
         : (mfr_id == GW_rom::MANUFACTURER_ELEKTRONIKA)
             ? "Elektronika"
-            : "Nintendo";
+            : (mfr_id == GW_rom::MANUFACTURER_DAVID_AND_JOHN)
+                ? "David and John"
+                : "Nintendo";
 
     v_screen->delete_all_text();
 

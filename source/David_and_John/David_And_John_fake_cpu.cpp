@@ -115,6 +115,7 @@ bool David_And_John_fake_cpu::make_mark(){
 
 void David_And_John_fake_cpu::end_of_cpu() { 
     curr_program->stop_program(); 
+    delete curr_program;
 }
 
 

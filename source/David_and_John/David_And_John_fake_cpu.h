@@ -75,7 +75,7 @@ class David_And_John_fake_cpu: public SM5XX
         void update_segment() override { };
 
         bool no_pc_increase(uint8_t opcode) override { return false; };
-        bool is_on_double_octet(uint8_t opcode) override { return false; };
+        bool is_on_double_octet(uint8_t opcode) override { return true; /* For lower speed of emulation */};
 
         bool condition_to_update_segment() override { return false; };
 

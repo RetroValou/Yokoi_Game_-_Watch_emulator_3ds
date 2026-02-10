@@ -33,7 +33,7 @@ const uint16_t console_info_d_and_j_climber[] = { 512, 256, 0, 16, 320, 240};
 
 
 const GW_rom d_and_j_climber (
-    "David the climber", "d_and_j_climber", "2024-08-26"
+    "David the climber", "D_AND_J_CLIMBER", "2024-08-26"
     , rom_d_and_j_climber, size_rom_d_and_j_climber
     , melody_d_and_j_climber, size_melody_d_and_j_climber
     , path_segment_d_and_j_climber
@@ -43,6 +43,6 @@ const GW_rom d_and_j_climber (
     , background_info_d_and_j_climber
     , path_console_d_and_j_climber
     , console_info_d_and_j_climber
-    , GW_rom::MANUFACTURER_TRONICA
+    , GW_rom::MANUFACTURER_DAVID_AND_JOHN
 );
 
