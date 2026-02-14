@@ -36,13 +36,18 @@ BUILD		:=	build
 SOURCES		:=	source  source/std \ source/virtual_i_o \
 				source/std/GW_ROM source/std/David_And_John_ROM \
 				source/SM5XX  source/SM5XX/SM5A  source/SM5XX/SM510  source/SM5XX/SM511_SM512 \
-				source/David_and_John  source/David_and_John/Climber  source/David_and_John/common
+				source/David_and_John  source/David_and_John/common \
+				source/David_and_John/Climber  source/David_and_John/Avignon  source/David_and_John/Esquive \
+				source/David_and_John/Fabric  source/David_and_John/Rythme  
+				
 
 DATA		:=	data
 INCLUDES	:=	include  source  source/std \ source/virtual_i_o \
 				source/std/GW_ROM source/std/David_And_John_ROM \
 				source/SM5XX  source/SM5XX/SM5A  source/SM5XX/SM510  source/SM5XX/SM511_SM512 \
-				source/David_and_John  source/David_and_John/Climber  source/David_and_John/common
+				source/David_and_John  source/David_and_John/common \
+				source/David_and_John/Climber  source/David_and_John/Avignon  source/David_and_John/Esquive \
+				source/David_and_John/Fabric  source/David_and_John/Rythme  
 
 GRAPHICS	:=	gfx
 #GFXBUILD	:=	$(BUILD)

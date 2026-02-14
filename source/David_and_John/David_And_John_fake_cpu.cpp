@@ -4,14 +4,27 @@
 #include "./David_and_John_program.h"
 
 #include "./Climber/D_And_J_Climber_program.h"
+#include "./Avignon/D_And_J_Avignon_program.h"
+#include "./Esquive/D_And_J_Esquive_program.h"
 
 
 
-void David_And_John_fake_cpu::load_rom(const uint8_t* file_hex, size_t size_hex){     
+void David_And_John_fake_cpu::load_rom(const uint8_t* file_hex, size_t size_hex){    
+     
     switch (file_hex[size_hex-1])
     {
         case 1:
             curr_program = new D_And_J_Climber_program(this);
+            break;
+        case 2:
+            curr_program = new D_And_J_Avignon_program(this);
+            break;
+        case 3:
+            break;
+        case 4:
+            break;
+        case 5:
+            curr_program = new D_And_J_Esquive_program(this);
             break;
     }
 };

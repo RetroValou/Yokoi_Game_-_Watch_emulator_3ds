@@ -3,8 +3,8 @@
 #include <string>
 
 
-double random(int t);
-int randrange(int t, int a, int b);
+double random(float t);
+int randrange(float t, int a, int b);
 
 
 class Projectile;
@@ -75,22 +75,21 @@ class Projectile
     public : 
         Projectile(Beat* v_beat
                 , const float v_wait_before_move_limit[2]
-                , int* v_nb_projectile_before
-                , const int v_limit_pos[2]
+                , const uint8_t v_limit_pos[2]
                 , const float v_speed_increase
             ) : 
             speed_increase(v_speed_increase)
             {
                 beat = v_beat;
                 wait_before_move_limit[0] = v_wait_before_move_limit[0]; wait_before_move_limit[1] = v_wait_before_move_limit[1];
-                nb_projectile_before = v_nb_projectile_before;
                 limit_pos[0] = v_limit_pos[0]; limit_pos[1] = v_limit_pos[1];
+                pos_x = 0; pos_y = 0;
                 used = false;
             }
 
     public :
-        float pos_x;
-        float pos_y;
+        int pos_x;
+        int pos_y;
         bool flag_destroy;
         bool used;
         int index_beat;
@@ -104,8 +103,6 @@ class Projectile
         float speed_increase;
         float wait_before_move_limit[2];
         
-        int* nb_projectile_before;
-
         
 
     public : 

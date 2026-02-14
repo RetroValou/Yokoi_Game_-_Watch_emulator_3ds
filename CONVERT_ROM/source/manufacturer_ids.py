@@ -11,6 +11,8 @@ from typing import Any
 MANUFACTURER_NINTENDO: int = 0
 MANUFACTURER_TRONICA: int = 1
 MANUFACTURER_ELEKTRONIKA: int = 2
+MANUFACTURER_TIGER: int = 3
+MANUFACTURER_DAVID_AND_JOHN: int = 4
 
 
 def normalize_manufacturer_id(value: Any, default: int = MANUFACTURER_NINTENDO) -> int:
@@ -24,7 +26,7 @@ def normalize_manufacturer_id(value: Any, default: int = MANUFACTURER_NINTENDO) 
     except Exception:
         return int(default)
 
-    if numeric not in (MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA, MANUFACTURER_ELEKTRONIKA):
+    if numeric not in (MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA, MANUFACTURER_ELEKTRONIKA, MANUFACTURER_DAVID_AND_JOHN, MANUFACTURER_TIGER):
         return int(default)
     
     return numeric

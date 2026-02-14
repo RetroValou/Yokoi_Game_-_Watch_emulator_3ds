@@ -13,12 +13,16 @@ extern const GW_rom d_and_j_rythme;
 #include "David_And_John_ROM/d_and_j_fabric.h"
 extern const GW_rom d_and_j_fabric;
 
+#include "David_And_John_ROM/d_and_j_esquive.h"
+extern const GW_rom d_and_j_esquive;
 
 
 
 
 
 
-const GW_rom* OPEN_SOURCE_list[] = {&d_and_j_climber, &d_and_j_avignon, &d_and_j_rythme, &d_and_j_fabric};
+
+
+const GW_rom* OPEN_SOURCE_list[] = {&d_and_j_climber, &d_and_j_avignon, &d_and_j_rythme, &d_and_j_fabric, &d_and_j_esquive};
 const size_t nb_games_OPEN_SOURCE = sizeof(OPEN_SOURCE_list) / sizeof(OPEN_SOURCE_list[0]);
 

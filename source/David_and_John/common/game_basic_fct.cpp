@@ -7,11 +7,11 @@
 #include "./game_basic_fct.h"
 
 
-double random(int t) {
+double random(float t) {
     return std::fmod(std::fmod(std::sin(t), 1.0) + 1.0, 1.0);
 }
 
-int randrange(int t, int a, int b) {
+int randrange(float t, int a, int b) {
     if (a > b)
         std::swap(a, b);
 
@@ -74,7 +74,6 @@ uint64_t Beat::player_speed_fall(float x) {
 
 
 void Projectile::start(int t, int v_index_beat){
-    (*nb_projectile_before) += 1;
     pos_y = 0; pos_x = randrange(t, 0, limit_pos[0] - 1);
     flag_destroy = false;
     curr_state = Projectile_state::before;
@@ -102,7 +101,6 @@ void Projectile::move_down(){
 bool Projectile::verify_move_down(){
     if(!(beat->move_ok(index_beat))){ return false; }
     else if(curr_state == Projectile_state::before){
-        (*nb_projectile_before) -= 1;
         curr_state = Projectile_state::down;
         return true;
     }

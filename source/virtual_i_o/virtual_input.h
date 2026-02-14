@@ -1911,13 +1911,40 @@ class d_and_j_fabric : public Virtual_Input{
                         default: break; } break;
                 case PART_LEFT:
                     switch (button) {
-                        case BUTTON_UP: cpu->input_set(1, 0, state); break;
-                        case BUTTON_DOWN: cpu->input_set(1, 1, state); break;
+                        case BUTTON_UP: cpu->input_set(2, 0, state); break;
+                        case BUTTON_DOWN: cpu->input_set(2, 1, state); break;
                         default: break; } break;
                 default: break;
             }
         }
 };
+
+class d_and_j_esquive : public Virtual_Input{
+    public : 
+        d_and_j_esquive(SM5XX* c) : Virtual_Input(c) {
+            left_configuration = CONF_2_BUTTON_UPDOWN;
+            right_configuration = CONF_2_BUTTON_LEFTRIGHT;
+        }
+
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_LEFT: cpu->input_set(1, 0, state); break;
+                        case BUTTON_RIGHT: cpu->input_set(1, 1, state); break;
+                        default: break; } break;
+                case PART_LEFT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(2, 0, state); break;
+                        case BUTTON_DOWN: cpu->input_set(2, 1, state); break;
+                        default: break; } break;
+                default: break;
+            }
+        }
+};
+
+
+
 
 
 
@@ -1999,6 +2026,7 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if(ref_game == "D_AND_J_CLIMBER" || ref_game == "D_AND_J_AVIGNON" || ref_game == "D_AND_J_RYTHME")
         { return new d_and_j(cpu); }
     else if (ref_game == "D_AND_J_FABRIC"){ return new d_and_j_fabric(cpu); }
+    else if (ref_game == "D_AND_J_ESQUIVE"){ return new d_and_j_esquive(cpu); }
     
     return nullptr;
 }

@@ -51,8 +51,7 @@ enum GameState {
     STATE_MENU,
     STATE_PLAY,
     STATE_SETTINGS,
-    STATE_SAVE_PROMPT,
-    STATE_DEBUG
+    STATE_SAVE_PROMPT
 };
 
 bool debug_run_op_press = false;
