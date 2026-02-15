@@ -5,7 +5,7 @@
 #include "../SM5XX/SM5XX.h"
 
 
-constexpr uint64_t DEFAULT_SOUND_TIME = 120000;
+constexpr uint64_t DEFAULT_SOUND_TIME = 110000;
 constexpr uint64_t DEFAULT_NOTE = 8;
 constexpr uint64_t WAIT_BETWEEN_BIP = 40000;
 

@@ -13,19 +13,11 @@ bool D_And_J_Esquive_program::input_start_game(){
 
 
 uint8_t david_new_pos(uint32_t nb_sc){
-    return static_cast<uint8_t>(randrange(nb_sc*1.2f+6, 0, PLAYER_LOC_e[0]-1));
+    return static_cast<uint8_t>(randrange(nb_sc*1.2f+6.0f, 0, PLAYER_LOC_e[0]-1));
 }
 
 
-uint64_t nb_projectile_simultanee(uint32_t x){
-    float calcul = E_NB_SIMULT_PROJECTILE_LIMIT[0] + 
-        (E_NB_SIMULT_PROJECTILE_LIMIT[1] - E_NB_SIMULT_PROJECTILE_LIMIT[0])/(1+x*E_NB_SIMULT_PROJECTILE_INCREASE) 
-        + E_NB_SIMULT_PROJECTILE_RANDOM_POWER * std::sin(x * Default_PROJECTILE_GEN_RANDOM_HARMONY);
 
-    if(calcul < E_NB_SIMULT_PROJECTILE_MAX_MIN[0]){ return E_NB_SIMULT_PROJECTILE_MAX_MIN[0]; }
-    if(calcul >= E_NB_SIMULT_PROJECTILE_MAX_MIN[1]){ return E_NB_SIMULT_PROJECTILE_MAX_MIN[1]; }
-    return static_cast<uint64_t>(calcul); 
-}
 
 
 
@@ -132,9 +124,20 @@ void D_And_J_Esquive_program::adding_score(){
 
 
 /* PROJECTILES */
+uint64_t nb_projectile_simultanee(uint32_t x){
+    float calcul = E_NB_SIMULT_PROJECTILE_LIMIT[0] + 
+        (E_NB_SIMULT_PROJECTILE_LIMIT[1] - E_NB_SIMULT_PROJECTILE_LIMIT[0])/(1+x*E_NB_SIMULT_PROJECTILE_INCREASE) 
+        + E_NB_SIMULT_PROJECTILE_RANDOM_POWER * std::sin(x * Default_PROJECTILE_GEN_RANDOM_HARMONY);
+
+    if(calcul < E_NB_SIMULT_PROJECTILE_MAX_MIN[0]){ return E_NB_SIMULT_PROJECTILE_MAX_MIN[0]; }
+    if(calcul >= E_NB_SIMULT_PROJECTILE_MAX_MIN[1]){ return E_NB_SIMULT_PROJECTILE_MAX_MIN[1]; }
+    return static_cast<uint64_t>(calcul); 
+}
+
 void D_And_J_Esquive_program::update_projectile(){
     for(size_t i = 0; i < list_projectiles->size(); i++){
-        if((*list_projectiles)[i].flag_destroy){ (*list_projectiles)[i].destroy(); }
+        if((*list_projectiles)[i].used 
+                && (*list_projectiles)[i].flag_destroy){ (*list_projectiles)[i].destroy(); }
 
         bool same_pos = (*list_projectiles)[i].is_same_pos(pos_player[0], pos_player[1]);
         bool down = (*list_projectiles)[i].verify_move_down();

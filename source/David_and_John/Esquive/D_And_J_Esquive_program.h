@@ -13,7 +13,7 @@ constexpr float E_SPEED_LIMIT[2] = { 5.0f, 40.0f };
 
 constexpr float E_NB_SIMULT_PROJECTILE_LIMIT[2] = { 4, -1 };
 constexpr float E_NB_SIMULT_PROJECTILE_MAX_MIN[2] = { 1, 2 };
-constexpr float E_NB_SIMULT_PROJECTILE_INCREASE = 1/50;
+constexpr float E_NB_SIMULT_PROJECTILE_INCREASE = 1.0f/50.0f;
 constexpr float E_NB_SIMULT_PROJECTILE_RANDOM_POWER = 1.1f;
 
 constexpr uint8_t WARNING_TIME_DAVID = 20;

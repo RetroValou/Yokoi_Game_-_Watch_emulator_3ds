@@ -199,7 +199,8 @@ void D_And_J_Climber_program::additional_update_step(){
 /* PROJECTILES */
 void D_And_J_Climber_program::update_projectile(){
     for(size_t i = 0; i < list_projectiles->size(); i++){
-        if((*list_projectiles)[i].flag_destroy){ (*list_projectiles)[i].destroy(); }
+        if((*list_projectiles)[i].used 
+                && (*list_projectiles)[i].flag_destroy){ (*list_projectiles)[i].destroy(); }
 
         bool same_pos = (*list_projectiles)[i].is_same_pos(pos_player[0], pos_player[1]);
         bool down = (*list_projectiles)[i].verify_move_down();
