@@ -132,4 +132,4 @@ Special editions are not supported in the emulator, refer to the Notes column fo
 | 05  | tsimquest| tsimquest.zip      | Castlevania II Simon's Quest                                 | 1988.01.01   | SM510 |  |
 | 06  | tmegaman3| tmegaman3.zip      | Mega Man 3                                                   | 1991.01.01   | SM510 |  |
 | 07  | tgaiden | tgaiden.zip         | Ninja Gaiden                                                 | 1989.01.01   | SM510 |  |
-| 08  | tgaiden3| tgaiden3.zip         | Ninja Gaiden III                                            | 1992.01.01   | SM510 |  |
+| 08  | tgaiden3| tgaiden3.zip        | Ninja Gaiden III                                             | 1992.01.01   | SM510 |  |
