@@ -1191,6 +1191,42 @@ games_path = {
                     , "date" : "1988-01-01"
                     , "console" : r'.\rom\default_console.png'
                 }
+              
+            , "Ninja_Gaiden" :
+                    { "ref" : "tgaiden"
+                    , "manufacturer" : 3
+                    , "display_name" : "Ninja Gaiden"
+                    , "Rom" : r'.\rom\decompress\tgaiden\m82'
+                    , "Visual" : [r'.\rom\decompress\tgaiden\tgaiden.svg']
+                    , "Background" : [r'.\rom\decompress\tgaiden\bg.png']
+                    , "transform_visual" : [[[1499,0,0],[1080,0,0]]]
+                    , "date" : "1989-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                }
+
+            , "Mega_Man_3" :
+                { "ref" : "tmegaman3"
+                , "manufacturer" : 3
+                , "display_name" : "Mega Man 3"
+                , "Rom" : r'.\rom\decompress\tmegaman3\ma4'
+                , "Visual" : [r'.\rom\decompress\tmegaman3\tmegaman3.svg']
+                , "Background" : [r'.\rom\decompress\tmegaman3\Background.png']
+                , "transform_visual" : [[[1162,0,0],[867,0,0]]]
+                , "date" : "1991-01-01"
+                , "console" : r'.\rom\default_console.png'
+            }
+              
+            , "Ninja_Gaiden_III" :
+                    { "ref" : "tgaiden3"
+                    , "manufacturer" : 3
+                    , "display_name" : "Ninja Gaiden III"
+                    , "Rom" : r'.\rom\decompress\tgaiden3\md6'
+                    , "Visual" : [r'.\rom\decompress\tgaiden3\tgaiden3.svg']
+                    , "Background" : [r'.\rom\decompress\tgaiden3\bg.png']
+                    , "transform_visual" : [[[1499,0,0],[1080,0,0]]]
+                    , "date" : "1992-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                }
 
             , "Sonic_The_Hedgehog" :
                     { "ref" : "tsonic"
@@ -1229,5 +1265,5 @@ games_path = {
                     , "date" : "1993-01-01"
                     , "console" : r'.\rom\default_console.png'
                 }
-              
+
 }
