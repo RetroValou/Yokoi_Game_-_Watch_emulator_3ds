@@ -66,6 +66,10 @@ gw_rom_include_dir = "GW_ROM"
 
 default_alpha_bright = 1.7
 default_fond_bright = 1.35
+
+tiger_default_alpha_bright = 1.1
+tiger_default_fond_bright = 1.2
+
 default_rotate = False
 default_console = r'.\rom\default.png'
 
@@ -1140,8 +1144,12 @@ if __name__ == "__main__":
         game_data = games_path[key].copy()
         
         # Set defaults
-        if 'alpha_bright' not in game_data: game_data['alpha_bright'] = default_alpha_bright
-        if 'fond_bright' not in game_data: game_data['fond_bright'] = default_fond_bright
+        if (game_data.get("manufacturer", 0) == MANUFACTURER_TIGER):
+            if 'alpha_bright' not in game_data: game_data['alpha_bright'] = tiger_default_alpha_bright
+            if 'fond_bright' not in game_data: game_data['fond_bright'] = tiger_default_fond_bright            
+        else:
+            if 'alpha_bright' not in game_data: game_data['alpha_bright'] = default_alpha_bright
+            if 'fond_bright' not in game_data: game_data['fond_bright'] = default_fond_bright
         if 'rotate' not in game_data: game_data['rotate'] = default_rotate
         if 'mask' not in game_data: game_data['mask'] = False
         if 'color_segment' not in game_data: game_data['color_segment'] = False

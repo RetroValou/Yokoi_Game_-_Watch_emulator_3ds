@@ -1178,8 +1178,6 @@ games_path = {
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1988-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
             , "Castlevania_II_Simon_s_Quest" :
@@ -1192,8 +1190,6 @@ games_path = {
                     , "transform_visual" : [[[1152,0,0],[878,0,0]]]
                     , "date" : "1988-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
             , "Gauntlet" :
@@ -1206,8 +1202,6 @@ games_path = {
                     , "transform_visual" : [[[2376,0,0],[1790,0,0]]]
                     , "date" : "1988-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
                             
               
@@ -1221,8 +1215,6 @@ games_path = {
                     , "transform_visual" : [[[1499,0,0],[1080,0,0]]]
                     , "date" : "1989-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
             , "Golden_Axe" :
@@ -1235,8 +1227,6 @@ games_path = {
                     , "transform_visual" : [[[1190,0,0],[860,0,0]]]
                     , "date" : "1989-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
               , "Altered_Beast" :
@@ -1249,8 +1239,6 @@ games_path = {
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1990-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
             , "Double_Dragon_II_The_Revenge" :
@@ -1263,8 +1251,6 @@ games_path = {
                     , "transform_visual" : [[[1451,0,0],[1080,0,0]]]
                     , "date" : "1990-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
             , "Space_Harrier_II" :
@@ -1277,8 +1263,6 @@ games_path = {
                     , "transform_visual" : [[[1493,0,0],[1080,0,0]]]
                     , "date" : "1990-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
             , "Strider" :
@@ -1291,22 +1275,18 @@ games_path = {
                     , "transform_visual" : [[[1182,0,0],[925,0,0]]]
                     , "date" : "1990-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
 
             , "Mega_Man_3" :
-                { "ref" : "tmegaman3"
-                , "manufacturer" : 3
-                , "display_name" : "Mega Man 3"
-                , "Rom" : r'.\rom\decompress\tmegaman3\ma4'
-                , "Visual" : [r'.\rom\decompress\tmegaman3\tmegaman3.svg']
-                , "Background" : [r'.\rom\decompress\tmegaman3\Background.png']
-                , "transform_visual" : [[[1162,0,0],[867,0,0]]]
-                , "date" : "1991-01-01"
-                , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
+                    { "ref" : "tmegaman3"
+                    , "manufacturer" : 3
+                    , "display_name" : "Mega Man 3"
+                    , "Rom" : r'.\rom\decompress\tmegaman3\ma4'
+                    , "Visual" : [r'.\rom\decompress\tmegaman3\tmegaman3.svg']
+                    , "Background" : [r'.\rom\decompress\tmegaman3\Background.png']
+                    , "transform_visual" : [[[1162,0,0],[867,0,0]]]
+                    , "date" : "1991-01-01"
+                    , "console" : r'.\rom\default_console.png'
                 }
               
             , "Double_Dragon_III_The_Rosetta_Stone" :
@@ -1319,8 +1299,6 @@ games_path = {
                     , "transform_visual" : [[[1232,0,0],[890,0,0]]]
                     , "date" : "1991-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
             , "U_Can_t_Touch_This" :
@@ -1334,8 +1312,6 @@ games_path = {
                     , "transform_visual" : [[[1130,0,0],[838,0,0]]]
                     , "date" : "1991-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
             , "Ninja_Gaiden_III" :
@@ -1348,8 +1324,6 @@ games_path = {
                     , "transform_visual" : [[[1499,0,0],[1080,0,0]]]
                     , "date" : "1992-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
 
             , "Sonic_The_Hedgehog" :
@@ -1363,8 +1337,6 @@ games_path = {
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1992-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
             , "Sonic_The_Hedgehog_2" :
@@ -1378,8 +1350,6 @@ games_path = {
                     , "transform_visual" : [[[1180,0,0],[860,0,0]]]
                     , "date" : "1993-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
             , "Street_Fighter_2" :
@@ -1392,8 +1362,6 @@ games_path = {
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1993-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
               
@@ -1407,8 +1375,6 @@ games_path = {
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1993-01-01"
                     , "console" : r'.\rom\default_console.png'
-                    , "alpha_bright" : 1.1
-                    , "fond_bright" : 1.2
                 }
               
               
