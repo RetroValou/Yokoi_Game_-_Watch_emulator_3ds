@@ -18,6 +18,7 @@ try:
 		MANUFACTURER_NINTENDO,
 		MANUFACTURER_TRONICA,
 		MANUFACTURER_ELEKTRONIKA,
+		MANUFACTURER_TIGER,
 		normalize_manufacturer_id,
 	)
 except ImportError:
@@ -26,6 +27,7 @@ except ImportError:
 		MANUFACTURER_NINTENDO,
 		MANUFACTURER_TRONICA,
 		MANUFACTURER_ELEKTRONIKA,
+		MANUFACTURER_TIGER,
 		normalize_manufacturer_id,
 	)
 

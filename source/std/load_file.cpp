@@ -1,7 +1,13 @@
 #include "load_file.h"
 
 #include "gw_pack.h"
-#include "OPEN_SOURCE_ROM_ALL.h"
+
+#if defined(__ANDROID__)
+    #include "OPEN_SOURCE_ROM_ALL_rgds.h"
+#else
+    #include "OPEN_SOURCE_ROM_ALL.h"
+#endif
+
 
 #if defined(YOKOI_EMBEDDED_ASSETS)
     #if defined(__ANDROID__)
@@ -14,7 +20,7 @@
 
 const GW_rom* load_game(uint8_t i_game){
     if (gw_pack::is_loaded()) {
-        if(gw_pack::game_count() < i_game){ return gw_pack::game_at(i_game); }
+        if(i_game < gw_pack::game_count()){ return gw_pack::game_at(i_game); }
         else { return OPEN_SOURCE_list[i_game - gw_pack::game_count()]; }
     }
 

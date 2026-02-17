@@ -315,7 +315,6 @@ Java_com_retrovalou_yokoi_MainActivity_nativeInit(JNIEnv*, jclass) {
         }
         g_core_inited = true;
     }
-
     ensure_emu_thread_started();
 }
 
@@ -461,6 +460,10 @@ Java_com_retrovalou_yokoi_MainActivity_nativeGetSelectedGameInfo(JNIEnv* env, jc
             mfr = "Tronica";
         } else if (g->manufacturer == GW_rom::MANUFACTURER_ELEKTRONIKA) {
             mfr = "Elektronika";
+        } else if (g->manufacturer == GW_rom::MANUFACTURER_DAVID_AND_JOHN) {
+            mfr = "David and John";
+        } else if (g->manufacturer == GW_rom::MANUFACTURER_TIGER) {
+            mfr = "Tiger";
         } else {
             mfr = "Nintendo";
         }

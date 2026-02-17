@@ -69,7 +69,7 @@ class David_And_John_program {
             limit_pos_player[0] = v_limit_pos_player[0]; limit_pos_player[1] = v_limit_pos_player[1];
         }
 
-        virtual bool get_segments_state(uint8_t line, uint8_t word);
+        virtual bool get_segments_state(uint8_t line, uint8_t word) = 0;
         void execute_program_loop();
         void stop_program();
         void init_program();

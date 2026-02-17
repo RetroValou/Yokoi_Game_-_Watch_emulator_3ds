@@ -15,6 +15,8 @@ void SM5A::init()
     ram_address = {0, 0}; // not indicate in doc Sharp
 
     for(int i = 0; i < 8; i++){ k_input[i] = 0x00; }
+    k_input_sp_not_multiplex = 0x00;
+    
     r_output_control = 0xFF; // inversed !
 
     beta_input = true;

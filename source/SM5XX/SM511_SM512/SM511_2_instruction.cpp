@@ -215,6 +215,7 @@ void SM511_2::op_kta(){
             accumulator = accumulator | k_input[i];
         }
     }
+    accumulator = accumulator | k_input_sp_not_multiplex;
 };
 
 void SM511_2::op_atbp(){ bp_lcd_blackplate = accumulator & 0x01; };

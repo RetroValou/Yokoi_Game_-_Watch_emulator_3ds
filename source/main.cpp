@@ -256,7 +256,9 @@ void update_name_game_top(Virtual_Screen* v_screen, bool for_choose = true){
             ? "Elektronika"
             : (mfr_id == GW_rom::MANUFACTURER_DAVID_AND_JOHN)
                 ? "David and John"
-                : "Nintendo";
+                : (mfr_id == GW_rom::MANUFACTURER_TIGER)
+                    ? "Tiger"
+                    : "Nintendo";
 
     v_screen->delete_all_text();
 
@@ -645,7 +647,7 @@ bool init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
         show_start_game_error(*v_screen, "Input config missing");
         return false;
     }
-    (*cpu)->set_input_multiplexage((*v_input)->use_multiplexage);
+    //(*cpu)->set_input_multiplexage((*v_input)->use_multiplexage);
     YOKOI_LOG("init_game: input config ok (%p)", (const void*)*v_input);
 
     set_time_cpu(*cpu);

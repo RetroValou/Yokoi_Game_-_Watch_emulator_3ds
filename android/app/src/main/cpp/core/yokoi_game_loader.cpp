@@ -33,9 +33,13 @@ namespace {
 constexpr const char* kLogTag = "Yokoi";
 
 uint8_t find_game_index_by_ref(const std::string& ref) {
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "find_game_index_by_ref");
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "f_1");
     size_t n = get_nb_name();
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "f_2");
     if (n > 255) n = 255;
     for (size_t i = 0; i < n; i++) {
+        __android_log_write(ANDROID_LOG_ERROR, kLogTag, std::to_string(i).c_str());
         const GW_rom* g = load_game((uint8_t)i);
         if (g && g->ref == ref) {
             return (uint8_t)i;
@@ -137,10 +141,15 @@ void yokoi_load_game_by_index_and_init(uint8_t idx) {
 }
 
 uint8_t yokoi_get_default_game_index_for_android() {
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "yokoi_get_default_game_index_for_android");
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "1");
+
     size_t n = get_nb_name();
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "2");
     if (n == 0) {
         return 0;
     }
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "3");
 
     // Prefer last selected manufacturer, then restore last game for that manufacturer.
     {
@@ -152,12 +161,15 @@ uint8_t yokoi_get_default_game_index_for_android() {
             }
         }
     }
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "4");
 
     // No saved last game: fall back to a preferred title; if not present, use first game.
     uint8_t idx = find_game_index_by_ref("JR_55");
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "4_1");
     if (idx >= (uint8_t)n) {
         idx = 0;
     }
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "5");
     return idx;
 }
 

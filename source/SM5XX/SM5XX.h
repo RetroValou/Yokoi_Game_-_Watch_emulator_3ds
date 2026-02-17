@@ -23,7 +23,7 @@ public:
     std::string name_cpu;
     bool stop_cpu = false;
     bool segments_state_are_update = false;
-    bool input_no_multiplex = false;
+    //bool input_no_multiplex = false;
     uint32_t frequency;
     uint32_t sound_divide_frequency = 1; 
 
@@ -47,6 +47,8 @@ protected:
 
     // input
     uint8_t k_input[8]; // 8 enter K (4bit) (only 4 on SM5A) by default = 0
+    uint8_t k_input_sp_not_multiplex; // For input not multiplex (8 enter K)
+
     bool beta_input; // special input, by default = 1
     bool alpha_input; // special input, by default = 1
 
@@ -69,13 +71,13 @@ protected:
 public:
     bool step();
     void execute_cycle();
-    void input_set(int group, int line, bool state);
+    void input_set(int group, int line, bool state, bool not_multiplex = false);
 
     void load_rom_time_addresses(const std::string& ref_game);
     void time_set(bool state){ time_set_state = state; }
     bool is_time_set(){ return time_set_state; }
     void set_time(uint8_t hour, uint8_t minute, uint8_t second);
-    void set_input_multiplexage(bool use_multiplexage = true){ input_no_multiplex = !use_multiplexage; };
+    //void set_input_multiplexage(bool use_multiplexage = true){ input_no_multiplex = !use_multiplexage; };
 
 private : 
     void adding_program_counter(const uint8_t* opcode);

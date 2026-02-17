@@ -20,6 +20,7 @@ from source.manufacturer_ids import (
     MANUFACTURER_NINTENDO,
     MANUFACTURER_TRONICA,
     MANUFACTURER_ELEKTRONIKA,
+    MANUFACTURER_TIGER,
     normalize_manufacturer_id,
 )
 
@@ -529,6 +530,8 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
         manufacturer_cpp = "GW_rom::MANUFACTURER_TRONICA"
     elif manufacturer_id == MANUFACTURER_ELEKTRONIKA:
         manufacturer_cpp = "GW_rom::MANUFACTURER_ELEKTRONIKA"
+    elif manufacturer_id == MANUFACTURER_TIGER:
+        manufacturer_cpp = "GW_rom::MANUFACTURER_TIGER"
     else:
         manufacturer_cpp = "GW_rom::MANUFACTURER_NINTENDO"
 

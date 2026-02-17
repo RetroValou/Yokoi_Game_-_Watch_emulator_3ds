@@ -13,12 +13,12 @@ from typing import Dict, List, Optional, Sequence, Tuple, Iterable
 try:
     # When imported as part of the 'source' package
     from source.games_path_utils import GameEntry, write_games_path
-    from source.manufacturer_ids import MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA, MANUFACTURER_ELEKTRONIKA
+    from source.manufacturer_ids import MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA, MANUFACTURER_ELEKTRONIKA, MANUFACTURER_TIGER, MANUFACTURER_DAVID_AND_JOHN
     from source.target_profiles import get_target
 except ImportError:
     # When run directly from the 'source' directory
     from games_path_utils import GameEntry, write_games_path
-    from manufacturer_ids import MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA, MANUFACTURER_ELEKTRONIKA
+    from manufacturer_ids import MANUFACTURER_NINTENDO, MANUFACTURER_TRONICA, MANUFACTURER_ELEKTRONIKA, MANUFACTURER_TIGER, MANUFACTURER_DAVID_AND_JOHN
     from target_profiles import get_target
 
 # Preferred background views ordered by desirability. Boolean marks multi-screen views.
@@ -33,6 +33,7 @@ VIEW_PRIORITY: Sequence[Tuple[str, bool]] = (
     ("Backgrounds Only", True),
     ("Version 1 - Background Only (No Shadow)", False),
     ("Version 1 - Background Only (No Shadow)", True),
+    ("External Layout", False), # Tiger games
 )
 
 # set default img when console img is not set for a game
@@ -148,6 +149,8 @@ def _load_game_metadata(script_dir: Path) -> Dict[str, GameMetadata]:
                 current_manufacturer = MANUFACTURER_ELEKTRONIKA
             elif "game & watch" in heading or "game and watch" in heading:
                 current_manufacturer = MANUFACTURER_NINTENDO
+            elif "tiger" in heading:
+                current_manufacturer = MANUFACTURER_TIGER
             continue
 
         if stripped.startswith("| No.") and "Filename" in stripped:

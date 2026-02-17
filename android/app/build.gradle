@@ -73,6 +73,10 @@ android {
     }
 
     sourceSets {
+        main {
+            assets.srcDirs += ['../../gfx2x_open_source'] 
+        }
+
         embedded {
             // Android/RGDS uses the 2x artwork set.
             // The generated RGDS metadata (UVs/sizes) expects these textures.

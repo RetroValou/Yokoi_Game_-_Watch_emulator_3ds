@@ -95,13 +95,19 @@ void SM5XX::step_clock_divider(){
 
 
 //////////////////////////////////// Input ////////////////////////////////////
-void SM5XX::input_set(int group, int line, bool state){
+void SM5XX::input_set(int group, int line, bool state, bool not_multiplex){
     // special input -> says by line >= 8 (not exist in true K input)
     if(line == 8){ alpha_input = state; }
     else if(line == 9){ beta_input = state; }
 
-    else if(state){ k_input[group] = k_input[group] | (0x01 << line); }
-    else { k_input[group] = k_input[group] & ~(0x01 << line); }
+    if(not_multiplex){ 
+        if(state){ k_input_sp_not_multiplex = k_input_sp_not_multiplex | (0x01 << line); }
+        else { k_input_sp_not_multiplex = k_input_sp_not_multiplex & ~(0x01 << line); }
+    }
+    else{ // multiplex
+        if(state){ k_input[group] = k_input[group] | (0x01 << line); }
+        else { k_input[group] = k_input[group] & ~(0x01 << line); }
+    }
 }
 
 

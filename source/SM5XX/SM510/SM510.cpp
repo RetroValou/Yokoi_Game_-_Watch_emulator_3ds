@@ -17,6 +17,8 @@ void SM510::init()
     ram_address = {0, 0}; // not indicate in doc Sharp
 
     for(int i = 0; i < 8; i++){ k_input[i] = 0x00; }
+    k_input_sp_not_multiplex = 0x00;
+
     w_shift_register = 0;
 
     alpha_input = true;

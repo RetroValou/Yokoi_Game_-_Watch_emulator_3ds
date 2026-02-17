@@ -57,9 +57,9 @@ class David_And_John_fake_cpu: public SM5XX
         // Save/Load state
         bool save_state(FILE* file) override;
         bool load_state(FILE* file) override;
+        uint8_t get_cpu_type_id() override { return 255; }  // CPU_TYPE_FAKE_CPU
 
         bool screen_is_on() override { return bp_lcd_blackplate; };
-        uint8_t get_cpu_type_id() override { return 255; }
 
         void end_of_cpu() override;
 

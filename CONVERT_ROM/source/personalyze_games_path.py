@@ -1166,5 +1166,68 @@ games_path = {
                     , "transform_visual" : [[[1295,0,0],[858,20,0]]]
                     , "date" : "1993-01-01"
                     , "console" : r'.\rom\decompress\ecircus\ecircus.png'
-                }     
+                }
+              
+            , "Double_Dragon" :
+                    { "ref" : "tddragon"
+                    , "manufacturer" : 3
+                    , "display_name" : "Double Dragon"
+                    , "Rom" : r'.\rom\decompress\tddragon\593'
+                    , "Visual" : [r'.\rom\decompress\tddragon\tddragon.svg']
+                    , "Background" : [r'.\rom\decompress\tddragon\Background.png']
+                    , "transform_visual" : [[[1177,0,0],[850,0,0]]]
+                    , "date" : "1988-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                }
+              
+            , "Castlevania_II_Simon_s_Quest" :
+                    { "ref" : "tsimquest"
+                    , "manufacturer" : 3
+                    , "display_name" : "Castlevania II Simon's Quest"
+                    , "Rom" : r'.\rom\decompress\tsimquest\581'
+                    , "Visual" : [r'.\rom\decompress\tsimquest\tsimquest.svg']
+                    , "Background" : [r'.\rom\decompress\tsimquest\Background.png']
+                    , "transform_visual" : [[[1152,0,0],[878,0,0]]]
+                    , "date" : "1988-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                }
+
+            , "Sonic_The_Hedgehog" :
+                    { "ref" : "tsonic"
+                    , "manufacturer" : 3
+                    , "display_name" : "Sonic The Hedgehog"
+                    , "Rom" : r'.\rom\decompress\tsonic\n71.program'
+                    , "Melody_Rom" : r'.\rom\decompress\tsonic\n71.melody'
+                    , "Visual" : [r'.\rom\decompress\tsonic\tsonic.svg']
+                    , "Background" : [r'.\rom\decompress\tsonic\bg.jpg']
+                    , "transform_visual" : [[[1517,0,0],[1080,0,0]]]
+                    , "date" : "1992-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                }
+              
+            , "Sonic_The_Hedgehog_2" :
+                    { "ref" : "tsonic2"
+                    , "manufacturer" : 3
+                    , "display_name" : "Sonic The Hedgehog 2"
+                    , "Rom" : r'.\rom\decompress\tsonic2\n86.program'
+                    , "Melody_Rom" : r'.\rom\decompress\tsonic2\n86.melody'
+                    , "Visual" : [r'.\rom\decompress\tsonic2\tsonic2.svg']
+                    , "Background" : [r'.\rom\decompress\tsonic2\bg.jpg']
+                    , "transform_visual" : [[[1475,0,0],[1080,0,0]]]
+                    , "date" : "1993-01-01"
+                    , "console" : r'.\rom\default_console.png'
+            }
+              
+            , "Street_Fighter_2" :
+                    { "ref" : "tsfight2"
+                    , "manufacturer" : 3
+                    , "display_name" : "Street Fighter 2"
+                    , "Rom" : r'.\rom\decompress\tsfight2\me1'
+                    , "Visual" : [r'.\rom\decompress\tsfight2\tsfight2.svg']
+                    , "Background" : [r'.\rom\decompress\tsfight2\Background.png']
+                    , "transform_visual" : [[[1177,0,0],[850,0,0]]]
+                    , "date" : "1993-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                }
+              
 }

@@ -253,10 +253,11 @@ void SM5A::op_kta(){
 	
 	accumulator = 0x00;
     for(int i = 0; i < 4; i++){ 
-        if( (((pin_activate >> i) & 0x01) == 0x01) || input_no_multiplex){ // multiplexage by S
+        if( (((pin_activate >> i) & 0x01) == 0x01) /*|| input_no_multiplex*/){ // multiplexage by S
             accumulator = accumulator | k_input[i];
         }
     }
+	accumulator = accumulator | k_input_sp_not_multiplex;
 	debug_value_read_input = accumulator;
 };
 

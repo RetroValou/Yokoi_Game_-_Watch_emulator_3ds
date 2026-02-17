@@ -118,4 +118,18 @@ Special editions are not supported in the emulator, refer to the Notes column fo
 | 15  | IM-04   | vespovar.zip        | Vesyolyy povar                                               | 1989.01.01   | SM5A | gnw_chef |
 | 16  | IM-22   | vfutbol.zip         | Vesyolye futbolisty                                          | 1989.01.01   | SM5A | gnw_mmouse |
 | 17  | IM-12   | vinnpukh.zip        | Vinni-Pukh (Panorama Screen)                                 | 1990.01.01   | SM511 | gnw_dkjrp | 
-| 01  | IM-23   | auslalom.zip        | Autoslalom                                                   | 1990.01.01   | SM5A |  |
+| 18  | IM-23   | auslalom.zip        | Autoslalom                                                   | 1990.01.01   | SM5A |  |
+
+
+## Tiger
+
+| No. | Model   | Filename            | Game Title                                                   | Release Date | CPU | Clone Of |
+|-----|---------|---------------------|--------------------------------------------------------------|--------------|-----|-------|
+| 01  | tsonic2 | tsonic2.zip         | Sonic The Hedgehog 2                                         | 1993.01.01   | SM511 |  |
+| 02  | tsonic | tsonic.zip           | Sonic The Hedgehog                                           | 1992.01.01   | SM511 |  |
+| 03  | tsfight2| tsfight2.zip        | Street Fighter II                                            | 1993.01.01   | SM510 |  |
+| 04  | tddragon| tddragon.zip        | Double Dragon                                                | 1988.01.01   | SM510 |  |
+| 05  | tsimquest| tsimquest.zip      | Castlevania II Simon's Quest                                 | 1988.01.01   | SM510 |  |
+| 06  | tmegaman3| tmegaman3.zip      | Mega Man 3                                                   | 1991.01.01   | SM510 |  |
+| 07  | tgaiden | tgaiden.zip         | Ninja Gaiden                                                 | 1989.01.01   | SM510 |  |
+| 08  | tgaiden3| tgaiden.zip         | Ninja Gaiden III                                             | 1992.01.01   | SM510 |  |
