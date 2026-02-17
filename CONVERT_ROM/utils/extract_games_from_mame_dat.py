@@ -58,7 +58,8 @@ SET_MODEL_OVERRIDES: dict[str, str] = {
     "trsrescue": "MG-9",
     "trthuball": "FR-23",
     "trtreisl": "TI-31",
-    "vinnpukh": "IM-12"
+    "vinnpukh": "IM-12",
+    "ecircus": "IM-11",
 }
 
 

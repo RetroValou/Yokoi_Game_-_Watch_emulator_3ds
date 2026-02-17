@@ -275,6 +275,8 @@ def _build_game_signature_and_hints(key: str, game_data: dict, *, prev_hints: di
         "two_in_one_screen": bool(game_data.get("2_in_one_screen", False)),
         "alpha_bright": float(game_data.get("alpha_bright", _context.get("default_alpha_bright", 1.7))),
         "fond_bright": float(game_data.get("fond_bright", _context.get("default_fond_bright", 1.35))),
+        "background_keep_white": bool(game_data.get("background_keep_white", False)),
+        "background_white_keep_threshold": int(game_data.get("background_white_keep_threshold", 255)),
         "shadow": bool(game_data.get("shadow", True)),
         "background_in_front": bool(game_data.get("background_in_front", False)),
         "camera": bool(game_data.get("camera", False)),

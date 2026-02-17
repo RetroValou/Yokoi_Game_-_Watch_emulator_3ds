@@ -204,23 +204,76 @@ def transform_alpha_mask(image_b, x_size, y_size, respect_ratio, rotate_90, miro
                        
  
 def make_alpha(img_base:np.array, fond_bright:float, alpha_bright:float):
-    img_alpha = ImageEnhance.Brightness(img_base.copy())
-    img_alpha = img_alpha.enhance(alpha_bright)
-    
-    img = ImageEnhance.Brightness(img_base.copy())
-    img = img.enhance(fond_bright)
+    return make_alpha_ex(
+        img_base,
+        fond_bright,
+        alpha_bright,
+        keep_white=False,
+    )
 
-    data = np.array(img)
-    data_alpha = np.array(img_alpha)
-    r, g, b, a = data_alpha[:,:,0], data_alpha[:,:,1], data_alpha[:,:,2], data_alpha[:,:,3]
-    transition = np.zeros((len(r), len(r[0])), dtype=np.float64)
-    for x in range(len(r)):
-        for y in range(len(r[0])):
-            if ((r[x, y]>seuil_tr) and (g[x, y]>seuil_tr) and (b[x, y]>seuil_tr)): transition[x, y] = min(0, a[x, y])
-            elif (min(min(r[x, y], g[x, y]), b[x, y]) < seuil_semi_tr): transition[x, y] = min(255, a[x, y])
-            else: transition[x, y] = min(int(255.0 * float(seuil_tr - min(min(r[x, y], g[x, y]), b[x, y])) / float(seuil_tr - seuil_semi_tr)), float(a[x, y])) 
 
-    data[:,:, 3] = transition
+def make_alpha_ex(
+    img_base,
+    fond_bright: float,
+    alpha_bright: float,
+    *,
+    keep_white: bool = False,
+    white_keep_threshold: int = 245,
+    white_min_alpha: int = 1,
+):
+    """Create an RGBA array with alpha computed from brightness thresholds.
+
+        Problem solved (optional): when keep_white=True, we preserve any pixels
+        that are white enough in the *original* image by overlaying them back after
+        the alpha transform.
+    """
+
+    img_base_rgba = img_base.convert("RGBA")
+
+    img_alpha = ImageEnhance.Brightness(img_base_rgba.copy()).enhance(alpha_bright)
+    img = ImageEnhance.Brightness(img_base_rgba.copy()).enhance(fond_bright)
+
+    data = np.array(img, dtype=np.uint8)
+    data_alpha = np.array(img_alpha, dtype=np.uint8)
+
+    r = data_alpha[:, :, 0]
+    g = data_alpha[:, :, 1]
+    b = data_alpha[:, :, 2]
+    a = data_alpha[:, :, 3]
+
+    min_rgb = np.minimum(np.minimum(r, g), b)
+
+    cond_transparent = (r > seuil_tr) & (g > seuil_tr) & (b > seuil_tr)
+    cond_opaque = min_rgb < seuil_semi_tr
+    cond_mid = ~(cond_transparent | cond_opaque)
+
+    transition = a.astype(np.float32)
+    transition[cond_transparent] = 0.0
+    if np.any(cond_mid):
+        alpha_val = (
+            255.0
+            * (seuil_tr - min_rgb[cond_mid]).astype(np.float32)
+            / float(seuil_tr - seuil_semi_tr)
+        )
+        transition[cond_mid] = np.minimum(alpha_val, a[cond_mid].astype(np.float32))
+
+    transition_u8 = np.clip(transition, 0, 255).astype(np.uint8)
+
+    if keep_white:
+        # Build a mask of "white enough" pixels from the original image,
+        # then overlay those pixels back after computing alpha.
+        base = np.array(img_base_rgba, dtype=np.uint8)
+        preserve_white = (
+            (base[:, :, 3] >= int(white_min_alpha))
+            & (base[:, :, 0] >= int(white_keep_threshold))
+            & (base[:, :, 1] >= int(white_keep_threshold))
+            & (base[:, :, 2] >= int(white_keep_threshold))
+        )
+
+        transition_u8[preserve_white] = base[:, :, 3][preserve_white]
+        data[preserve_white, :3] = base[preserve_white, :3]
+
+    data[:, :, 3] = transition_u8
     return data
 
 
