@@ -126,10 +126,19 @@ Special editions are not supported in the emulator, refer to the Notes column fo
 | No. | Model   | Filename            | Game Title                                                   | Release Date | CPU | Clone Of |
 |-----|---------|---------------------|--------------------------------------------------------------|--------------|-----|-------|
 | 01  | tsonic2 | tsonic2.zip         | Sonic The Hedgehog 2                                         | 1993.01.01   | SM511 |  |
-| 02  | tsonic | tsonic.zip           | Sonic The Hedgehog                                           | 1992.01.01   | SM511 |  |
+| 02  | tsonic  | tsonic.zip           | Sonic The Hedgehog                                           | 1992.01.01   | SM511 |  |
 | 03  | tsfight2| tsfight2.zip        | Street Fighter II                                            | 1993.01.01   | SM510 |  |
 | 04  | tddragon| tddragon.zip        | Double Dragon                                                | 1988.01.01   | SM510 |  |
-| 05  | tsimquest| tsimquest.zip      | Castlevania II Simon's Quest                                 | 1988.01.01   | SM510 |  |
+| 05  | tsimquest| tsimquest.zip      | Castlevania II - Simon's Quest                                 | 1988.01.01   | SM510 |  |
 | 06  | tmegaman3| tmegaman3.zip      | Mega Man 3                                                   | 1991.01.01   | SM510 |  |
 | 07  | tgaiden | tgaiden.zip         | Ninja Gaiden                                                 | 1989.01.01   | SM510 |  |
 | 08  | tgaiden3| tgaiden3.zip        | Ninja Gaiden III                                             | 1992.01.01   | SM510 |  |
+| 09  | tddragon2| tddragon2.zip      | Double Dragon II - The Revenge                               | 1990.01.01   | SM510 |  |
+| 10  | tddragon3| tddragon3.zip      | Double Dragon III - The Rosetta Stone                        | 1991.01.01   | SM510 |  |
+| 11  | tsddragon| tsddragon.zip      | Super Double Dragon                                          | 1993.01.01   | SM510 |  |
+| 12  | tstrider| tstrider.zip        | Strider                                                      | 1990.01.01   | SM510 |  |
+| 13  | tgoldnaxe| tgoldnaxe.zip      | Golden Axe                                                   | 1989.01.01   | SM510 |  |
+| 14  | taltbeast| taltbeast.zip      | Altered Beast                                                | 1990.01.01   | SM510 |  |
+| 15  | tmchammer| tmchammer.zip      | MC Hammer - U Can't Touch This                                | 1991.01.01   | SM511 |  |
+| 16  | tgaunt  | tgaunt.zip          | Gauntlet                                                     | 1988.01.01   | SM510 |  |
+| 17  | tsharr2 | tsharr2.zip        | Space Harrier II                                             | 1990.01.01   | SM510 |  |

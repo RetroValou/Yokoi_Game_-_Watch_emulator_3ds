@@ -276,6 +276,8 @@ void update_name_game_top(Virtual_Screen* v_screen, bool for_choose = true){
     std::string line1 = text;
     std::string line2 = "";
     size_t bracket_pos = text.find('(');
+    if(bracket_pos == std::string::npos){ bracket_pos = text.find('-'); }
+
     if (bracket_pos != std::string::npos) {
         line1 = text.substr(0, bracket_pos);
         // Remove trailing space if present

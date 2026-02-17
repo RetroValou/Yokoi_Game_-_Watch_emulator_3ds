@@ -2080,6 +2080,208 @@ class TSIMQUEST : public Virtual_Input{
 
 
 
+class TDDRAGON3 : public Virtual_Input{
+    public : 
+        TDDRAGON3(SM5XX* c) : Virtual_Input(c) {
+            left_configuration = CONF_4_BUTTON_DIRECTION;
+            right_configuration = CONF_4_BUTTON_DIRECTION;
+        }
+
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_SETUP:
+                    switch (button) {
+                        case BUTTON_GAMEA: cpu->input_set(6, 3, state, true); break; // Start
+                        case BUTTON_GAMEB: cpu->input_set(5, 0, state); break; // Max Score
+                        default: break; } break;
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(4, 0, state); break; // Throw
+                        case BUTTON_RIGHT: cpu->input_set(3, 1, state); break; // Punch
+                        case BUTTON_LEFT: cpu->input_set(4, 1, state); break; // Kick 
+                        case BUTTON_DOWN: cpu->input_set(4, 1, state); break; // Kick
+                        default: break; } break;
+                case PART_LEFT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(0, 2, state); break;
+                        case BUTTON_RIGHT: cpu->input_set(1, 1, state); break;
+                        case BUTTON_LEFT: cpu->input_set(1, 2, state); break;
+                        case BUTTON_DOWN: cpu->input_set(2, 1, state); break;
+                        default: break; } break;
+                default: break;
+            }
+        }
+};
+
+
+class TSDDRAGON : public Virtual_Input{
+    public : 
+        TSDDRAGON(SM5XX* c) : Virtual_Input(c) {
+            left_configuration = CONF_4_BUTTON_DIRECTION;
+            right_configuration = CONF_4_BUTTON_DIRECTION;
+        }
+
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_SETUP:
+                    switch (button) {
+                        case BUTTON_GAMEA: cpu->input_set(6, 3, state, true); break; // Start
+                        case BUTTON_GAMEB: cpu->input_set(5, 0, state); break; // Max Score
+                        default: break; } break;
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(3, 1, state); break; // Special Technique
+                        case BUTTON_RIGHT: cpu->input_set(4, 0, state); break; // Kick right
+                        case BUTTON_LEFT: cpu->input_set(0, 0, state); break; // Kick left
+                        case BUTTON_DOWN: cpu->input_set(4, 1, state); break; // Punch
+                        default: break; } break;
+                case PART_LEFT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(0, 2, state); break;
+                        case BUTTON_RIGHT: cpu->input_set(1, 1, state); break;
+                        case BUTTON_LEFT: cpu->input_set(1, 2, state); break;
+                        case BUTTON_DOWN: cpu->input_set(2, 1, state); break;
+                        default: break; } break;
+                default: break;
+            }
+        }
+};
+
+
+class TGOLDNAXE : public Virtual_Input{
+    public : 
+        TGOLDNAXE(SM5XX* c) : Virtual_Input(c) {
+            left_configuration = CONF_4_BUTTON_DIRECTION;
+            right_configuration = CONF_4_BUTTON_DIRECTION;
+        }
+
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_SETUP:
+                    switch (button) {
+                        case BUTTON_GAMEA: cpu->input_set(6, 3, state, true); break; // Start
+                        case BUTTON_GAMEB: cpu->input_set(5, 0, state); break; // Max Score
+                        default: break; } break;
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(3, 1, state); break; // Magic
+                        case BUTTON_RIGHT: cpu->input_set(4, 1, state); break; // Attack Right
+                        case BUTTON_LEFT: cpu->input_set(4, 0, state); break; // Attack Left
+                        case BUTTON_DOWN: cpu->input_set(3, 1, state); break; // Magic
+                        default: break; } break;
+                case PART_LEFT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(0, 2, state); break;
+                        case BUTTON_RIGHT: cpu->input_set(1, 1, state); break;
+                        case BUTTON_LEFT: cpu->input_set(1, 2, state); break;
+                        case BUTTON_DOWN: cpu->input_set(2, 1, state); break;
+                        default: break; } break;
+                default: break;
+            }
+        }
+};
+
+
+class TGAUNT : public Virtual_Input{
+    public : 
+        TGAUNT(SM5XX* c) : Virtual_Input(c) {
+            left_configuration = CONF_4_BUTTON_DIRECTION;
+            right_configuration = CONF_4_BUTTON_DIRECTION;
+        }
+
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_SETUP:
+                    switch (button) {
+                        case BUTTON_GAMEA: cpu->input_set(6, 3, state, true); break; // Start
+                        case BUTTON_GAMEB: cpu->input_set(5, 0, state); break; // Max Score
+                        default: break; } break;
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(4, 1, state); break; // key
+                        case BUTTON_LEFT: cpu->input_set(3, 1, state); break; // BOMB
+                        case BUTTON_RIGHT: cpu->input_set(4, 0, state); break; // Attack 
+                        case BUTTON_DOWN: cpu->input_set(0, 0, state); break; // Pick
+                        default: break; } break;
+                case PART_LEFT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(0, 2, state); break;
+                        case BUTTON_RIGHT: cpu->input_set(1, 1, state); break;
+                        case BUTTON_LEFT: cpu->input_set(1, 2, state); break;
+                        case BUTTON_DOWN: cpu->input_set(2, 1, state); break;
+                        default: break; } break;
+                default: break;
+            }
+        }
+};
+
+
+class TMCHAMMER : public Virtual_Input{
+    public : 
+        TMCHAMMER(SM5XX* c) : Virtual_Input(c) {
+            left_configuration = CONF_4_BUTTON_DIRECTION;
+            right_configuration = CONF_4_BUTTON_DIRECTION;
+        }
+
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_SETUP:
+                    switch (button) {
+                        case BUTTON_GAMEA: cpu->input_set(6, 3, state, true); break; // Start
+                        case BUTTON_GAMEB: cpu->input_set(5, 2, state); break; // Max Score
+                        default: break; } break;
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(1, 1, state); break; // Leg Leaps Up/Jump
+                        case BUTTON_LEFT: cpu->input_set(0, 0, state); break; // Leg Footwork Left
+                        case BUTTON_RIGHT: cpu->input_set(1, 0, state); break; // Leg Footwork Right
+                        case BUTTON_DOWN: cpu->input_set(2, 1, state); break; // Leg Leaps Down
+                        default: break; } break;
+                case PART_LEFT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(0, 2, state); break; // ARM UP
+                        case BUTTON_RIGHT: cpu->input_set(2, 2, state); break; // ARM Right
+                        case BUTTON_LEFT: cpu->input_set(3, 2, state); break; // ARM Left
+                        case BUTTON_DOWN: cpu->input_set(4, 2, state); break; // ARM Down
+                        default: break; } break;
+                default: break;
+            }
+        }
+};
+
+
+class TSHARR2 : public Virtual_Input{
+    public : 
+        TSHARR2(SM5XX* c) : Virtual_Input(c) {
+            left_configuration = CONF_4_BUTTON_DIRECTION;
+            right_configuration = CONF_1_BUTTON_ACTION;
+        }
+
+        void set_input(uint8_t part, uint8_t button, bool state, uint8_t player = 1) override{
+            switch (part) {
+                case PART_SETUP:
+                    switch (button) {
+                        case BUTTON_GAMEA: cpu->input_set(5, 3, state, true); break; // Start
+                        case BUTTON_GAMEB: cpu->input_set(4, 0, state); break; // Max Score
+                        default: break; } break;
+                case PART_RIGHT:
+                    switch (button) {
+                        case BUTTON_ACTION: cpu->input_set(3, 1, state); break; // key
+                        default: break; } break;
+                case PART_LEFT:
+                    switch (button) {
+                        case BUTTON_UP: cpu->input_set(0, 2, state); break;
+                        case BUTTON_RIGHT: cpu->input_set(1, 1, state); break;
+                        case BUTTON_LEFT: cpu->input_set(1, 2, state); break;
+                        case BUTTON_DOWN: cpu->input_set(2, 1, state); break;
+                        default: break; } break;
+                default: break;
+            }
+        }
+};
+
+
+
 //////////////////// Get good Game & Watch input Configuration ////////////////////
 
 inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
@@ -2159,11 +2361,17 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     
     /* Tiger */
     else if (ref_game == "TSONIC2" || ref_game == "TSONIC"){ return new TSONIC2(cpu); }
-    else if(ref_game == "TSFIGHT2"){ return new TSFIGHTER2(cpu); }
-    else if(ref_game == "TDDRAGON" || ref_game == "TMEGAMAN3" 
-        || ref_game == "TGAIDEN"|| ref_game == "TGAIDEN3" ){ return new TDDRAGON(cpu); }
-    else if(ref_game == "TSIMQUEST"){ return new TSIMQUEST(cpu); }
-    
-    
+    else if (ref_game == "TSFIGHT2" || ref_game == "TALTBEAST" || ref_game == "TDDRAGON2"){ return new TSFIGHTER2(cpu); }
+    else if (ref_game == "TDDRAGON" || ref_game == "TMEGAMAN3" 
+            || ref_game == "TGAIDEN" || ref_game == "TGAIDEN3"
+            || ref_game == "TSTRIDER" ){ return new TDDRAGON(cpu); }
+    else if (ref_game == "TSIMQUEST"){ return new TSIMQUEST(cpu); }
+    else if (ref_game == "TDDRAGON3"){ return new TDDRAGON3(cpu); }
+    else if (ref_game == "TSDDRAGON"){ return new TSDDRAGON(cpu); }
+    else if (ref_game == "TGOLDNAXE"){ return new TGOLDNAXE(cpu); }
+    else if (ref_game == "TGAUNT"){ return new TGAUNT(cpu); }
+    else if (ref_game == "TSHARR2"){ return new TSHARR2(cpu); }
+    else if (ref_game == "TMCHAMMER"){ return new TMCHAMMER(cpu); }
+
     return nullptr;
 }

@@ -1178,19 +1178,38 @@ games_path = {
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1988-01-01"
                     , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
                 }
               
             , "Castlevania_II_Simon_s_Quest" :
                     { "ref" : "tsimquest"
                     , "manufacturer" : 3
-                    , "display_name" : "Castlevania II Simon's Quest"
+                    , "display_name" : "Castlevania II - Simon's Quest"
                     , "Rom" : r'.\rom\decompress\tsimquest\581'
                     , "Visual" : [r'.\rom\decompress\tsimquest\tsimquest.svg']
                     , "Background" : [r'.\rom\decompress\tsimquest\Background.png']
                     , "transform_visual" : [[[1152,0,0],[878,0,0]]]
                     , "date" : "1988-01-01"
                     , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
                 }
+              
+            , "Gauntlet" :
+                    { "ref" : "tgaunt"
+                    , "manufacturer" : 3
+                    , "display_name" : "Gauntlet"
+                    , "Rom" : r'.\rom\decompress\tgaunt\583'
+                    , "Visual" : [r'.\rom\decompress\tgaunt\tgaunt.svg']
+                    , "Background" : [r'.\rom\decompress\tgaunt\Background.png']
+                    , "transform_visual" : [[[2376,0,0],[1790,0,0]]]
+                    , "date" : "1988-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
+                            
               
             , "Ninja_Gaiden" :
                     { "ref" : "tgaiden"
@@ -1202,6 +1221,78 @@ games_path = {
                     , "transform_visual" : [[[1499,0,0],[1080,0,0]]]
                     , "date" : "1989-01-01"
                     , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
+              
+            , "Golden_Axe" :
+                    { "ref" : "tgoldnaxe"
+                    , "manufacturer" : 3
+                    , "display_name" : "Golden Axe"
+                    , "Rom" : r'.\rom\decompress\tgoldnaxe\m94'
+                    , "Visual" : [r'.\rom\decompress\tgoldnaxe\tgoldnaxe.svg']
+                    , "Background" : [r'.\rom\decompress\tgoldnaxe\Background.png']
+                    , "transform_visual" : [[[1190,0,0],[860,0,0]]]
+                    , "date" : "1989-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
+              
+              , "Altered_Beast" :
+                    { "ref" : "taltbeast"
+                    , "manufacturer" : 3
+                    , "display_name" : "Altered Beast"
+                    , "Rom" : r'.\rom\decompress\taltbeast\m88'
+                    , "Visual" : [r'.\rom\decompress\taltbeast\taltbeast.svg']
+                    , "Background" : [r'.\rom\decompress\taltbeast\Background.png']
+                    , "transform_visual" : [[[1177,0,0],[850,0,0]]]
+                    , "date" : "1990-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
+              
+            , "Double_Dragon_II_The_Revenge" :
+                    { "ref" : "tddragon2"
+                    , "manufacturer" : 3
+                    , "display_name" : "Double Dragon II - The Revenge"
+                    , "Rom" : r'.\rom\decompress\tddragon2\m84'
+                    , "Visual" : [r'.\rom\decompress\tddragon2\tddragon2.svg']
+                    , "Background" : [r'.\rom\decompress\tddragon2\bg.jpg']
+                    , "transform_visual" : [[[1451,0,0],[1080,0,0]]]
+                    , "date" : "1990-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
+              
+            , "Space_Harrier_II" :
+                    { "ref" : "tsharr2"
+                    , "manufacturer" : 3
+                    , "display_name" : "Space Harrier II"
+                    , "Rom" : r'.\rom\decompress\tsharr2\m91'
+                    , "Visual" : [r'.\rom\decompress\tsharr2\tsharr2.svg']
+                    , "Background" : [r'.\rom\decompress\tsharr2\bg.jpg']
+                    , "transform_visual" : [[[1493,0,0],[1080,0,0]]]
+                    , "date" : "1990-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
+              
+            , "Strider" :
+                    { "ref" : "tstrider"
+                    , "manufacturer" : 3
+                    , "display_name" : "Strider"
+                    , "Rom" : r'.\rom\decompress\tstrider\m92'
+                    , "Visual" : [r'.\rom\decompress\tstrider\tstrider.svg']
+                    , "Background" : [r'.\rom\decompress\tstrider\Background.png']
+                    , "transform_visual" : [[[1182,0,0],[925,0,0]]]
+                    , "date" : "1990-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
                 }
 
             , "Mega_Man_3" :
@@ -1214,7 +1305,38 @@ games_path = {
                 , "transform_visual" : [[[1162,0,0],[867,0,0]]]
                 , "date" : "1991-01-01"
                 , "console" : r'.\rom\default_console.png'
-            }
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
+              
+            , "Double_Dragon_III_The_Rosetta_Stone" :
+                    { "ref" : "tddragon3"
+                    , "manufacturer" : 3
+                    , "display_name" : "Double Dragon III - The Rosetta Stone"
+                    , "Rom" : r'.\rom\decompress\tddragon3\ma6'
+                    , "Visual" : [r'.\rom\decompress\tddragon3\tddragon3.svg']
+                    , "Background" : [r'.\rom\decompress\tddragon3\Background.png']
+                    , "transform_visual" : [[[1232,0,0],[890,0,0]]]
+                    , "date" : "1991-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
+              
+            , "U_Can_t_Touch_This" :
+                    { "ref" : "tmchammer"
+                    , "manufacturer" : 3
+                    , "display_name" : "MC Hammer - U Can't Touch This"
+                    , "Rom" : r'.\rom\decompress\tmchammer\n63.program'
+                    , "Melody_Rom" : r'.\rom\decompress\tmchammer\n63.melody'
+                    , "Visual" : [r'.\rom\decompress\tmchammer\tmchammer.svg']
+                    , "Background" : [r'.\rom\decompress\tmchammer\Background.png']
+                    , "transform_visual" : [[[1130,0,0],[838,0,0]]]
+                    , "date" : "1991-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
               
             , "Ninja_Gaiden_III" :
                     { "ref" : "tgaiden3"
@@ -1226,6 +1348,8 @@ games_path = {
                     , "transform_visual" : [[[1499,0,0],[1080,0,0]]]
                     , "date" : "1992-01-01"
                     , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
                 }
 
             , "Sonic_The_Hedgehog" :
@@ -1235,10 +1359,12 @@ games_path = {
                     , "Rom" : r'.\rom\decompress\tsonic\n71.program'
                     , "Melody_Rom" : r'.\rom\decompress\tsonic\n71.melody'
                     , "Visual" : [r'.\rom\decompress\tsonic\tsonic.svg']
-                    , "Background" : [r'.\rom\decompress\tsonic\bg.jpg']
-                    , "transform_visual" : [[[1517,0,0],[1080,0,0]]]
+                    , "Background" : [r'.\rom\decompress\tsonic\Background.png']
+                    , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1992-01-01"
                     , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
                 }
               
             , "Sonic_The_Hedgehog_2" :
@@ -1248,11 +1374,13 @@ games_path = {
                     , "Rom" : r'.\rom\decompress\tsonic2\n86.program'
                     , "Melody_Rom" : r'.\rom\decompress\tsonic2\n86.melody'
                     , "Visual" : [r'.\rom\decompress\tsonic2\tsonic2.svg']
-                    , "Background" : [r'.\rom\decompress\tsonic2\bg.jpg']
-                    , "transform_visual" : [[[1475,0,0],[1080,0,0]]]
+                    , "Background" : [r'.\rom\decompress\tsonic2\Background.png']
+                    , "transform_visual" : [[[1180,0,0],[860,0,0]]]
                     , "date" : "1993-01-01"
                     , "console" : r'.\rom\default_console.png'
-            }
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
               
             , "Street_Fighter_2" :
                     { "ref" : "tsfight2"
@@ -1264,6 +1392,25 @@ games_path = {
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1993-01-01"
                     , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
                 }
+              
+              
+            , "Super_Double_Dragon" :
+                    { "ref" : "tsddragon"
+                    , "manufacturer" : 3
+                    , "display_name" : "Super Double Dragon"
+                    , "Rom" : r'.\rom\decompress\tsddragon\mf5'
+                    , "Visual" : [r'.\rom\decompress\tsddragon\tsddragon.svg']
+                    , "Background" : [r'.\rom\decompress\tsddragon\Background.png']
+                    , "transform_visual" : [[[1177,0,0],[850,0,0]]]
+                    , "date" : "1993-01-01"
+                    , "console" : r'.\rom\default_console.png'
+                    , "alpha_bright" : 1.1
+                    , "fond_bright" : 1.2
+                }
+              
+              
 
 }
