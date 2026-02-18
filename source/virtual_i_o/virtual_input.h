@@ -1978,9 +1978,9 @@ class TSONIC2 : public Virtual_Input{
         }
 };
 
-class TSFIGHTER2 : public Virtual_Input{
+class TSFIGHT2 : public Virtual_Input{
     public : 
-        TSFIGHTER2(SM5XX* c) : Virtual_Input(c) {
+        TSFIGHT2(SM5XX* c) : Virtual_Input(c) {
             left_configuration = CONF_4_BUTTON_DIRECTION;
             right_configuration = CONF_4_BUTTON_DIRECTION;
         }
@@ -2360,18 +2360,19 @@ inline Virtual_Input* get_input_config(SM5XX* cpu, std::string ref_game){
     else if (ref_game == "D_AND_J_ESQUIVE"){ return new d_and_j_esquive(cpu); }
     
     /* Tiger */
-    else if (ref_game == "TSONIC2" || ref_game == "TSONIC"){ return new TSONIC2(cpu); }
-    else if (ref_game == "TSFIGHT2" || ref_game == "TALTBEAST" || ref_game == "TDDRAGON2"){ return new TSFIGHTER2(cpu); }
-    else if (ref_game == "TDDRAGON" || ref_game == "TMEGAMAN3" 
-            || ref_game == "TGAIDEN" || ref_game == "TGAIDEN3"
-            || ref_game == "TSTRIDER" ){ return new TDDRAGON(cpu); }
-    else if (ref_game == "TSIMQUEST"){ return new TSIMQUEST(cpu); }
-    else if (ref_game == "TDDRAGON3"){ return new TDDRAGON3(cpu); }
-    else if (ref_game == "TSDDRAGON"){ return new TSDDRAGON(cpu); }
-    else if (ref_game == "TGOLDNAXE"){ return new TGOLDNAXE(cpu); }
-    else if (ref_game == "TGAUNT"){ return new TGAUNT(cpu); }
-    else if (ref_game == "TSHARR2"){ return new TSHARR2(cpu); }
-    else if (ref_game == "TMCHAMMER"){ return new TMCHAMMER(cpu); }
+    else if (ref_game == "TSONIC2" || ref_game == "TSONIC"){ return new TSONIC2(cpu); } // Sonic 1 / Sonic 2
+    else if (ref_game == "TSFIGHT2" || ref_game == "TALTBEAST" // Street Fighter II / Altered Best
+            || ref_game == "TDDRAGON2"){ return new TSFIGHT2(cpu); } // Double Dragon 2
+    else if (ref_game == "TDDRAGON" || ref_game == "TMEGAMAN3"  // Double Dragon / Mega man 3
+            || ref_game == "TGAIDEN" || ref_game == "TGAIDEN3" // Ninja gaiden / Ninja gaiden 3
+            || ref_game == "TSTRIDER" ){ return new TDDRAGON(cpu); } // Strider 
+    else if (ref_game == "TSIMQUEST"){ return new TSIMQUEST(cpu); } // Castlevania II
+    else if (ref_game == "TDDRAGON3"){ return new TDDRAGON3(cpu); } // Double Dragon 3
+    else if (ref_game == "TSDDRAGON"){ return new TSDDRAGON(cpu); } // Super Double Dragon
+    else if (ref_game == "TGOLDNAXE"){ return new TGOLDNAXE(cpu); } // Golden Axe
+    else if (ref_game == "TGAUNT"){ return new TGAUNT(cpu); } // Gautlet
+    else if (ref_game == "TSHARR2"){ return new TSHARR2(cpu); } // Space Harrier II
+    else if (ref_game == "TMCHAMMER"){ return new TMCHAMMER(cpu); } // MC Hammer
 
     return nullptr;
 }

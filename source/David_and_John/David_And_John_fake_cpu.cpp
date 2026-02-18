@@ -7,6 +7,7 @@
 #include "./Avignon/D_And_J_Avignon_program.h"
 #include "./Esquive/D_And_J_Esquive_program.h"
 #include "./Rythme/D_And_J_Rythm_program.h"
+#include "./Fabric/D_And_J_Fabric_program.h"
 
 
 
@@ -24,6 +25,7 @@ void David_And_John_fake_cpu::load_rom(const uint8_t* file_hex, size_t size_hex)
             curr_program = new D_And_J_Rythm_program(this);
             break;
         case 4:
+            curr_program = new D_And_J_Fabric_program(this);
             break;
         case 5:
             curr_program = new D_And_J_Esquive_program(this);

@@ -92,10 +92,10 @@ Special editions are not supported in the emulator, refer to the Notes column fo
 | 04  | SK-10   | trsgkeep.zip        | Super Goal Keeper                                            | 1983.01.01   | SM5A |  |
 | 05  | MG-8    | trshutvoy.zip       | Shuttle Voyage                                               | 1983.01.01   | SM510 |  |
 | 06  | SA-12   | trspacadv.zip       | Space Adventure                                              | 1982.01.01   | SM511 |  |
-| 07  | SM-11   | trspacmis.zip       | Space Mission                                                | 1982.01.01   | SM5A |  |
-| 08  | SG-21   | trspider.zip        | Spider                                                       | 1982.01.01   | SM5A | trspacmis |
+| 07  | SM-11   | trspacmis.zip       | Space Mission (Tronica)                                      | 1982.01.01   | SM5A |  |
+| 08  | SG-21   | trspider.zip        | Spider (Tronica)                                             | 1982.01.01   | SM5A | trspacmis |
 | 09  | MG-9    | trsrescue.zip       | Space Rescue                                                 | 1982.01.01   | SM510 |  |
-| 10  | FR-23   | trthuball.zip       | Thunder Ball                                                 | 1983.01.01   | SM510 | trsrescue |
+| 10  | FR-23   | trthuball.zip       | Thunder Ball (Tronica)                                       | 1983.01.01   | SM510 | trsrescue |
 
 ## Elektronika
 
@@ -103,12 +103,12 @@ Special editions are not supported in the emulator, refer to the Notes column fo
 |-----|---------|---------------------|--------------------------------------------------------------|--------------|-----|-------|
 | 01  | IM-53   | atakaast.zip        | Ataka asteroidov                                             | 1992.01.01   | SM5A | gnw_mmouse |
 | 02  | IM-19   | biathlon.zip        | Biathlon                                                     | 1989.01.01   | SM5A | gnw_mmouse |
-| 03  | IM-11   | ecircus.zip         | Circus                                                       | 1993.01.01   | SM5A | gnw_mmouse |
-| 04  | IM-10   | ehockey.zip         | Hockey                                                       | 1988.01.01   | SM5A | gnw_mmouse |
+| 03  | IM-11   | ecircus.zip         | Circus (Elektronika)                                         | 1993.01.01   | SM5A | gnw_mmouse |
+| 04  | IM-10   | ehockey.zip         | Hockey (Elektronika)                                         | 1988.01.01   | SM5A | gnw_mmouse |
 | 05  | IM-09   | kosmicmt.zip        | Kosmicheskiy most                                            | 1989.01.01   | SM5A | gnw_fire |
 | 06  | IM-50   | kosmicpt.zip        | Kosmicheskiy polyot                                          | 1992.01.01   | SM5A | gnw_mmouse |
-| 07  | IM-32   | krybolov.zip        | Kot rybolov                                                  | 1989.01.01   | SM5A | gnw_mmouse |
-| 08  | IM-33   | kvakazad.zip        | Kvaka zadavaka                                               | 1989.01.01   | SM5A | gnw_mmouse |
+| 07  | IM-32   | krybolov.zip        | Kot-rybolov (Elektronika)                                    | 1989.01.01   | SM5A | gnw_mmouse |
+| 08  | IM-33   | kvakazad.zip        | Kvaka-zadavaka                                               | 1989.01.01   | SM5A | gnw_mmouse |
 | 09  | IM-51   | morataka.zip        | Morskaja ataka                                               | 1992.01.01   | SM5A | gnw_mmouse |
 | 10  | IM-49   | nochnyev.zip        | Nochnye vorishki                                             | 1993.01.01   | SM5A | gnw_mmouse |
 | 11  | IM-02   | nupogodi.zip        | Nu, pogodi!                                                  | 1983.01.01   | SM5A | gnw_mmouse |
@@ -117,8 +117,8 @@ Special editions are not supported in the emulator, refer to the Notes column fo
 | 14  | IM-03   | taynyoke.zip        | Tayny okeana                                                 | 1988.01.01   | SM5A | gnw_octopus |
 | 15  | IM-04   | vespovar.zip        | Vesyolyy povar                                               | 1989.01.01   | SM5A | gnw_chef |
 | 16  | IM-22   | vfutbol.zip         | Vesyolye futbolisty                                          | 1989.01.01   | SM5A | gnw_mmouse |
-| 17  | IM-12   | vinnpukh.zip        | Vinni Pukh                                                   | 1990.01.01   | SM511 | gnw_dkjrp | 
-| 18  | IM-23   | auslalom.zip        | Autoslalom                                                   | 1990.01.01   | SM5A |  |
+| 17  | IM-12   | vinnpukh.zip        | Vinni-Pukh (Panorama Screen)                                 | 1990.01.01   | SM511 | gnw_dkjrp | 
+| 01  | IM-23   | auslalom.zip        | Autoslalom                                                   | 1990.01.01   | SM5A |  |
 
 
 ## Tiger
@@ -129,7 +129,7 @@ Special editions are not supported in the emulator, refer to the Notes column fo
 | 02  | tsonic  | tsonic.zip          | Sonic The Hedgehog                                           | 1992.01.01   | SM511 |  |
 | 03  | tsfight2| tsfight2.zip        | Street Fighter II                                            | 1993.01.01   | SM510 |  |
 | 04  | tddragon| tddragon.zip        | Double Dragon                                                | 1988.01.01   | SM510 |  |
-| 05  | tsimquest| tsimquest.zip      | Castlevania II - Simon's Quest                                 | 1988.01.01   | SM510 |  |
+| 05  | tsimquest| tsimquest.zip      | Castlevania II - Simon's Quest                               | 1988.01.01   | SM510 |  |
 | 06  | tmegaman3| tmegaman3.zip      | Mega Man 3                                                   | 1991.01.01   | SM510 |  |
 | 07  | tgaiden | tgaiden.zip         | Ninja Gaiden                                                 | 1989.01.01   | SM510 |  |
 | 08  | tgaiden3| tgaiden3.zip        | Ninja Gaiden III                                             | 1992.01.01   | SM510 |  |
@@ -139,6 +139,6 @@ Special editions are not supported in the emulator, refer to the Notes column fo
 | 12  | tstrider| tstrider.zip        | Strider                                                      | 1990.01.01   | SM510 |  |
 | 13  | tgoldnaxe| tgoldnaxe.zip      | Golden Axe                                                   | 1989.01.01   | SM510 |  |
 | 14  | taltbeast| taltbeast.zip      | Altered Beast                                                | 1990.01.01   | SM510 |  |
-| 15  | tmchammer| tmchammer.zip      | MC Hammer - U Can't Touch This                                | 1991.01.01   | SM511 |  |
+| 15  | tmchammer| tmchammer.zip      | MC Hammer - U Can't Touch This                               | 1991.01.01   | SM511 |  |
 | 16  | tgaunt  | tgaunt.zip          | Gauntlet                                                     | 1988.01.01   | SM510 |  |
 | 17  | tsharr2 | tsharr2.zip         | Space Harrier II                                             | 1990.01.01   | SM510 |  |
