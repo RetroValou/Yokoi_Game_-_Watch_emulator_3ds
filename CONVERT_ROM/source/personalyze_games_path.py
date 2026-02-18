@@ -942,7 +942,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\trthuball\BackgroundNS.png']
                     , "transform_visual" : [[[1222,59,65],[828,63,4]]]
                     , "date" : "1983-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\trthuball\trthuball.png'
                 }
               
             , "Nu_pogodi" :
@@ -1177,7 +1177,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tddragon\Background.png']
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1988-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tddragon\tddragon.png'
                 }
               
             , "Castlevania_II_Simon_s_Quest" :
@@ -1189,7 +1189,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tsimquest\Background.png']
                     , "transform_visual" : [[[1152,0,0],[878,0,0]]]
                     , "date" : "1988-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tsimquest\tsimquest.png'
                 }
               
             , "Gauntlet" :
@@ -1201,9 +1201,8 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tgaunt\Background.png']
                     , "transform_visual" : [[[2376,0,0],[1790,0,0]]]
                     , "date" : "1988-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tgaunt\tgaunt.png'
                 }
-                            
               
             , "Ninja_Gaiden" :
                     { "ref" : "tgaiden"
@@ -1214,7 +1213,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tgaiden\bg.png']
                     , "transform_visual" : [[[1499,0,0],[1080,0,0]]]
                     , "date" : "1989-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tgaiden\tgaiden.png'
                 }
               
             , "Golden_Axe" :
@@ -1226,7 +1225,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tgoldnaxe\Background.png']
                     , "transform_visual" : [[[1190,0,0],[860,0,0]]]
                     , "date" : "1989-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tgoldnaxe\tgoldnaxe.png'
                 }
               
               , "Altered_Beast" :
@@ -1238,7 +1237,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\taltbeast\Background.png']
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1990-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\taltbeast\taltbeast.png'
                 }
               
             , "Double_Dragon_II_The_Revenge" :
@@ -1250,7 +1249,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tddragon2\bg.jpg']
                     , "transform_visual" : [[[1451,0,0],[1080,0,0]]]
                     , "date" : "1990-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tddragon2\tddragon2.png'
                 }
               
             , "Space_Harrier_II" :
@@ -1262,7 +1261,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tsharr2\bg.jpg']
                     , "transform_visual" : [[[1493,0,0],[1080,0,0]]]
                     , "date" : "1990-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tsharr2\tsharr2.png'
                 }
               
             , "Strider" :
@@ -1274,7 +1273,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tstrider\Background.png']
                     , "transform_visual" : [[[1182,0,0],[925,0,0]]]
                     , "date" : "1990-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tstrider\tstrider.png'
                 }
 
             , "Mega_Man_3" :
@@ -1286,7 +1285,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tmegaman3\Background.png']
                     , "transform_visual" : [[[1162,0,0],[867,0,0]]]
                     , "date" : "1991-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tmegaman3\tmegaman3.png'
                 }
               
             , "Double_Dragon_III_The_Rosetta_Stone" :
@@ -1298,7 +1297,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tddragon3\Background.png']
                     , "transform_visual" : [[[1232,0,0],[890,0,0]]]
                     , "date" : "1991-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tddragon3\tddragon3.png'
                 }
               
             , "U_Can_t_Touch_This" :
@@ -1311,7 +1310,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tmchammer\Background.png']
                     , "transform_visual" : [[[1130,0,0],[838,0,0]]]
                     , "date" : "1991-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tmchammer\tmchammer.png'
                 }
               
             , "Ninja_Gaiden_III" :
@@ -1320,10 +1319,10 @@ games_path = {
                     , "display_name" : "Ninja Gaiden III"
                     , "Rom" : r'.\rom\decompress\tgaiden3\md6'
                     , "Visual" : [r'.\rom\decompress\tgaiden3\tgaiden3.svg']
-                    , "Background" : [r'.\rom\decompress\tgaiden3\bg.png']
-                    , "transform_visual" : [[[1499,0,0],[1080,0,0]]]
+                    , "Background" : [r'.\rom\decompress\tgaiden3\Background.png']
+                    , "transform_visual" : [[[1152,0,0],[888,0,0]]]
                     , "date" : "1992-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tgaiden3\tgaiden3.png'
                 }
 
             , "Sonic_The_Hedgehog" :
@@ -1336,7 +1335,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tsonic\Background.png']
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1992-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tsonic\tsonic.png'
                 }
               
             , "Sonic_The_Hedgehog_2" :
@@ -1349,7 +1348,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tsonic2\Background.png']
                     , "transform_visual" : [[[1180,0,0],[860,0,0]]]
                     , "date" : "1993-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tsonic2\tsonic2.png'
                 }
               
             , "Street_Fighter_2" :
@@ -1361,7 +1360,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tsfight2\Background.png']
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1993-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tsfight2\tsfight2.png'
                 }
               
               
@@ -1374,9 +1373,7 @@ games_path = {
                     , "Background" : [r'.\rom\decompress\tsddragon\Background.png']
                     , "transform_visual" : [[[1177,0,0],[850,0,0]]]
                     , "date" : "1993-01-01"
-                    , "console" : r'.\rom\default_console.png'
+                    , "console" : r'.\rom\decompress\tsddragon\tsddragon.png'
                 }
-              
-              
 
 }

@@ -2266,7 +2266,7 @@ class TSHARR2 : public Virtual_Input{
                         default: break; } break;
                 case PART_RIGHT:
                     switch (button) {
-                        case BUTTON_ACTION: cpu->input_set(3, 1, state); break; // key
+                        case BUTTON_ACTION: cpu->input_set(3, 0, state); break; // key
                         default: break; } break;
                 case PART_LEFT:
                     switch (button) {
