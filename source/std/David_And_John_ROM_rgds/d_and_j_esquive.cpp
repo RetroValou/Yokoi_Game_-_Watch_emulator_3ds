@@ -9,7 +9,7 @@
 
 
 const uint8_t rom_GW_d_and_j_esquive[] = {
-    0xFF, 0xFF, 0xFF, 0x05
+	0xFF, 0xFF, 0xFF, 0x05
 }; const size_t size_rom_GW_d_and_j_esquive = sizeof(rom_GW_d_and_j_esquive)/sizeof(rom_GW_d_and_j_esquive[0]);
 
 const uint8_t melody_GW_d_and_j_esquive[1] = {0}; 

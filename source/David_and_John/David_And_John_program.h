@@ -9,9 +9,9 @@ constexpr uint64_t WAIT_BEFORE_PLAYER_MOVE = (1000000/13); /* move player 13 fps
 constexpr uint64_t WAIT_BEFORE_STEP = (1000000/60); /* Logic rythm to 60 fps */
 constexpr uint64_t WAIT_BLINK = (160000);
 
-constexpr uint8_t PIEZO_LOW = 20;//24;
-constexpr uint8_t PIEZO_LITTLE_HIGHT = 16;//16;
-constexpr uint8_t PIEZO_HIGHT = 15;//14;
+constexpr uint8_t PIEZO_LOW = 24;//24;
+constexpr uint8_t PIEZO_LITTLE_HIGHT = 18;//16;
+constexpr uint8_t PIEZO_HIGHT = 17;//14;
 
 constexpr uint64_t WAIT_RETURN_AFTER_SUCESS = (1000000);
 constexpr uint64_t WAIT_RETURN_AFTER_LITTLE_DEAD = (1000000);

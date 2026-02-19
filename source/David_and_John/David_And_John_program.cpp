@@ -226,7 +226,7 @@ void David_And_John_program::sucess_logic(){
 void David_And_John_program::go_to_win_life(){
     curr_phase = Program_Phase::Score_life_adding; 
     last_wait_x_counter = time_us_64_p();
-    fake_cpu->play_sound(PIEZO_LITTLE_HIGHT, 90000, 3);
+    fake_cpu->play_sound(PIEZO_LITTLE_HIGHT, 70000, 3);
     life += 1;
 }
 
