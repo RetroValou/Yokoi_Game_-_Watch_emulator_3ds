@@ -21,6 +21,8 @@ constexpr float f_PROJECTILE_GEN_LIMIT[2] = { 3, 100 };
 constexpr float f_PROJECTILE_GEN_INCREASE = 1.0f/35.0f;
 constexpr float f_PROJECTILE_GEN_RANDOM_POWER = 30;
 
+constexpr uint8_t f_SCORE_GET = 1;
+constexpr uint8_t f_SCORE_SET = 2;
 
 class David_And_John_fake_cpu;
 
@@ -63,13 +65,20 @@ class D_And_J_Fabric_program: public David_And_John_program
         int count_projectile_active();
         uint8_t get_index_projectile_not_use(uint8_t i_nb, uint8_t x);
         void update_projectile();
+        void create_projectile(uint8_t x_choose, int nb_projectiles_activ);
 
-        //void adding_score() override;
-        //void var_reset_gameplay() override;
+        void estimate_david_pos();
+        void set_david_pos(uint8_t index);
+        void stop_david();
+
+        void adding_score() override;
+        void adding_score_during_play(bool is_get);
+        void var_reset_gameplay() override;
         void go_to_play() override;
-        //void play_logic() override;
+        void play_logic() override;
+        void check_get_projectile();
 
-        //void new_loop_gameplay() override;
+        void new_loop_gameplay() override;
 
         bool input_start_game() override;
 };

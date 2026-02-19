@@ -91,7 +91,8 @@ void yokoi_load_game_by_index_and_init(uint8_t idx) {
     if (g_input) {
         // Some early SM5A titles (e.g. Ball, Vermin, Fire) have buttons directly wired to
         // K inputs (no multiplexing). Mirror the 3DS init path so KTA reads inputs correctly.
-        g_cpu->set_input_multiplexage(g_input->use_multiplexage);
+        //g_cpu->set_input_multiplexage(g_input->use_multiplexage);
+        //         -> Change by set on virtual_input.cpp automaticly
     }
     
     g_segments.clear();

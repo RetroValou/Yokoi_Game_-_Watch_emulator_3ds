@@ -30,6 +30,8 @@ bool D_And_J_Climber_program::get_segments_state(uint8_t line, uint8_t word){
             return false;
 
         case 3: // projectile wait before
+            if(curr_phase == Program_Phase::Sucess){ return false; }
+            else if(curr_phase == Program_Phase::Score_life_adding){ return false; }
             // if one of projectile is show before fall, not show wait before
             for(size_t i = 0; i < list_projectiles->size(); i++){
                 if((*list_projectiles)[i].used &&
@@ -39,6 +41,8 @@ bool D_And_J_Climber_program::get_segments_state(uint8_t line, uint8_t word){
             return true;
 
         case 4: // projectile before
+            if(curr_phase == Program_Phase::Sucess){ return false; }
+            else if(curr_phase == Program_Phase::Score_life_adding){ return false; }
             for(size_t i = 0; i < list_projectiles->size(); i++){
                 if(word == (*list_projectiles)[i].pos_x){
                     if((*list_projectiles)[i].used 
