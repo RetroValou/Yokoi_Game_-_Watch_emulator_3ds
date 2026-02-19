@@ -1,11 +1,17 @@
 segment_*.png
+!segment_*d_and_j*.png
 segment_*.t3s
+!segment_*d_and_j*.t3s
 
 background_*.png
+!background_*d_and_j*.png
 background_*.t3s
+!background_*d_and_j*.t3s
 
 console_*.png
+!console_*d_and_j*.png
 console_*.t3s
+!console_*d_and_j*.t3s
 
 romfs/gfx/*
 !romfs/gfx/.gitkeep
