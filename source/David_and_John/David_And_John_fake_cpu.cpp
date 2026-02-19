@@ -100,7 +100,7 @@ bool David_And_John_fake_cpu::save_state(FILE* file){
 bool David_And_John_fake_cpu::load_state(FILE* file){
     if(!file) return false;
     
-    if(fread(&high_score, sizeof(uint64_t), 1, file) != 1) return false;
+    if(fread(&high_score, sizeof(uint64_t), 1, file) != 1) { return false; };
     return true;
 };
 

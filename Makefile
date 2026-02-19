@@ -84,7 +84,7 @@ ifeq ($(strip $(EMBEDDED)),0)
 	GRAPHICS := gfx
 	ROMFS := romfs
 	GFXBUILD := $(ROMFS)/gfx
-	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s noise.t3s $(wildcard *d_and_j*.t3s)
+	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s noise.t3s $(notdir $(wildcard gfx/*d_and_j*.t3s))
 endif
 
 ifneq ($(strip $(EMBEDDED)),0)
