@@ -194,6 +194,7 @@ void SM510::op_kta(){
             accumulator = accumulator | k_input[i];
         }
     }
+    accumulator = accumulator | k_input_sp_not_multiplex;
 };
 
 void SM510::op_atbp(){ bp_lcd_blackplate = accumulator & 0x01; };

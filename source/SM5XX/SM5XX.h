@@ -23,7 +23,7 @@ public:
     std::string name_cpu;
     bool stop_cpu = false;
     bool segments_state_are_update = false;
-    bool input_no_multiplex = false;
+    //bool input_no_multiplex = false;
     uint32_t frequency;
     uint32_t sound_divide_frequency = 1; 
 
@@ -47,6 +47,8 @@ protected:
 
     // input
     uint8_t k_input[8]; // 8 enter K (4bit) (only 4 on SM5A) by default = 0
+    uint8_t k_input_sp_not_multiplex; // For input not multiplex (8 enter K)
+
     bool beta_input; // special input, by default = 1
     bool alpha_input; // special input, by default = 1
 
@@ -69,12 +71,13 @@ protected:
 public:
     bool step();
     void execute_cycle();
-    void input_set(int group, int line, bool state);
+    void input_set(int group, int line, bool state, bool not_multiplex = false);
 
     void load_rom_time_addresses(const std::string& ref_game);
     void time_set(bool state){ time_set_state = state; }
     bool is_time_set(){ return time_set_state; }
     void set_time(uint8_t hour, uint8_t minute, uint8_t second);
+    //void set_input_multiplexage(bool use_multiplexage = true){ input_no_multiplex = !use_multiplexage; };
 
 private : 
     void adding_program_counter(const uint8_t* opcode);
@@ -117,6 +120,8 @@ public :
     virtual bool save_state(FILE* file) = 0;
     virtual bool load_state(FILE* file) = 0;
     virtual uint8_t get_cpu_type_id() = 0; // Return CPU type identifier
+
+    virtual void end_of_cpu() { }; // for fake cpu
 
 private :
     virtual void execute_curr_opcode() = 0; // switch case op_code function with curr hexa op_code value
@@ -197,6 +202,8 @@ protected:
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 public :
+    void init_debug();
+
     bool debug_gamma_flag(){ return gamma_flag_second; }
     uint16_t debug_divider_time(){ return f_clock_divider; }
 
@@ -208,6 +215,10 @@ public :
     uint8_t debug_cycle_previous_opcode;
     uint8_t debug_cycle_curr_opcode;
     uint16_t debug_curr_opcode;
+
+    uint8_t debug_multiplexage_activate;
+    uint8_t debug_value_read_input;
+
 
     int debug_program_counter_col() { return program_counter.col; }
     int debug_program_counter_line() { return program_counter.line; }
@@ -221,6 +232,7 @@ public :
     int debug_ram_adress_line(){ return ram_address.line; }
 
     void debug_dump_ram_state(const char* filename);
+    std::string debug_var_cpu();
 
     virtual uint8_t debug_get_elem_rom(int, int, int) { return 0x00; }
     virtual int debug_rom_adress_size_col(){ return 0; }
@@ -235,4 +247,5 @@ public :
     virtual uint8_t debug_w_prime_screen(int){ return 0x00; }
     virtual uint8_t debug_CN_Flag(){ return 0x00; }
 
+    virtual std::string debug_opcode_trad(){ return ""; }
 };

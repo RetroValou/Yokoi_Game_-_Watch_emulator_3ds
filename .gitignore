@@ -16,7 +16,7 @@ source/std/GW_ROM/*
 source/std/GW_ROM_RGDS/*
 !source/std/GW_ROM_RGDS/.gitkeep
 
-CONVERT_ROM/tmp/img/*
+CONVERT_ROM/tmp/*
 !CONVERT_ROM/tmp/img/.gitkeep
 CONVERT_ROM/rom/*
 !CONVERT_ROM/rom/.gitkeep
@@ -29,6 +29,9 @@ games_path_*.py
 
 # Per-machine tool configuration (copy from CONVERT_ROM/external_apps_template.py)
 CONVERT_ROM/external_apps.py
+
+# Dev script outputs
+CONVERT_ROM/utils/EXTRACTED_LIST*.md
 
 Yokoi*.3dsx
 Yokoi*.elf

@@ -12,6 +12,25 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+try:
+	# When imported as part of the 'source' package
+	from .manufacturer_ids import (
+		MANUFACTURER_NINTENDO,
+		MANUFACTURER_TRONICA,
+		MANUFACTURER_ELEKTRONIKA,
+		MANUFACTURER_TIGER,
+		normalize_manufacturer_id,
+	)
+except ImportError:
+	# When run directly from the 'source' directory
+	from manufacturer_ids import (
+		MANUFACTURER_NINTENDO,
+		MANUFACTURER_TRONICA,
+		MANUFACTURER_ELEKTRONIKA,
+		MANUFACTURER_TIGER,
+		normalize_manufacturer_id,
+	)
+
 
 INDENT_KEY_FIRST = "              "
 INDENT_KEY_OTHER = "            , "
@@ -47,12 +66,17 @@ class GameEntry:
 	rotate: bool = False
 	background_in_front: bool = False
 	active_cam: bool = False
+	background_keep_white: bool = False
+	background_white_keep_threshold: int = 245
+	# Numeric manufacturer id (matches source/std/GW_ROM.h constants).
+	manufacturer: int = MANUFACTURER_NINTENDO
 
 	def format_lines(self, script_dir: Path) -> List[str]:
 		"""Format this entry using the house style used by the generator."""
 
 		lines: List[str] = []
 		lines.append(f'{INDENT_FIELD}{{ "ref" : "{self.ref}"')
+		lines.append(f'{INDENT_FIELD}, "manufacturer" : {int(self.manufacturer)}')
 		lines.append(f'{INDENT_FIELD}, "display_name" : "{self.display_name}"')
 		lines.append(f'{INDENT_FIELD}, "Rom" : {_format_path(self.rom_path, script_dir)}')
 
@@ -109,6 +133,13 @@ class GameEntry:
 
 		if self.active_cam:
 			lines.append(f'{INDENT_FIELD}, "camera" : True')
+
+		if self.background_keep_white:
+			lines.append(f'{INDENT_FIELD}, "background_keep_white" : True')
+			if int(self.background_white_keep_threshold) != 245:
+				lines.append(
+					f'{INDENT_FIELD}, "background_white_keep_threshold" : {int(self.background_white_keep_threshold)}'
+				)
 
 		lines.append(INDENT_FOOTER)
 		return lines
@@ -257,6 +288,9 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 		if not isinstance(data, dict):
 			continue
 
+		manufacturer_value = data.get("manufacturer", MANUFACTURER_NINTENDO)
+		manufacturer = normalize_manufacturer_id(manufacturer_value, default=MANUFACTURER_NINTENDO)
+
 		rom_path = _to_path(data.get("Rom"))
 		visual_values = data.get("Visual") or []
 		background_values = data.get("Background") or []
@@ -278,6 +312,8 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 		fond_bright = float(data.get("fond_bright", default_fond_bright))
 		rotate = bool(data.get("rotate", False))
 		background_in_front = bool(data.get("background_in_front", False))
+		background_keep_white = bool(data.get("background_keep_white", False))
+		background_white_keep_threshold = int(data.get("background_white_keep_threshold", 245))
 		# Preferred key is "camera" (matches convert_3ds.py). Keep backward compat
 		# with any older intermediate key name.
 		active_cam = bool(data.get("camera", data.get("active_cam", False)))
@@ -309,6 +345,9 @@ def _dict_to_entries(games_path: Dict[str, Any], script_root: Path) -> List[Game
 				rotate=rotate,
 				background_in_front=background_in_front,
 				active_cam=active_cam,
+				background_keep_white=background_keep_white,
+				background_white_keep_threshold=background_white_keep_threshold,
+				manufacturer=manufacturer,
 			),
 		)
 

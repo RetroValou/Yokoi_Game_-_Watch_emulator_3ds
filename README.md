@@ -12,7 +12,7 @@ A Game & Watch emulator for 3DS & Android: SM5A, SM510, and SM511/SM512.
 
 # Supported games
 
-Supported games are all of the Game & Watch titles and a single Tronica game.
+Supported games are all of the Game & Watch titles and some Tronica games.
 
 - Full list: [CONVERT_ROM/GNW_LIST.md](/CONVERT_ROM/GNW_LIST.md)
 - Compatible Game & Watch models are those equipped with Sharp processors SM5A, SM510, SM511, SM512
@@ -26,9 +26,12 @@ Supported games are all of the Game & Watch titles and a single Tronica game.
 
 - Dual-screen support for double-screen Game & Watch on 3DS and Anbernic RGDS
 - Save state support
-- Time synchronization (feature not available for all G&W)
+- Time synchronization
 - Stereoscopic 3D on 3ds
-- Camera support for Game & Watch Crystal Screen games on 3ds (reproduces the "transparent" screen) 
+- Camera support for Game & Watch Crystal Screen games on 3ds (reproduces the "transparent" screen)
+- Ajustable LCD Segment Shadow
+- Optional Full screen (Android only)
+- Optional Virtual Input (Android only) 
 
 # Installation
 

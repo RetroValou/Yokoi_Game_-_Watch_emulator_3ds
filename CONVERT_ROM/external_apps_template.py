@@ -14,6 +14,7 @@ Notes:
 
 # Inkscape executable.
 # Example Windows install path:
+# Prefer the CLI-friendly binary when available (often `inkscape.com`).
 INKSCAPE_PATH = r"C:\Program Files\Inkscape\bin\inkscape.exe"
 
 # tex3ds executable (devkitPro tools).

@@ -20,7 +20,7 @@
 	GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
 
 constexpr uint16_t nb_segments_max = 512;
-constexpr uint16_t nb_text_max = 1024;
+constexpr uint16_t nb_text_max = 2048;
 constexpr uint16_t nb_img_interface_max = 10;
 
 constexpr uint32_t SEGMENT_COLOR[5] {0x080908, /* classic black segment */

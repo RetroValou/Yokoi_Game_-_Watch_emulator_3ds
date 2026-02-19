@@ -8,16 +8,20 @@ option(YOKOI_EMBEDDED_ASSETS "Build with compiled-in ROMs/assets (embedded build
 
 # Minimum external pack content version that this build accepts.
 # Bump this when the app expects newer pack contents (textures/layout/etc.).
-set(YOKOI_ROMPACK_REQUIRED_CONTENT_VERSION "2" CACHE STRING "Minimum required ROM pack content version")
+set(YOKOI_ROMPACK_REQUIRED_CONTENT_VERSION "3" CACHE STRING "Minimum required ROM pack content version")
 
 # Repo root from android/app/src/main/cpp
 set(YOKOI_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../../..")
 
-file(GLOB_RECURSE YOKOI_SM5XX_SRC
+file(GLOB_RECURSE YOKOI_SM5XX_SRC CONFIGURE_DEPENDS
     "${YOKOI_ROOT}/source/SM5XX/*.cpp"
 )
 
-file(GLOB_RECURSE YOKOI_STD_SRC
+file(GLOB_RECURSE YOKOI_DAVID_JOHN_SRC CONFIGURE_DEPENDS
+    "${YOKOI_ROOT}/source/David_and_John/*.cpp"
+)
+
+file(GLOB_RECURSE YOKOI_STD_SRC CONFIGURE_DEPENDS
     "${YOKOI_ROOT}/source/std/*.cpp"
 )
 
@@ -26,14 +30,19 @@ file(GLOB_RECURSE YOKOI_STD_SRC
 # explicitly below, so exclude both from the std list to avoid duplicate symbols.
 list(FILTER YOKOI_STD_SRC EXCLUDE REGEX ".*[/\\\\]GW_ROM[/\\\\].*")
 list(FILTER YOKOI_STD_SRC EXCLUDE REGEX ".*[/\\\\]GW_ROM_RGDS[/\\\\].*")
+list(FILTER YOKOI_STD_SRC EXCLUDE REGEX ".*[/\\\\]David_And_John_ROM[/\\\\].*")
 
-file(GLOB_RECURSE YOKOI_GW_ROM_SRC
+file(GLOB_RECURSE YOKOI_GW_ROM_SRC CONFIGURE_DEPENDS
     "${YOKOI_ROOT}/source/std/GW_ROM_RGDS/*.cpp"
 )
 
 if(NOT YOKOI_EMBEDDED_ASSETS)
     set(YOKOI_GW_ROM_SRC "")
 endif()
+
+file(GLOB_RECURSE YOKOI_OPEN_SOURCE_ROM_SRC CONFIGURE_DEPENDS
+    "${YOKOI_ROOT}/source/std/David_And_John_ROM_rgds/*.cpp"
+)
 
 # Exclude 3DS-only/example sources if they slip in
 list(FILTER YOKOI_STD_SRC EXCLUDE REGEX ".*\\/sound_example\\/.*")
@@ -59,8 +68,10 @@ add_library(yokoi SHARED
     jni/yokoi_jni_aliases.cpp
     jni/yokoi_settings_jni.cpp
     ${YOKOI_SM5XX_SRC}
+    ${YOKOI_DAVID_JOHN_SRC}
     ${YOKOI_STD_SRC}
     ${YOKOI_GW_ROM_SRC}
+    ${YOKOI_OPEN_SOURCE_ROM_SRC}
 )
 
 if(YOKOI_EMBEDDED_ASSETS)
@@ -77,7 +88,9 @@ target_include_directories(yokoi PRIVATE
     "${YOKOI_ROOT}/source"
     "${YOKOI_ROOT}/source/std"
     "${YOKOI_ROOT}/source/std/GW_ROM_RGDS"
+    "${YOKOI_ROOT}/source/std/David_And_John_ROM_rgds"
     "${YOKOI_ROOT}/source/SM5XX"
+    "${YOKOI_ROOT}/source/David_and_John"
 )
 
 find_library(log-lib log)

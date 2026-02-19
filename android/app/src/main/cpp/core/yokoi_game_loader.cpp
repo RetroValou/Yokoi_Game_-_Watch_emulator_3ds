@@ -33,9 +33,13 @@ namespace {
 constexpr const char* kLogTag = "Yokoi";
 
 uint8_t find_game_index_by_ref(const std::string& ref) {
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "find_game_index_by_ref");
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "f_1");
     size_t n = get_nb_name();
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "f_2");
     if (n > 255) n = 255;
     for (size_t i = 0; i < n; i++) {
+        __android_log_write(ANDROID_LOG_ERROR, kLogTag, std::to_string(i).c_str());
         const GW_rom* g = load_game((uint8_t)i);
         if (g && g->ref == ref) {
             return (uint8_t)i;
@@ -84,7 +88,13 @@ void yokoi_load_game_by_index_and_init(uint8_t idx) {
     yokoi_cpu_set_time_if_needed(g_cpu.get());
 
     g_input.reset(get_input_config__android_game_loader_tu(g_cpu.get(), g_game->ref));
-
+    if (g_input) {
+        // Some early SM5A titles (e.g. Ball, Vermin, Fire) have buttons directly wired to
+        // K inputs (no multiplexing). Mirror the 3DS init path so KTA reads inputs correctly.
+        //g_cpu->set_input_multiplexage(g_input->use_multiplexage);
+        //         -> Change by set on virtual_input.cpp automaticly
+    }
+    
     g_segments.clear();
     if (g_game->segment && g_game->size_segment > 0) {
         g_segments.assign(g_game->segment, g_game->segment + g_game->size_segment);
@@ -137,25 +147,35 @@ void yokoi_load_game_by_index_and_init(uint8_t idx) {
 }
 
 uint8_t yokoi_get_default_game_index_for_android() {
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "yokoi_get_default_game_index_for_android");
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "1");
+
     size_t n = get_nb_name();
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "2");
     if (n == 0) {
         return 0;
     }
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "3");
 
-    // Prefer last selected game if we have one recorded.
-    if (g_settings.last_game_name[0] != '\0') {
-        uint8_t idx = load_last_game_index();
-        if (idx >= (uint8_t)n) {
-            idx = 0;
+    // Prefer last selected manufacturer, then restore last game for that manufacturer.
+    {
+        const uint8_t mfr = load_last_selected_manufacturer(GW_rom::MANUFACTURER_NINTENDO);
+        uint8_t idx = 0;
+        if (try_load_last_game_index_for_manufacturer(mfr, &idx)) {
+            if (idx < (uint8_t)n) {
+                return idx;
+            }
         }
-        return idx;
     }
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "4");
 
     // No saved last game: fall back to a preferred title; if not present, use first game.
     uint8_t idx = find_game_index_by_ref("JR_55");
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "4_1");
     if (idx >= (uint8_t)n) {
         idx = 0;
     }
+    __android_log_write(ANDROID_LOG_ERROR, kLogTag, "5");
     return idx;
 }
 

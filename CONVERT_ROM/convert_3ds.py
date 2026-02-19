@@ -14,10 +14,18 @@ from typing import Iterable
 
 from source import convert_svg as cs
 from source import img_manipulation as im
+from source import game_cache
 from source.target_profiles import get_target
+from source.manufacturer_ids import (
+    MANUFACTURER_NINTENDO,
+    MANUFACTURER_TRONICA,
+    MANUFACTURER_ELEKTRONIKA,
+    MANUFACTURER_TIGER,
+    normalize_manufacturer_id,
+)
 
-ROMPACK_FORMAT_VERSION = 2
-ROMPACK_CONTENT_VERSION = 2
+ROMPACK_FORMAT_VERSION = 3
+ROMPACK_CONTENT_VERSION = 3
 
 # Configurable external apps.
 # Configure them by copying CONVERT_ROM/external_apps_template.py -> CONVERT_ROM/external_apps.py.
@@ -58,8 +66,17 @@ gw_rom_include_dir = "GW_ROM"
 
 default_alpha_bright = 1.7
 default_fond_bright = 1.35
+
+tiger_default_alpha_bright = 1.1
+tiger_default_fond_bright = 1.2
+
 default_rotate = False
 default_console = r'.\rom\default.png'
+
+# Cache behavior:
+# - Cache files are always written after a successful rebuild (best-effort).
+# - Reading cache to skip rebuilding is only enabled with --use-cache.
+USE_CACHE_READ = False
 
 
 def _load_games_path_for_target(target_name: str) -> dict:
@@ -171,16 +188,29 @@ def sort_by_screen(name: str):
 
 
 
+def extract_color_index(filename: str) -> int:
+    parts = filename.split("_")
+    if len(parts) > 1:
+        try:
+            return int(parts[1].split(".")[0])
+        except Exception as e:
+            print(f"[ERROR] Could not parse color_index from filename: {filename}")
+            print(f"  parts: {parts}")
+            print(f"  Exception: {e}")
+            return 0
+    else:
+        print(f"[ERROR] Filename does not contain expected '_': {filename}")
+        return 0
+
+
 def segment_text(all_img, name, color_segment:bool = False):
-    result = f"\nconst Segment segment_GW_{name}[] = {{\n	"
+    result = f"\nconst Segment segment_GW_{name}[] = {{\n\t"
     for data in all_img:
         filename, img_r, screen, pos_x, pos_y, size_x, size_y, pos_x_tex, pos_y_tex = data
         seg_x = int(filename.split(".")[0])
         seg_y = int(filename.split(".")[1])
         seg_z = int(filename.split(".")[2].split("_")[0])
-        color_index = 0
-        if(color_segment): 
-            color_index = int(filename.split("_")[1].split(".")[0])
+        color_index = extract_color_index(filename) if color_segment else 0
         result += f"{{ {{ {seg_x},{seg_y},{seg_z} }}, {{ {pos_x},{pos_y} }}, {{ {pos_x_tex},{pos_y_tex} }}, {{ {size_x},{size_y} }}, {color_index}, {screen}, false, false, 0 }}, "
     result = result[:-2] + "\n};"
     result += f"  const size_t size_segment_GW_{name} = sizeof(segment_GW_{name})/sizeof(segment_GW_{name}[0]); \n"
@@ -188,25 +218,27 @@ def segment_text(all_img, name, color_segment:bool = False):
 
 
 def find_best_parquet(rects: list):
-    atlas_size = None
-    best_area = float("inf")
-    best_packer = None
-    
+    # Heuristic: try candidate bins from smallest area to largest, and return
+    # the first that fits. Python's sort is stable, so ties preserve original
+    # (w,h) iteration order.
+    candidates: list[tuple[int, int]] = []
     for w in size_altas_check:
         for h in size_altas_check:
-            packer = newPacker(rotation=False)
-            for rect in rects: packer.add_rect(*rect)
-            packer.add_bin(w, h)
-            packer.pack()
-            abin = next(iter(packer))
-            used_rects = len(list(abin))
-            if used_rects == len(rects):  # toutes placées
-                area = w * h
-                if area < best_area:
-                    best_area = area
-                    atlas_size = (w, h)
-                    best_packer = packer  
-    return best_packer, atlas_size
+            candidates.append((int(w), int(h)))
+    candidates.sort(key=lambda wh: wh[0] * wh[1])
+
+    for w, h in candidates:
+        packer = newPacker(rotation=False)
+        for rect in rects:
+            packer.add_rect(*rect)
+        packer.add_bin(w, h)
+        packer.pack()
+        abin = next(iter(packer))
+        used_rects = len(list(abin))
+        if used_rects == len(rects):
+            return packer, (w, h)
+
+    return None, None
 
 
 def visual_data_file(name, size_list, background_path_list, rotate = False, mask = False, color_segment = False, two_in_one_screen = False, transform = []):
@@ -278,9 +310,7 @@ def visual_data_file(name, size_list, background_path_list, rotate = False, mask
         seg_x = int(filename.split(".")[0])
         seg_y = int(filename.split(".")[1])
         seg_z = int(filename.split(".")[2].split("_")[0])
-        color_index = 0
-        if color_segment:
-            color_index = int(filename.split("_")[1].split(".")[0])
+        color_index = extract_color_index(filename) if color_segment else 0
         segment_records.append({
             "id0": seg_x,
             "id1": seg_y,
@@ -300,7 +330,9 @@ def visual_data_file(name, size_list, background_path_list, rotate = False, mask
 
 
 def background_data_file(name, path_list = [], size_list = [], rotate = False, alpha_bright = 1.7, fond_bright = 1.35
-                            , shadow = True, background_in_front = False, camera = False):
+                            , shadow = True, background_in_front = False, camera = False
+                            , background_keep_white: bool = False
+                            , background_white_keep_threshold: int = 245):
     i = 0
     atlas_size = [1, 1]
     for size in size_list:
@@ -322,7 +354,16 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
             img = Image.open(path)
 
             img, x_size, y_size = im.transform_img(img, x_size, y_size, False, rotate, True)
-            data = im.make_alpha(img, fond_bright, alpha_bright)
+            if background_keep_white:
+                data = im.make_alpha_ex(
+                    img,
+                    fond_bright,
+                    alpha_bright,
+                    keep_white=True,
+                    white_keep_threshold=int(background_white_keep_threshold),
+                )
+            else:
+                data = im.make_alpha(img, fond_bright, alpha_bright)
 
             result_img[curr_ind_r_img:(data.shape[0]+curr_ind_r_img), 1:data.shape[1]+1, :] = data
             
@@ -443,13 +484,22 @@ def rom_text(name:str, rom_path: str):
     return c_file
 
 
+def _manufacturer_to_id(value) -> int:
+    """Normalize manufacturer values into a small numeric id."""
+
+    return normalize_manufacturer_id(value, default=MANUFACTURER_NINTENDO)
+
+
 
 
 def generate_game_file(destination_game_file, name, display_name, ref, date
                 , rom_path, visual_path, size_visual, path_console
                 , melody_path = '', background_path = [], rotate = False, mask = False, color_segment = False, two_in_one_screen = False
                 , transform = [], alpha_bright = 1.7, fond_bright = 1.35, shadow = True
-                , background_in_front = False, camera = False):
+                , background_in_front = False, camera = False, manufacturer = MANUFACTURER_NINTENDO
+                , background_keep_white: bool = False
+                , background_white_keep_threshold: int = 245
+                ):
     
     c_file = f"""
 #include <cstdint>
@@ -485,6 +535,8 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
         shadow,
         background_in_front,
         camera,
+        background_keep_white,
+        background_white_keep_threshold,
     )
     c_file += bg_text
     
@@ -493,6 +545,16 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
     
     c_file += "\n\n"
     
+    manufacturer_id = _manufacturer_to_id(manufacturer)
+    if manufacturer_id == MANUFACTURER_TRONICA:
+        manufacturer_cpp = "GW_rom::MANUFACTURER_TRONICA"
+    elif manufacturer_id == MANUFACTURER_ELEKTRONIKA:
+        manufacturer_cpp = "GW_rom::MANUFACTURER_ELEKTRONIKA"
+    elif manufacturer_id == MANUFACTURER_TIGER:
+        manufacturer_cpp = "GW_rom::MANUFACTURER_TIGER"
+    else:
+        manufacturer_cpp = "GW_rom::MANUFACTURER_NINTENDO"
+
     c_file += f'''
 const GW_rom {name} (
     "{display_name}", "{ref}", "{date}"
@@ -505,6 +567,7 @@ const GW_rom {name} (
     , background_info_{name}
     , path_console_{name}
     , console_info_{name}
+    , {manufacturer_cpp}
 );
 
 '''   
@@ -526,6 +589,7 @@ extern const GW_rom {name};
         "display_name": display_name,
         "ref": ref,
         "date": date,
+        "manufacturer": manufacturer_id,
         "rom_path": rom_path,
         "melody_path": melody_path,
         "path_segment": f"{texture_path_prefix}segment_{name}{texture_path_ext}",
@@ -626,24 +690,34 @@ def process_single_game(args):
     print(f"\n--------\n{key}\n")
 
     if reset_img_svg:
-        try: 
-            # Remove existing ./tmp/img/<game> directory if it exists
+        # Best-effort cleanup. Each step is isolated so a missing folder doesn't
+        # prevent cache invalidation or gfx cleanup.
+
+        # Remove existing ./tmp/img/<game> directory if it exists
+        try:
             shutil.rmtree("./tmp/img/" + key)
             print(f"Removed cache folder: tmp/img/{key}")
-
-            # Clean up gfx for this game: remove all .t3s and .png files
-            # whose filenames contain the current game key, using glob
-            if os.path.exists(destination_graphique_file):
-                pattern = os.path.join(destination_graphique_file, f"*{key}*")
-                for file_path in glob.glob(pattern):
-                    filename = os.path.basename(file_path)
-                    try:
-                        os.remove(file_path)
-                        print(f"Removed: {filename}")
-                    except Exception as e:
-                        print(f"Error removing {filename}: {e}")
-        except: 
+        except FileNotFoundError:
             pass
+        except Exception as e:
+            print(f"Warning: unable to remove tmp/img/{key}: {e}")
+
+        # Also invalidate the per-game build cache (even if tmp/img didn't exist).
+        deleted_cache = game_cache.invalidate_game(key)
+        if deleted_cache is not None:
+            print(f"Removed cache file: {deleted_cache}")
+
+        # Clean up gfx for this game: remove all .t3s/.png/.t3x files
+        # whose filenames contain the current game key.
+        if os.path.exists(destination_graphique_file):
+            pattern = os.path.join(destination_graphique_file, f"*{key}*")
+            for file_path in glob.glob(pattern):
+                filename = os.path.basename(file_path)
+                try:
+                    os.remove(file_path)
+                    print(f"Removed: {filename}")
+                except Exception as e:
+                    print(f"Error removing {filename}: {e}")
                 
     # Set default values if not exist
     alpha_bright = game_data.get('alpha_bright', default_alpha_bright)
@@ -656,6 +730,8 @@ def process_single_game(args):
     background_path = game_data.get('Background', [])
     background_in_front = game_data.get('background_in_front', False)
     camera = game_data.get('camera', False)
+    background_keep_white = game_data.get('background_keep_white', False)
+    background_white_keep_threshold = game_data.get('background_white_keep_threshold', 245)
     size_visual = game_data.get('size_visual', [resolution_up, resolution_down])
     if size_scale != 1:
         size_visual = [[int(s[0] * size_scale), int(s[1] * size_scale)] for s in size_visual]
@@ -664,16 +740,32 @@ def process_single_game(args):
     shadow = game_data.get('shadow', True)
     date = game_data.get('date', '198X-XX-XX')
 
+    ref_norm = game_data["ref"].replace('-', '_').upper()
+    manufacturer = _manufacturer_to_id(game_data.get("manufacturer", 0))
+
+    if USE_CACHE_READ:
+        cached = game_cache.try_load_pack_meta(key, game_data, clean_mode=reset_img_svg)
+        if cached is not None:
+            print(f"(cache) Up-to-date: {key}")
+            return cached
+
     pack_meta = generate_game_file(
         destination_game_file, key, display_name,
-        game_data["ref"].replace('-', '_').upper(), date,
+        ref_norm, date,
         game_data["Rom"], game_data["Visual"], size_visual,
         path_console, melody_path, background_path,
         rotate, mask, color_segment, two_in_one_screen,
         game_data["transform_visual"],
         alpha_bright, fond_bright, shadow,
-        background_in_front, camera
+        background_in_front, camera,
+        manufacturer,
+        background_keep_white,
+        background_white_keep_threshold,
     )
+
+    wrote_cache = game_cache.write_game_cache(key, game_data, pack_meta)
+    if wrote_cache is not None:
+        print(f"(cache) Wrote: {wrote_cache}")
     
     return pack_meta
 
@@ -718,8 +810,8 @@ def _build_tex3ds_outputs_for_pack(t3s_dir: Path, t3x_out_dir: Path) -> None:
             )
         except FileNotFoundError as e:
             raise RuntimeError(
-                f"tex3ds was not found at '{TEX3DS_PATH}'. Install devkitPro/devkitARM and set TEX3DS_PATH "
-                "in CONVERT_ROM/external_apps.py (copy from external_apps_template.py), or put tex3ds on PATH."
+                f"external app tex3ds not found (configured as '{TEX3DS_PATH}'); "
+                "check CONVERT_ROM/external_apps.py (copy from external_apps_template.py), or put tex3ds on PATH."
             ) from e
         except subprocess.CalledProcessError as e:
             stderr = (e.stderr or "").strip()
@@ -760,7 +852,7 @@ def write_rom_pack_v1(pack_games: list[dict], gfx_dir: str, out_path: str, platf
         )
 
     header_size = 36  # PackHeaderV2
-    game_entry_size = 96  # GameEntryV1 (24 * uint32)
+    game_entry_size = 100  # GameEntryV2 (25 * uint32)
     file_entry_size = 16  # FileEntryV1
 
     games_offset = header_size
@@ -835,8 +927,10 @@ def write_rom_pack_v1(pack_games: list[dict], gfx_dir: str, out_path: str, platf
         path_console_off, path_console_len = append_string(g["path_console"])
         console_info_off, console_info_count = append_u16_list(g["console_info"])
 
+        manufacturer_id = _manufacturer_to_id(g.get("manufacturer", MANUFACTURER_NINTENDO))
+
         game_entries.append(struct.pack(
-            "<" + "I" * 24,
+            "<" + "I" * 25,
             name_off, name_len,
             ref_off, ref_len,
             date_off, date_len,
@@ -849,6 +943,7 @@ def write_rom_pack_v1(pack_games: list[dict], gfx_dir: str, out_path: str, platf
             background_info_off, background_info_count,
             path_console_off, path_console_len,
             console_info_off, console_info_count,
+            manufacturer_id,
         ))
 
     file_entries: list[bytes] = []
@@ -949,7 +1044,13 @@ if __name__ == "__main__":
         "--clean",
         dest="reset_img_svg",
         action="store_true",
-        help="Delete and regenerate ./tmp/img/<game> before processing",
+        help="Delete and regenerate ./tmp/img/<game> before processing, and invalidate the per-game cache entry",
+    )
+
+    parser.add_argument(
+        "--use-cache",
+        action="store_true",
+        help="Use per-game cache to skip rebuilding unchanged games (cache files are still written after rebuilds)",
     )
 
     args = parser.parse_args()
@@ -957,6 +1058,31 @@ if __name__ == "__main__":
     print(f"\n=== convert_3ds.py target: {args.target} ===\n")
 
     apply_profile(args.target, args.out_gfx, args.out_gw_all, args.out_gw_rom_dir, args.export_dpi, args.scale)
+
+    # Always enable cache *writing* so rebuilt games produce fresh cache files.
+    # Cache *reading* (skip rebuilds) is controlled separately by --use-cache.
+    cache_enabled = True
+    USE_CACHE_READ = bool(args.use_cache)
+    game_cache.configure(
+        enabled=cache_enabled,
+        target_name=str(args.target),
+        cache_dir=Path(r".\\tmp\\cache"),
+        export_dpi=export_dpi,
+        size_scale=size_scale,
+        resolution_up=resolution_up,
+        resolution_down=resolution_down,
+        console_size=console_size,
+        console_atlas_size=console_atlas_size,
+        tex3ds_enabled=tex3ds_enabled,
+        texture_path_prefix=texture_path_prefix,
+        texture_path_ext=texture_path_ext,
+        destination_game_file=destination_game_file,
+        destination_graphique_file=destination_graphique_file,
+        default_console=default_console,
+        default_alpha_bright=default_alpha_bright,
+        default_fond_bright=default_fond_bright,
+        default_rotate=default_rotate,
+    )
 
     # Load games_path based on target.
     games_path = _load_games_path_for_target(args.target)
@@ -981,6 +1107,7 @@ if __name__ == "__main__":
     
     os.makedirs(r'.\tmp', exist_ok=True)
     os.makedirs(r'.\tmp\img', exist_ok=True)
+    game_cache.ensure_cache_dir()
 
     # Prepare game data with default values (optionally for a single game)
     game_items = []
@@ -1017,8 +1144,12 @@ if __name__ == "__main__":
         game_data = games_path[key].copy()
         
         # Set defaults
-        if 'alpha_bright' not in game_data: game_data['alpha_bright'] = default_alpha_bright
-        if 'fond_bright' not in game_data: game_data['fond_bright'] = default_fond_bright
+        if (game_data.get("manufacturer", 0) == MANUFACTURER_TIGER):
+            if 'alpha_bright' not in game_data: game_data['alpha_bright'] = tiger_default_alpha_bright
+            if 'fond_bright' not in game_data: game_data['fond_bright'] = tiger_default_fond_bright            
+        else:
+            if 'alpha_bright' not in game_data: game_data['alpha_bright'] = default_alpha_bright
+            if 'fond_bright' not in game_data: game_data['fond_bright'] = default_fond_bright
         if 'rotate' not in game_data: game_data['rotate'] = default_rotate
         if 'mask' not in game_data: game_data['mask'] = False
         if 'color_segment' not in game_data: game_data['color_segment'] = False

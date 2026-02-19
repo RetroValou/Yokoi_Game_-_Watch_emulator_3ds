@@ -7,12 +7,14 @@ static const uint8_t lut_digits[0x20] = // default digit segments PLA
 };
 
 void SM5A::execute_curr_opcode() {
+	bool ssr_exec = false;
+
     switch (curr_opcode & 0xf0)
 	{
 		case 0x20: g_op_lax(); break;
 		case 0x30: g_op_adx(); break;
 		case 0x40: op_lb(); break;
-		case 0x70: op_ssr(); break;
+		case 0x70: op_ssr(); ssr_exec = true; break;
 
 		case 0x80: case 0x90: case 0xa0: case 0xb0:
 			op_tr(); break;
@@ -91,10 +93,9 @@ void SM5A::execute_curr_opcode() {
 	} // 0xf0
 
 	// 0x70-0x7F = SSRx instruction use for temporaly change e_flag (only for next instruction)
-    if( e_temporar_flag && ( (curr_opcode & 0xF0) != 0x70) ){ 
+    if( e_temporar_flag && (!ssr_exec) ){
         e_temporar_flag = false;
     }
-
 }
 
 
@@ -125,7 +126,7 @@ void SM5A::op_tr(){
 	else {
 		program_counter.word = curr_opcode & 0x3F;
 	}
- };
+};
 
 void SM5A::op_trs(){ 
 	if(!r_subroutine_flag){
@@ -244,13 +245,20 @@ void SM5A::op_ws(){
 void SM5A::op_atr(){ r_output_control = accumulator & 0x0F; };
 
 void SM5A::op_kta(){
-	uint8_t pin_activate = (~accumulator) & 0x0F;/*(~r_output_control) & 0x0F;*/ // 0 -> Activate R_i ouput, 1-> desactivate R_i ouput
-    accumulator = 0x00;
-    for(int i = 0; i < 8; i++){
-        if( (((pin_activate >> i) & 0x01) == 0x01) || input_no_multiplex){ // multiplexage by S
+	// Need to be more study
+	// doubt whether the multiplexing index (the pin most often used for sound) should be shifted
+	// In theorie, accumulator -> r_output_control -> pin multiplexing but accumulator directly seems to work better
+	uint8_t pin_activate = (~r_output_control) & 0x0F;/*(~r_output_control) & 0x0F; (~accumulator) & 0x0F;*/ // 0 -> Activate R_i ouput, 1-> desactivate R_i ouput
+    debug_multiplexage_activate = pin_activate;
+	
+	accumulator = 0x00;
+    for(int i = 0; i < 4; i++){ 
+        if( (((pin_activate >> i) & 0x01) == 0x01) /*|| input_no_multiplex*/){ // multiplexage by S
             accumulator = accumulator | k_input[i];
         }
     }
+	accumulator = accumulator | k_input_sp_not_multiplex;
+	debug_value_read_input = accumulator;
 };
 
 // Divider
@@ -279,3 +287,92 @@ void SM5A::op_comcn(){
 };
 
 void SM5A::op_skip(){}; // no instruction, program counter +1
+
+
+
+
+
+
+
+std::string SM5A::debug_opcode_trad() {
+	if((debug_curr_opcode>>8) == 0x00){
+		switch (debug_curr_opcode & 0xf0)
+		{
+			case 0x20: return "lax"; break;
+			case 0x30: return "adx"; break;
+			case 0x40: return "lb"; break;
+			case 0x70: return "ssr"; break;
+
+			case 0x80: case 0x90: case 0xa0: case 0xb0:
+				return "tr"; break;
+			case 0xc0: case 0xd0: case 0xe0: case 0xf0:
+				return "trs"; break;
+
+			default:
+				switch (debug_curr_opcode & 0xfc)
+				{
+					case 0x04: return "rm"; break;
+					case 0x0c: return "sm"; break;
+					case 0x10: return "exc"; break;
+					case 0x14: return "exci"; break;
+					case 0x18: return "lda"; break;
+					case 0x1c: return "excd"; break;
+					case 0x54: return "tmi"; break;
+
+					default:
+						switch (debug_curr_opcode)
+						{
+							case 0x00: return "skip"; break;
+							case 0x01: return "atr"; break;
+							case 0x02: return "sbm"; break;
+							case 0x03: return "atbp"; break;
+							case 0x08: return "add"; break;
+							case 0x09: return "add11"; break;
+							case 0x0a: return "coma"; break;
+							case 0x0b: return "exbla"; break;
+
+							case 0x50: return "ta"; break;
+							case 0x51: return "tb"; break;
+							case 0x52: return "tc"; break;
+							case 0x53: return "tam"; break;
+							case 0x58: return "tis"; break;
+							case 0x59: return "ptw"; break;
+							case 0x5a: return "ta0"; break;
+							case 0x5b: return "tabl"; break;
+							case 0x5c: return "tw"; break;
+							case 0x5d: return "dtw"; break;
+							case 0x5f: return "lbl"; break;
+
+							case 0x60: return "comcn"; break;
+							case 0x61: return "pdtw"; break;
+							case 0x62: return "wr"; break;
+							case 0x63: return "ws"; break;
+							case 0x64: return "incb"; break;
+							case 0x65: return "idiv"; break;
+							case 0x66: return "rc"; break;
+							case 0x67: return "sc"; break;
+							case 0x68: return "rmf"; break;
+							case 0x69: return "smf"; break;
+							case 0x6a: return "kta"; break;
+							case 0x6b: return "rbm"; break;
+							case 0x6c: return "decb"; break;
+							case 0x6d: return "comcb"; break;
+							case 0x6e: return "rtn"; break;
+							case 0x6f: return "rtns"; break;
+						}
+					break; // 0xfc
+				} // 0xf0
+		}
+	}
+	else { // extended opcodes
+		switch (debug_curr_opcode)
+		{
+			case 0x5e00: return "cend"; break;
+			case 0x5e04: return "dta"; break;
+		}
+	}
+	return "illegal";
+}
+
+
+

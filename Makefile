@@ -33,9 +33,22 @@ include $(DEVKITARM)/3ds_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source  source/std source/std/GW_ROM source/virtual_i_o  source/SM5XX  source/SM5XX/SM5A  source/SM5XX/SM510  source/SM5XX/SM511_SM512
+SOURCES		:=	source  source/std \ source/virtual_i_o \
+				source/std/GW_ROM source/std/David_And_John_ROM \
+				source/SM5XX  source/SM5XX/SM5A  source/SM5XX/SM510  source/SM5XX/SM511_SM512 \
+				source/David_and_John  source/David_and_John/common \
+				source/David_and_John/Climber  source/David_and_John/Avignon  source/David_and_John/Esquive \
+				source/David_and_John/Fabric  source/David_and_John/Rythme  
+				
+
 DATA		:=	data
-INCLUDES	:=	include source  source/std source/std/GW_ROM source/virtual_i_o  source/SM5XX  source/SM5XX/SM5A  source/SM5XX/SM510  source/SM5XX/SM511_SM512
+INCLUDES	:=	include  source  source/std \ source/virtual_i_o \
+				source/std/GW_ROM source/std/David_And_John_ROM \
+				source/SM5XX  source/SM5XX/SM5A  source/SM5XX/SM510  source/SM5XX/SM511_SM512 \
+				source/David_and_John  source/David_and_John/common \
+				source/David_and_John/Climber  source/David_and_John/Avignon  source/David_and_John/Esquive \
+				source/David_and_John/Fabric  source/David_and_John/Rythme  
+
 GRAPHICS	:=	gfx
 #GFXBUILD	:=	$(BUILD)
 ROMFS		:=	romfs
@@ -48,9 +61,12 @@ EMBEDDED ?= 0
 # Set SHOW_MSG_ROM=0 to build without show Warning rom data
 SHOW_MSG_ROM ?= 1
 
+# Set DEBUG=0 to build with debug text
+DEBUG ?= 0
+
 # Minimum external pack content version that this build accepts.
 # Bump this when the app expects newer pack contents (textures/layout/etc.).
-ROMPACK_CONTENT_VERSION_REQUIRED ?= 2
+ROMPACK_CONTENT_VERSION_REQUIRED ?= 3
 
 # Extra defines for embedded/pack builds (appended after CFLAGS is set).
 ROMPACK_DEFINES ?=
@@ -68,12 +84,17 @@ ifeq ($(strip $(EMBEDDED)),0)
 	GRAPHICS := gfx
 	ROMFS := romfs
 	GFXBUILD := $(ROMFS)/gfx
-	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s
+	ROMPACK_UI_GFXFILES := texte_3ds.t3s logo_pioupiou.t3s noise.t3s $(notdir $(wildcard gfx/*d_and_j*.t3s))
 endif
 
 ifneq ($(strip $(EMBEDDED)),0)
 	ROMPACK_DEFINES += -DYOKOI_EMBEDDED_ASSETS=1
 endif
+
+ifneq ($(strip $(DEBUG)),0)
+	ROMPACK_DEFINES += -DYOKOI_DEBUG=1
+endif
+
 
 ifneq ($(strip $(SHOW_MSG_ROM)),0)
 	ROMPACK_DEFINES += -DYOKOI_SHOW_MSG_ROM

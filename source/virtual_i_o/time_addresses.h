@@ -31,13 +31,33 @@ inline const TimeAddress* get_time_addresses(const std::string& ref_game) {
         {"LN_08", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Lion
         {"PR_21", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Parachute
         {"OC_22", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Octopus
+        {"IM_03", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Tayny okeana
         {"PP_23", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Popeye (Wide Screen)
         {"IP_05", {1,2, 1,3, 1,6, 1,7, 1,4, 1,5, 0}}, // Judge (Green / Original)
         {"IP_15", {1,2, 1,3, 1,6, 1,7, 1,4, 1,5, 0}}, // Judge (Purple / Revised)
         {"FP_24", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Chef
+        {"IM_04", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Vesyolyy povar
         {"MC_25", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Mickey Mouse (Wide Screen)
         {"EG_26", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Egg
+        {"IM_53", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Ataka asteroidov
+        {"IM_19", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Biathlon 
+        {"IM_11", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Circus 
+        {"IM_10", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Hockey 
+        {"IM_50", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Kosmicheskiy polyot 
+        {"IM_32", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Kot-rybolov 
+        {"IM_33", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Kvaka-zadavaka 
+        {"IM_51", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Morskaja ataka 
+        {"IM_49", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Nochnye vorishki 
+        {"IM_02", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Nu, pogodi! 
+        {"IM_16", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Okhota 
+        {"IM_13", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Razvedchiki kosmosa 
+        {"IM_22", {2,4, 2,5, 2,6, 2,7, 2,8, 2,9, 2}}, // Vesyolye futbolisty 
         {"FR_27", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Fire (Wide Screen)
+        {"IM_09", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Kosmicheskiy most
+        {"SK_10", {0,3, 0,2, 0,1, 0,0, 99,99, 99,99, 8}}, // Super Goal Keeper
+        {"SM_11", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Space Mission (Tronica)
+        {"SG_21", {3,6, 3,7, 3,8, 3,9, 3,10, 3,11, 8}}, // Spider (Tronica)
+        {"IM_23", {2,4, 2,5, 2,6, 2,7, 99,99, 99,99, 0}}, // Autoslalom (Elektronika) 
     };
 
     // --- SM510 ---
@@ -57,6 +77,7 @@ inline const TimeAddress* get_time_addresses(const std::string& ref_game) {
         {"SM_91", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Snoopy (Panorama Screen)
         {"PG_92", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Popeye (Panorama Screen)
         {"CJ_93", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Donkey Kong Jr. (Panorama Screen)
+        {"IM_12", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Vinni-Pukh (Panorama Screen)
         {"TB_94", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Mario's Bombs Away
         {"DC_95", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Donkey Kong Circus
         {"MK_96", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Mickey Mouse (Panorama Screen)
@@ -69,6 +90,11 @@ inline const TimeAddress* get_time_addresses(const std::string& ref_game) {
         {"NH_103", {0,10, 0,11, 0,12, 0,13, 0,14, 0,15, 8}}, // Manhole (New Wide Screen)
         {"BU_201", {0,10, 0,11, 0,12, 0,13, 0,14, 0,15, 8}}, // Spitball Sparky
         {"MG_8", {3,0, 3,1, 3,3, 3,4, 3,6, 3,7, 2}}, // Shuttle Voyage
+        {"TG_18", {3,0, 3,1, 3,3, 3,4, 3,6, 3,7, 2}}, // Thief in Garden
+        {"CC_38V", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Clever Chicken
+        {"DA_37", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Diver's Adventure
+        {"MG_9", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Space Rescue
+        {"FR_23", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Thunder Ball (Tronica)
     };
 
     // --- SM511/SM512 ---
@@ -89,6 +115,7 @@ inline const TimeAddress* get_time_addresses(const std::string& ref_game) {
         {"BX_301", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Micro Vs. System: Boxing
         {"AK_302", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Micro Vs. System: Donkey Kong 3
         {"HK_303", {1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 8}}, // Micro Vs. System: Donkey Kong Hockey
+        {"SA_12", {5,4, 5,5, 5,7, 5,8, 5,10, 5,11, 8}}, // Space Adventure (Tronica)
     };
 
     auto it = sm5a_map.find(ref_game);

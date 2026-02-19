@@ -155,5 +155,6 @@ public : // debug
     uint8_t debug_w_prime_screen(int i) override {return w_prime_screen_control[i];};
 
     uint8_t debug_CN_Flag() override { return cn_flag; }
-
+    
+    std::string debug_opcode_trad() override;
 };

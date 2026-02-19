@@ -11,6 +11,7 @@ If you are looking for how to build the apps themselves, see [BUILDING.md](/BUIL
 - [CONVERT\_ROM tools](#convert_rom-tools)
   - [Table of contents](#table-of-contents)
   - [Supported games](#supported-games)
+  - [Manufacturer grouping (menu)](#manufacturer-grouping-menu)
   - [Prerequisites](#prerequisites)
     - [Python](#python)
     - [External apps](#external-apps)
@@ -25,14 +26,22 @@ If you are looking for how to build the apps themselves, see [BUILDING.md](/BUIL
     - [`convert_3ds.py`](#convert_3dspy)
   - [External ROM pack](#external-rom-pack)
     - [Rom pack locations](#rom-pack-locations)
+  - [Developer SCripts](#developer-scripts)
 
 ## Supported games
 
-Supported games are all of the Game & Watch titles and a single Tronica game.
+Supported games are all of the Game & Watch titles and some Tronica games.
 
 Full list: [GNW_LIST.md](/CONVERT_ROM/GNW_LIST.md)
 
 Notes: You do not have to include all games, you only need to include the games you want to be part of the emulator/rompack.
+
+## Manufacturer grouping (menu)
+
+The 3DS and Android menus group games by manufacturer automatically.
+
+- **Left/Right**: change game within the current manufacturer
+- **Up/Down**: switch manufacturer group
 
 ## Prerequisites
 
@@ -174,6 +183,13 @@ Command-line arguments:
   - Enable multiprocessing when building multiple games. (Not well tested)
 - `-c`, `--clean`
   - Delete and regenerate `./tmp/img/<game>` cache files before processing. If combined with `-g` only the single game data will be deleted.
+- `--use-cache`
+  - **Experimental:** enables a per-game “up-to-date” cache to skip rebuilding games whose inputs/options and expected outputs have not changed.
+  - When enabled, the script prints why a game is being rebuilt (missing outputs, changed inputs/options, invalid cache data) and then continues.
+  - Cache validation uses content checksums for inputs (so timestamp-only changes won’t force rebuilds).
+  - Cache files are stored under `./tmp/cache/`.
+  - Ignored when `-g/--game` is used (single-game runs always rebuild).
+  - If you have problems with your rompack, rebuild **WITHOUT** this option!
 - `--sort {none,key,display_name,date,ref}`
   - Optional deterministic ordering for games in the generated ROM pack.
   - This affects the pack entry order, which is the menu order on 3DS/Android pack-only builds.
@@ -194,7 +210,6 @@ python convert_3ds.py --target rgds --sort display_name
 python convert_3ds.py --target 3ds --sort ref --sort-reverse
 ```
 
-
 ## External ROM pack
 
 An external ROM pack is built at the same time as the embedded asset files. This external ROM pack can be used with both Android and 3DS builds that do not include embedded assets.
@@ -206,4 +221,6 @@ The rom pack files are named with the pack version and content version (i.e. `vX
 - Android: the app asks to import/update the ROM pack when needed; select the file and it is copied into place.
 - 3DS: pack-only builds require `sdmc:/3ds/yokoi_pack_3ds.ykp`.
 
+## Developer SCripts
 
+For dev-only utility scripts (e.g. `extract_games_from_mame_dat.py`), see [utils/UTILS_SCRIPTS.md](/CONVERT_ROM/utils/UTILS_SCRIPTS.md).

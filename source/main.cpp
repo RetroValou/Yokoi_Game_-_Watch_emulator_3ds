@@ -8,6 +8,7 @@
 #include <malloc.h>
 #include <time.h>
 #include <stdio.h>
+#include <sstream>
 
 #include "std/timer.h"
 #include "std/load_file.h"
@@ -22,15 +23,23 @@
 #include "SM5XX/SM510/SM510.h"
 #include "SM5XX/SM511_SM512/SM511_2.h"
 #include "SM5XX/SM5A/SM5A.h"
+#include "David_and_John/David_And_John_fake_cpu.h"
 
 #include "virtual_i_o/3ds_screen.h"
 #include "virtual_i_o/3ds_sound.h"
 #include "virtual_i_o/virtual_input.h"
 #include "virtual_i_o/3ds_input.h"
 
+// Debug helper: runtime RAM snapshots.
+// Set to 1 (e.g. via compiler -D flag) to enable L+SELECT RAM dumps to sdmc:/3ds/debug/.
+#ifndef YOKOI_ENABLE_RUNTIME_RAM_SNAPSHOT
+#define YOKOI_ENABLE_RUNTIME_RAM_SNAPSHOT 0
+#endif
+
 
 const float _3DS_FPS_SCREEN_ = 60;
 const int _INPUT_SETTING_ = (KEY_L|KEY_B);
+const int _INPUT_DEBUG_ = (KEY_L|KEY_X);
 const int _INPUT_SETTING_OTHER_ = (KEY_ZL|KEY_ZR);
 
 const int _INPUT_MENU_ = (KEY_L|KEY_R);
@@ -38,12 +47,25 @@ const int _INPUT_MENU_ = (KEY_L|KEY_R);
 const uint64_t _TIME_MOVE_MENU_ = 400000;
 const uint64_t _TIME_MOVE_VALUE_SETTING_ = 300000;
 
+enum GameState {
+    STATE_MENU,
+    STATE_PLAY,
+    STATE_SETTINGS,
+    STATE_SAVE_PROMPT
+};
 
+bool debug_run_op_press = false;
 
 uint8_t index_game = 0;
 
 bool get_cpu(SM5XX*& cpu, const uint8_t* rom, uint16_t size_rom){
-    if(size_rom == 1856){
+    if(size_rom == 4){ //No CPU, personalyse game
+        if(rom[0] == 0xFF && rom[1] == 0xFF && rom[2] == 0xFF){
+            cpu = new David_And_John_fake_cpu();
+            return true;
+        }
+    }
+    else if(size_rom == 1856){
         cpu = new SM5A();
         return true;
     }
@@ -97,6 +119,7 @@ static void show_pack_required_console(const std::string& err) {
 }
 #endif // !defined(YOKOI_EMBEDDED_ASSETS)
 
+#if defined(YOKOI_SHOW_MSG_ROM) && !defined(YOKOI_EMBEDDED_ASSETS)
 static void show_pack_required_screen(Virtual_Screen& v_screen, const std::string& err) {
     v_screen.delete_all_text();
     v_screen.delete_all_img();
@@ -127,6 +150,7 @@ static void show_pack_required_screen(Virtual_Screen& v_screen, const std::strin
         gspWaitForVBlank();
     }
 }
+#endif // defined(YOKOI_SHOW_MSG_ROM) && !defined(YOKOI_EMBEDDED_ASSETS)
 
 static void show_start_game_error(Virtual_Screen& v_screen, const std::string& msg) {
     v_screen.delete_all_text();
@@ -172,7 +196,7 @@ void update_credit(Virtual_Screen* v_screen){
     v_screen->delete_all_text();
     v_screen->delete_all_img();
     
-    text = std::string("<")+text+std::string(">");
+    //text = std::string("<")+text+std::string(">");
     int16_t pos_x = (400 - text.length()*16)/2;
     int16_t pos_y = (240 - 16)/2;
     v_screen->set_text(text, pos_x, pos_y, 0, 2);
@@ -191,10 +215,21 @@ void update_credit(Virtual_Screen* v_screen){
     v_screen->set_text("Public domain  Free to use", 10, 215, 1, 1);
     v_screen->set_text("No attribution required :)", 10, 225, 1, 1);
 
+    v_screen->set_text("Press any button to return", 78, 208, 0, 1);
+
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     v_screen->update_text();
     v_screen->update_img(false);
     C3D_FrameEnd(0);
+
+    // Modal: wait for user to exit credits.
+    while (aptMainLoop()) {
+        hidScanInput();
+        if (hidKeysDown() & (KEY_A | KEY_B | KEY_X | KEY_Y | KEY_START)) {
+            break;
+        }
+        gspWaitForVBlank();
+    }
 }
 
 
@@ -213,13 +248,36 @@ void update_name_game_top(Virtual_Screen* v_screen, bool for_choose = true){
 
     std::string text = get_name(index_game); if(text.empty()) { text = "_not_valid_"; }
     std::string date = get_date(index_game); if(text.empty()) { text = "_not_valid_"; }
+    const GW_rom* g = load_game(index_game);
+    const uint8_t mfr_id = g ? g->manufacturer : GW_rom::MANUFACTURER_NINTENDO;
+    const std::string mfr = (mfr_id == GW_rom::MANUFACTURER_TRONICA)
+        ? "Tronica"
+        : (mfr_id == GW_rom::MANUFACTURER_ELEKTRONIKA)
+            ? "Elektronika"
+            : (mfr_id == GW_rom::MANUFACTURER_DAVID_AND_JOHN)
+                ? "David and John"
+                : (mfr_id == GW_rom::MANUFACTURER_TIGER)
+                    ? "Tiger"
+                    : "Nintendo";
 
     v_screen->delete_all_text();
+
+    int16_t hx = 196;
+    if (!mfr.empty()) {
+        // Small header above the title.
+        hx = (400 - (int16_t)(mfr.length() * 8)) / 2;
+        v_screen->set_text(mfr, hx, 18, 0, 1);
+    }
+    // Arrows
+    v_screen->set_text("^", hx-10, 13, 0, 1);
+    v_screen->set_text("*", hx-10, 21, 0, 1);
     
     // Check if text contains brackets for two-line display
     std::string line1 = text;
     std::string line2 = "";
     size_t bracket_pos = text.find('(');
+    if(bracket_pos == std::string::npos){ bracket_pos = text.find('-'); }
+
     if (bracket_pos != std::string::npos) {
         line1 = text.substr(0, bracket_pos);
         // Remove trailing space if present
@@ -310,23 +368,159 @@ void update_name_game(Virtual_Screen* v_screen, bool for_choose = true){
 // Returns: 0 = stay in menu, 1 = start game, 2 = go to settings
 int handle_menu_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_manager){
 
-    if(input_manager->input_Held_Increase(KEY_DRIGHT, _TIME_MOVE_MENU_)){
-        index_game = (index_game+1)%(get_nb_name()+1);
+    const size_t n_games = get_nb_name();
+    if (n_games == 0) {
+        return 0;
+    }
 
-        if(index_game >= get_nb_name()){ update_credit(v_screen); }
-        else { 
-            update_name_game(v_screen);
-            save_last_game(get_name(index_game)); // Save the selected game
+    auto get_mfr = [&](uint8_t idx) -> uint8_t {
+        const GW_rom* g = load_game(idx);
+        return g ? g->manufacturer : GW_rom::MANUFACTURER_NINTENDO;
+    };
+
+    auto wrap_index = [&](int i) -> uint8_t {
+        int n = (int)n_games;
+        while (i < 0) i += n;
+        i = i % n;
+        return (uint8_t)i;
+    };
+
+    auto find_next_with_mfr = [&](uint8_t start, int dir, uint8_t want_mfr, uint8_t& out_idx) -> bool {
+        for (size_t step = 0; step < n_games; step++) {
+            const uint8_t cand = wrap_index((int)start + dir * (int)(step + 1));
+            if (get_mfr(cand) == want_mfr) {
+                out_idx = cand;
+                return true;
+            }
+        }
+        return false;
+    };
+
+    const int mfr_count = (int)GW_rom::MANUFACTURER_COUNT;
+    std::vector<uint8_t> has_mfr(mfr_count, 0);
+    for (uint8_t i = 0; i < (uint8_t)n_games; i++) {
+        const uint8_t m = get_mfr(i);
+        if (m < GW_rom::MANUFACTURER_COUNT) {
+            has_mfr[(int)m] = 1;
         }
     }
-    else if(input_manager->input_Held_Increase(KEY_DLEFT, _TIME_MOVE_MENU_)){
-        if(index_game == 0){ index_game = (get_nb_name()+1);}
-        index_game = index_game-1;
 
-        if(index_game >= get_nb_name()){ update_credit(v_screen); }
-        else { 
+    auto next_available_mfr = [&](uint8_t cur, int dir, uint8_t& out_mfr) -> bool {
+        if (mfr_count <= 1) {
+            return false;
+        }
+        if (cur >= GW_rom::MANUFACTURER_COUNT) {
+            cur = GW_rom::MANUFACTURER_NINTENDO;
+        }
+        // Try at most MANUFACTURER_COUNT candidates to avoid infinite loops.
+        for (int step = 1; step <= mfr_count; step++) {
+            int cand = (int)cur + (dir * step);
+            cand %= mfr_count;
+            if (cand < 0) {
+                cand += mfr_count;
+            }
+            if (has_mfr[cand]) {
+                out_mfr = (uint8_t)cand;
+                return true;
+            }
+        }
+        return false;
+    };
+
+
+    const uint8_t cur_mfr = get_mfr(index_game);
+
+    // Remember the last selected index per manufacturer while navigating the menu.
+    // This is intentionally in-memory only (not persisted to settings).
+    static bool s_last_by_mfr_init = false;
+    static int16_t s_last_idx_by_mfr[GW_rom::MANUFACTURER_COUNT];
+    if (!s_last_by_mfr_init) {
+        for (int i = 0; i < (int)GW_rom::MANUFACTURER_COUNT; i++) {
+            s_last_idx_by_mfr[i] = -1;
+        }
+        s_last_by_mfr_init = true;
+    }
+
+    auto remember_current = [&](uint8_t mfr) {
+        if (mfr < GW_rom::MANUFACTURER_COUNT) {
+            s_last_idx_by_mfr[mfr] = (int16_t)index_game;
+        }
+    };
+
+    auto restore_for_mfr_or = [&](uint8_t mfr, uint8_t fallback_idx) -> uint8_t {
+        if (mfr >= GW_rom::MANUFACTURER_COUNT) {
+            return fallback_idx;
+        }
+
+        const int16_t saved = s_last_idx_by_mfr[mfr];
+        if (saved >= 0 && (size_t)saved < n_games) {
+            const uint8_t saved_idx = (uint8_t)saved;
+            if (get_mfr(saved_idx) == mfr) {
+                return saved_idx;
+            }
+        }
+
+        // If we don't have an in-memory selection yet (fresh boot), try persisted last selection.
+        uint8_t persisted_idx = 0;
+        if (try_load_last_game_index_for_manufacturer(mfr, &persisted_idx)) {
+            if ((size_t)persisted_idx < n_games && get_mfr(persisted_idx) == mfr) {
+                s_last_idx_by_mfr[mfr] = (int16_t)persisted_idx;
+                return persisted_idx;
+            }
+        }
+
+        return fallback_idx;
+    };
+
+    // Ensure current manufacturer has an entry.
+    if (s_last_idx_by_mfr[cur_mfr] < 0) {
+        remember_current(cur_mfr);
+    }
+
+    uint8_t next_idx = index_game;
+
+    // Single-list navigation with manufacturer filtering:
+    // - LEFT/RIGHT: next/prev game with same manufacturer id
+    // - UP/DOWN: jump to next/prev available manufacturer id (skipping ids with no games)
+    if (input_manager->input_Held_Increase(KEY_DRIGHT, _TIME_MOVE_MENU_)) {
+        remember_current(cur_mfr);
+        if (find_next_with_mfr(index_game, +1, cur_mfr, next_idx)) {
+            index_game = next_idx;
+            remember_current(cur_mfr);
             update_name_game(v_screen);
-            save_last_game(get_name(index_game)); // Save the selected game
+            save_last_selected_game(cur_mfr, get_ref(index_game));
+        }
+    } else if (input_manager->input_Held_Increase(KEY_DLEFT, _TIME_MOVE_MENU_)) {
+        remember_current(cur_mfr);
+        if (find_next_with_mfr(index_game, -1, cur_mfr, next_idx)) {
+            index_game = next_idx;
+            remember_current(cur_mfr);
+            update_name_game(v_screen);
+            save_last_selected_game(cur_mfr, get_ref(index_game));
+        }
+    } else if (input_manager->input_Held_Increase(KEY_DUP, _TIME_MOVE_MENU_)) {
+        remember_current(cur_mfr);
+        uint8_t new_mfr = cur_mfr;
+        if (next_available_mfr(cur_mfr, 1, new_mfr) && new_mfr != cur_mfr) {
+            uint8_t cand_idx = index_game;
+            if (find_next_with_mfr(index_game, -1, new_mfr, cand_idx)) {
+                index_game = restore_for_mfr_or(new_mfr, cand_idx);
+                s_last_idx_by_mfr[new_mfr] = (int16_t)index_game;
+                update_name_game(v_screen);
+                save_last_selected_game(new_mfr, get_ref(index_game));
+            }
+        }
+    } else if (input_manager->input_Held_Increase(KEY_DDOWN, _TIME_MOVE_MENU_)) {
+        remember_current(cur_mfr);
+        uint8_t new_mfr = cur_mfr;
+        if (next_available_mfr(cur_mfr, -1, new_mfr) && new_mfr != cur_mfr) {
+            uint8_t cand_idx = index_game;
+            if (find_next_with_mfr(index_game, +1, new_mfr, cand_idx)) {
+                index_game = restore_for_mfr_or(new_mfr, cand_idx);
+                s_last_idx_by_mfr[new_mfr] = (int16_t)index_game;
+                update_name_game(v_screen);
+                save_last_selected_game(new_mfr, get_ref(index_game));
+            }
         }
     }
 
@@ -336,7 +530,7 @@ int handle_menu_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_manager
         return 2; // Go to settings
     }
 
-    if(index_game >= get_nb_name()){ return 0; } // credit, stay in menu
+    if(index_game >= get_nb_name()){ return 0; }
 
     // Use kDown for action buttons to only trigger once per press
     if( input_manager->input_justPressed(KEY_A) 
@@ -427,6 +621,7 @@ bool init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
         return false;
     }
     YOKOI_LOG("init_game: cpu=%p", (const void*)*cpu);
+    (*cpu)->init_debug();
     (*cpu)->init();
     YOKOI_LOG("init_game: cpu init ok");
     (*cpu)->load_rom(game->rom, game->size_rom);
@@ -440,7 +635,9 @@ bool init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
         load_game_state(*cpu, index_game);
     }
 
-    //(*cpu)->debug_dump_ram_state("last_ram_state_before_load.txt");
+#if YOKOI_ENABLE_RUNTIME_RAM_SNAPSHOT
+    (*cpu)->debug_dump_ram_state("last_ram_state_before_load.txt");
+#endif
 
     v_sound->initialize((*cpu)->frequency, (*cpu)->sound_divide_frequency, _3DS_FPS_SCREEN_);
     v_sound->play_sample();
@@ -452,24 +649,21 @@ bool init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
         show_start_game_error(*v_screen, "Input config missing");
         return false;
     }
+    //(*cpu)->set_input_multiplexage((*v_input)->use_multiplexage);
     YOKOI_LOG("init_game: input config ok (%p)", (const void*)*v_input);
 
     set_time_cpu(*cpu);
     YOKOI_LOG("init_game: success");
 
-    //(*cpu)->debug_dump_ram_state("post_time_set.txt");
+#if YOKOI_ENABLE_RUNTIME_RAM_SNAPSHOT
+    (*cpu)->debug_dump_ram_state("post_time_set.txt");
+#endif
 
     return true;
 }
 
 
 
-enum GameState {
-    STATE_MENU,
-    STATE_PLAY,
-    STATE_SETTINGS,
-    STATE_SAVE_PROMPT
-};
  
 
 // Settings UI state
@@ -510,11 +704,12 @@ void update_settings_display(Virtual_Screen* v_screen) {
     v_screen->set_text(alpha_text, text_offset_x, 90, 0, 1);
     
     // Instructions
-    v_screen->set_text("UP/DOWN: Select setting", text_offset_x, 150, 1, 1);
-    v_screen->set_text("LEFT/RIGHT: Change value", text_offset_x, 160, 1, 1);
-    v_screen->set_text("A: Save & Return", text_offset_x, 180, 1, 1);
-    v_screen->set_text("B: Cancel", text_offset_x, 190, 1, 1);
-    v_screen->set_text("X: Reset to defaults", text_offset_x, 200, 1, 1);
+    v_screen->set_text("UP/DOWN: Select setting", text_offset_x, 140, 1, 1);
+    v_screen->set_text("LEFT/RIGHT: Change value", text_offset_x, 150, 1, 1);
+    v_screen->set_text("A: Save & Return", text_offset_x, 170, 1, 1);
+    v_screen->set_text("B: Cancel", text_offset_x, 180, 1, 1);
+    v_screen->set_text("X: Reset to defaults", text_offset_x, 190, 1, 1);
+    v_screen->set_text("Y: Credits", text_offset_x, 210, 1, 1);
     
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     v_screen->update_text();
@@ -592,6 +787,13 @@ bool handle_settings_input(Virtual_Screen* v_screen, Input_Manager_3ds* input_ma
         update_settings_display(v_screen);
         sleep_us_p(200000);
     }
+
+    // Credits
+    if (input_manager->input_justPressed(KEY_Y)) {
+        update_credit(v_screen);
+        update_settings_display(v_screen);
+        sleep_us_p(200000);
+    }
     
     return false;
 }
@@ -607,9 +809,9 @@ int main()
     Input_Manager_3ds input_manager;
     SM5XX* cpu = nullptr;
 
-    // Try loading the external ROM pack first.
-    // In pack-only builds, show a console-based blocking screen if it's missing/outdated.
-    // (This avoids relying on romfs textures/font rendering, which may not be present.)
+    // Pack-only build: require external ROM pack.
+    // Embedded build: do NOT load the pack (even if present), always use compiled-in list.
+#if !defined(YOKOI_EMBEDDED_ASSETS)
     bool pack_ok = false;
     {
 		YOKOI_LOG("main: load pack '%s'", k3dsRomPackPath);
@@ -623,13 +825,12 @@ int main()
             g_pack_load_error.clear();
         }
 
-#if !defined(YOKOI_EMBEDDED_ASSETS)
         if (!pack_ok) {
             show_pack_required_console(g_pack_load_error);
             return 0;
         }
-#endif
     }
+#endif
 
     YOKOI_LOG("main: config_screen");
     v_screen.config_screen();
@@ -641,15 +842,23 @@ int main()
     load_settings();
 	YOKOI_LOG("main: settings loaded");
 
-#if defined(YOKOI_SHOW_MSG_ROM)    
-    // If pack load failed but we're not pack-only, surface it in-app.
+#if defined(YOKOI_SHOW_MSG_ROM) && !defined(YOKOI_EMBEDDED_ASSETS)
+    // Pack-only builds can also surface pack errors in-app.
     if (!pack_ok && !g_pack_load_error.empty()) {
         show_pack_required_screen(v_screen, g_pack_load_error);
     }
 #endif
 
-    // Load the last selected game index
-    index_game = load_last_game_index();
+    // Load the last selected manufacturer, then restore the last game for that manufacturer.
+    {
+        const uint8_t mfr = load_last_selected_manufacturer(GW_rom::MANUFACTURER_NINTENDO);
+        uint8_t idx = 0;
+        if (try_load_last_game_index_for_manufacturer(mfr, &idx)) {
+            index_game = idx;
+        } else {
+            index_game = 0;
+        }
+    }
 
     // If the current pack has fewer games than when settings were saved, default to first game.
     {
@@ -757,11 +966,33 @@ int main()
                 {
                     v_sound.play_sample();
                     input_manager.input_GW_Update(v_input);
+
+#if YOKOI_ENABLE_RUNTIME_RAM_SNAPSHOT
+                    // L + SELECT: dump current emulated RAM state (append) to SD card.
+                    if (cpu && input_manager.input_isHeld(KEY_L) && input_manager.input_justPressed(KEY_SELECT)) {
+                        static unsigned s_runtime_dump_counter = 0;
+                        char fname[64];
+                        snprintf(fname, sizeof(fname), "runtime_ram_%03u.txt", s_runtime_dump_counter++);
+                        cpu->debug_dump_ram_state(fname);
+                    }
+#endif
+
                     curr_rate += cpu->frequency;
                     uint32_t step = curr_rate/_3DS_FPS_SCREEN_;
                     curr_rate -= step*_3DS_FPS_SCREEN_;
 
-                    while(step > 0) { 
+                    #if defined(YOKOI_DEBUG)
+                        bool only_one_frame = false;
+                        if(debug_run_op_press){
+                            uint32_t speed = 200000;
+                            if(input_manager.input_isHeld(KEY_DDOWN)) { speed = 30000; }
+                            if(input_manager.input_Held_Increase(KEY_R, speed)){ only_one_frame = true; }
+                            else {step = 0; } // no execute
+                        }
+                    #endif
+
+
+                    while(step > 0) {
                         if(cpu->step()) { 
                             // Only set time for the first few cycles after game start, otherwise the CPU
                             // won't set the correct initial time from the 3DS RTC.
@@ -772,13 +1003,36 @@ int main()
                                 set_time_cpu(cpu);
                             }
                             v_screen.update_buffer_video(cpu); 
+                            #if defined(YOKOI_DEBUG)
+                                if(debug_run_op_press && only_one_frame){ step = 1; }
+                            #endif
                         }
                         v_sound.update_sound(cpu); 
                         step -= 1;
                     }
 
+                    #if defined(YOKOI_DEBUG)
+                        v_screen.delete_all_text();
+                        std::string value = cpu->debug_var_cpu();
+                        std::stringstream ss(value);
+                        std::string segment;
+                        int i = 0;
+                        while (std::getline(ss, segment, '(')) {
+                            if (segment.empty()) { continue; }
+                            v_screen.set_text(segment , 20, 20+i*16 , 1, 1);      
+                            i += 1;      
+                        }
+                        
+                    #endif
+
                     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
                     v_screen.update_screen();
+
+                    #if defined(YOKOI_DEBUG)
+                        if(v_screen.nb_screen == 1){ v_screen.update_text(true); }
+                        else { v_screen.update_text(false); }                        
+                    #endif
+
                     C3D_FrameEnd(0);
 
                     if(input_manager.input_isHeld(_INPUT_MENU_)){
@@ -797,6 +1051,14 @@ int main()
                         sleep_us_p(200000); // Debounce
                         cpu->time_set(false); // Reset time set flag
                     }
+
+                    #if defined(YOKOI_DEBUG)
+                    else if(input_manager.input_isHeld(_INPUT_DEBUG_)){
+                        debug_run_op_press = !debug_run_op_press;
+                        sleep_us_p(200000); // Debounce
+                    }
+                    #endif
+
                 }
                 break;
             case STATE_SETTINGS:

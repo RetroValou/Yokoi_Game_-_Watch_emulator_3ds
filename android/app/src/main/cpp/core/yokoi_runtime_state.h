@@ -66,6 +66,7 @@ extern std::atomic<int> g_app_mode;
 extern std::atomic<int> g_menu_load_choice;
 
 extern std::atomic<int> g_pending_game_delta;
+extern std::atomic<int> g_pending_manufacturer_delta;
 extern std::atomic<bool> g_start_requested;
 extern std::atomic<int> g_action_mask;
 extern std::atomic<uint32_t> g_texture_generation;

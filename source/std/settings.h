@@ -6,7 +6,10 @@
 struct AppSettings {
     uint32_t background_color;      // CLEAR_COLOR
     uint8_t segment_marking_alpha;  // Alpha value for segment marking (0x00-0xFF)
-    char last_game_name[64];        // Name of the last selected game
+    // Deprecated: previously stored the last selected game globally.
+    // Kept only to preserve the on-disk layout of yokoi_gw_settings.dat.
+    // Menu selection persistence now lives in yokoi_gw_last_game_by_mfr.dat.
+    char last_game_name[64];
     
     // Default values
     AppSettings() : 
@@ -42,6 +45,10 @@ void load_settings();
 void save_settings();
 void reset_settings_to_default();
 
-// Last game selection management
-void save_last_game(const std::string& game_name);
-uint8_t load_last_game_index();
+// Menu selection persistence (single source of truth).
+// Stores the last selected manufacturer and the last selected game per manufacturer.
+// The global "last game" setting is intentionally not used.
+uint8_t load_last_selected_manufacturer(uint8_t default_manufacturer = 0);
+// Persists the last selected game *ref* for the given manufacturer.
+void save_last_selected_game(uint8_t manufacturer_id, const std::string& game_ref);
+bool try_load_last_game_index_for_manufacturer(uint8_t manufacturer_id, uint8_t* out_index);

@@ -309,13 +309,12 @@ Java_com_retrovalou_yokoi_MainActivity_nativeInit(JNIEnv*, jclass) {
         // Start in menu mode like the 3DS app.
         g_app_mode.store(MODE_MENU_SELECT);
         if (get_nb_name() > 0) {
-            g_menu_load_choice.store(get_default_menu_load_choice_for_game(get_default_game_index_for_android()));
             uint8_t idx = get_default_game_index_for_android();
+            g_menu_load_choice.store(get_default_menu_load_choice_for_game(idx));
             menu_select_game_by_index(idx);
         }
         g_core_inited = true;
     }
-
     ensure_emu_thread_started();
 }
 
@@ -451,11 +450,27 @@ Java_com_retrovalou_yokoi_MainActivity_nativeMenuHasSaveState(JNIEnv*, jclass) {
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_retrovalou_yokoi_MainActivity_nativeGetSelectedGameInfo(JNIEnv* env, jclass) {
     jclass stringClass = env->FindClass("java/lang/String");
-    jobjectArray arr = env->NewObjectArray(2, stringClass, env->NewStringUTF(""));
+    jobjectArray arr = env->NewObjectArray(3, stringClass, env->NewStringUTF(""));
     std::string name = get_name(g_game_index);
     std::string date = get_date(g_game_index);
+    const GW_rom* g = load_game(g_game_index);
+    std::string mfr;
+    if (g) {
+        if (g->manufacturer == GW_rom::MANUFACTURER_TRONICA) {
+            mfr = "Tronica";
+        } else if (g->manufacturer == GW_rom::MANUFACTURER_ELEKTRONIKA) {
+            mfr = "Elektronika";
+        } else if (g->manufacturer == GW_rom::MANUFACTURER_DAVID_AND_JOHN) {
+            mfr = "David and John";
+        } else if (g->manufacturer == GW_rom::MANUFACTURER_TIGER) {
+            mfr = "Tiger";
+        } else {
+            mfr = "Nintendo";
+        }
+    }
     env->SetObjectArrayElement(arr, 0, env->NewStringUTF(name.c_str()));
     env->SetObjectArrayElement(arr, 1, env->NewStringUTF(date.c_str()));
+    env->SetObjectArrayElement(arr, 2, env->NewStringUTF(mfr.c_str()));
     return arr;
 }
 
@@ -518,17 +533,102 @@ static void render_frame(GlResources& r, int panel) {
         uint32_t ctl_down = ctl_mask & ~prev_ctl_mask;
         prev_ctl_mask = ctl_mask;
 
-        // Apply queued game switches on the GL thread (avoids races with the renderer).
+        // Apply queued menu navigation on the GL thread (avoids races with the renderer).
         // In menu mode, this changes the selection. In game mode, ignore.
-        int delta = g_pending_game_delta.exchange(0);
-        if (delta != 0 && mode == MODE_MENU_SELECT) {
-            size_t n = get_nb_name();
-            if (n > 0) {
-                int cur = (int)g_game_index;
-                int next = cur + delta;
-                while (next < 0) next += (int)n;
-                next = next % (int)n;
-                menu_select_game_by_index((uint8_t)next);
+        auto get_mfr = [&](uint8_t idx) -> uint8_t {
+            const GW_rom* g = load_game(idx);
+            return g ? g->manufacturer : GW_rom::MANUFACTURER_NINTENDO;
+        };
+
+        auto wrap_index = [&](int i, int n) -> uint8_t {
+            while (i < 0) i += n;
+            i = i % n;
+            return (uint8_t)i;
+        };
+
+        auto select_next_with_mfr = [&](int dir, uint8_t want_mfr) {
+            const int n = (int)get_nb_name();
+            if (n <= 0) return;
+            const int start = (int)g_game_index;
+            for (int step = 0; step < n; step++) {
+                const uint8_t cand = wrap_index(start + dir * (step + 1), n);
+                if (get_mfr(cand) == want_mfr) {
+                    menu_select_game_by_index(cand);
+                    return;
+                }
+            }
+        };
+
+        const int mfr_count = (int)GW_rom::MANUFACTURER_COUNT;
+        std::vector<uint8_t> has_mfr(mfr_count, 0);
+        {
+            const int n = (int)get_nb_name();
+            for (uint8_t i = 0; i < (uint8_t)n; i++) {
+                const uint8_t m = get_mfr(i);
+                if (m < GW_rom::MANUFACTURER_COUNT) {
+                    has_mfr[(int)m] = 1;
+                }
+            }
+        }
+
+        auto next_available_mfr = [&](uint8_t cur, int dir, uint8_t& out_mfr) -> bool {
+            if (mfr_count <= 1) {
+                return false;
+            }
+            if (cur >= GW_rom::MANUFACTURER_COUNT) {
+                cur = GW_rom::MANUFACTURER_NINTENDO;
+            }
+            // Try at most MANUFACTURER_COUNT candidates to avoid infinite loops.
+            for (int step = 1; step <= mfr_count; step++) {
+                int cand = (int)cur + (dir * step);
+                cand %= mfr_count;
+                if (cand < 0) {
+                    cand += mfr_count;
+                }
+                if (has_mfr[cand]) {
+                    out_mfr = (uint8_t)cand;
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        auto select_next_other_mfr = [&](int dir) {
+            const int n = (int)get_nb_name();
+            if (n <= 0) return;
+            const uint8_t cur_mfr = get_mfr(g_game_index);
+            uint8_t new_mfr = cur_mfr;
+            if (!next_available_mfr(cur_mfr, dir, new_mfr) || new_mfr == cur_mfr) {
+                return;
+            }
+
+            uint8_t saved_idx = 0;
+            if (yokoi_menu_try_get_last_index_for_manufacturer(new_mfr, &saved_idx)) {
+                menu_select_game_by_index(saved_idx);
+                return;
+            }
+
+            // No saved selection yet: pick the nearest game in the requested direction.
+            select_next_with_mfr(dir, new_mfr);
+        };
+
+        const int mfr_delta = g_pending_manufacturer_delta.exchange(0);
+        const int game_delta = g_pending_game_delta.exchange(0);
+        if (mode == MODE_MENU_SELECT) {
+            if (mfr_delta != 0) {
+                const int dir = (mfr_delta > 0) ? +1 : -1;
+                const int steps = (mfr_delta > 0) ? mfr_delta : -mfr_delta;
+                for (int i = 0; i < steps; i++) {
+                    select_next_other_mfr(dir);
+                }
+            }
+            if (game_delta != 0) {
+                const int dir = (game_delta > 0) ? +1 : -1;
+                const int steps = (game_delta > 0) ? game_delta : -game_delta;
+                const uint8_t want = get_mfr(g_game_index);
+                for (int i = 0; i < steps; i++) {
+                    select_next_with_mfr(dir, want);
+                }
             }
         }
 
@@ -539,6 +639,12 @@ static void render_frame(GlResources& r, int panel) {
             }
             if (ctl_down & CTL_DPAD_LEFT) {
                 g_pending_game_delta.fetch_sub(1);
+            }
+            if (ctl_down & CTL_DPAD_UP) {
+                g_pending_manufacturer_delta.fetch_add(1);
+            }
+            if (ctl_down & CTL_DPAD_DOWN) {
+                g_pending_manufacturer_delta.fetch_sub(1);
             }
             if (ctl_down & CTL_A) {
                 g_menu_load_choice.store(get_default_menu_load_choice_for_game(g_game_index));
@@ -1087,17 +1193,23 @@ Java_com_retrovalou_yokoi_MainActivity_nativeTouch(JNIEnv*, jclass, jfloat x, jf
         case 0: // MotionEvent.ACTION_DOWN
         case 5: // MotionEvent.ACTION_POINTER_DOWN
             if (mode == MODE_MENU_SELECT) {
-                if (!in_bottom_half) {
-                    break;
-                }
-                if (left_third) {
-                    g_pending_game_delta.fetch_sub(1);
-                } else if (right_third) {
-                    g_pending_game_delta.fetch_add(1);
+                if (in_bottom_half) {
+                    if (left_third) {
+                        g_pending_game_delta.fetch_sub(1);
+                    } else if (right_third) {
+                        g_pending_game_delta.fetch_add(1);
+                    } else {
+                        // Center tap on lower screen: open load prompt.
+                        g_menu_load_choice.store(get_default_menu_load_choice_for_game(g_game_index));
+                        g_app_mode.store(MODE_MENU_LOAD_PROMPT);
+                    }
                 } else {
-                    // Center tap on lower screen: open load prompt.
-                    g_menu_load_choice.store(get_default_menu_load_choice_for_game(g_game_index));
-                    g_app_mode.store(MODE_MENU_LOAD_PROMPT);
+                    // Top half: manufacturer switch.
+                    if (left_third) {
+                        g_pending_manufacturer_delta.fetch_add(1);
+                    } else if (right_third) {
+                        g_pending_manufacturer_delta.fetch_sub(1);
+                    }
                 }
                 break;
             }

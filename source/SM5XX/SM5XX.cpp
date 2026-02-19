@@ -2,7 +2,8 @@
 #include "std/timer.h"
 #include "virtual_i_o/time_addresses.h"
 #include <sys/stat.h>
-
+#include <sstream>
+#include <iomanip>
 
 bool SM5XX::step(){ // loop of CPU
     // output -> is opcode are executed or not
@@ -94,13 +95,19 @@ void SM5XX::step_clock_divider(){
 
 
 //////////////////////////////////// Input ////////////////////////////////////
-void SM5XX::input_set(int group, int line, bool state){
+void SM5XX::input_set(int group, int line, bool state, bool not_multiplex){
     // special input -> says by line >= 8 (not exist in true K input)
     if(line == 8){ alpha_input = state; }
     else if(line == 9){ beta_input = state; }
 
-    else if(state){ k_input[group] = k_input[group] | (0x01 << line); }
-    else { k_input[group] = k_input[group] & ~(0x01 << line); }
+    if(not_multiplex){ 
+        if(state){ k_input_sp_not_multiplex = k_input_sp_not_multiplex | (0x01 << line); }
+        else { k_input_sp_not_multiplex = k_input_sp_not_multiplex & ~(0x01 << line); }
+    }
+    else{ // multiplex
+        if(state){ k_input[group] = k_input[group] | (0x01 << line); }
+        else { k_input[group] = k_input[group] & ~(0x01 << line); }
+    }
 }
 
 
@@ -176,6 +183,61 @@ void SM5XX::copy_buffer(const ProgramCounter& src, ProgramCounter& dst) {
 
 ///////////////////////////////////// Debug ////////////////////////////////////
 
+std::string SM5XX::debug_var_cpu(){
+    std::ostringstream oss;
+    oss << name_cpu ;
+    oss << "(" ;
+    oss << "(" ;
+
+    oss << "Acc: " ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(accumulator);
+    oss << " - Carry: " ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(carry);
+    
+    oss << "(" ;
+
+    oss << "(K input: " ;
+    for(int i = 0; i < 8; i++){
+        oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(k_input[i]);
+        oss << " ";
+    }
+
+    oss << "(Input read during op code: " ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(debug_value_read_input);
+    
+    oss << "(Multiplexage during op code: " ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(debug_multiplexage_activate);
+
+    
+    oss << "(" ;
+    oss << "(Current Op code : " ;
+    oss << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << static_cast<int>(debug_curr_opcode);
+    oss << " - " << debug_opcode_trad();
+
+    oss << "(Program counter: " ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(program_counter.col);
+    oss << ":" ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(program_counter.line);
+    oss << ":" ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(program_counter.word);
+    oss << "(buffer Prog. count.: " ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(s_buffer_program_counter.col);
+    oss << ":" ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(s_buffer_program_counter.line);
+    oss << ":" ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(s_buffer_program_counter.word);
+    oss << "(Ram Address: " ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(ram_address.col);
+    oss << ":" ;
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(ram_address.line);
+    oss << " - " ;    
+    oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(read_ram_value());
+
+    return oss.str();
+}      
+
+
+
 void SM5XX::debug_dump_ram_state(const char* filename) {
     // Dump the current RAM state to a file for debugging on the sd card here: "sdmc:/3ds/debug/"
     // check the folder exists
@@ -223,3 +285,22 @@ void SM5XX::debug_dump_ram_state(const char* filename) {
     fprintf(file, "\n");
     fclose(file);
 }
+
+
+
+void SM5XX::init_debug(){
+    debug_time_wait = 0x00;
+    debug_time_need = 0x00;
+    debug_opcode_time = 0x00;
+    debug_nb_jump_LAX = 0x00;
+    debug_theorie_time = 0x00;
+    debug_cycle_previous_opcode = 0x00;
+    debug_cycle_curr_opcode = 0x00;
+    debug_curr_opcode = 0x00;
+
+    debug_multiplexage_activate = 0x00;
+    debug_value_read_input = 0x00;
+}
+
+
+
