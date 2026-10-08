@@ -80,6 +80,8 @@ public final class SettingsMenu {
             BooleanGetter hasExternalDisplayConnected,
             BooleanGetter isSingleScreenTopOnly,
             BooleanSetter setSingleScreenTopOnly,
+            BooleanGetter isSwapScreens,
+            BooleanSetter setSwapScreens,
             Runnable quitToMenu
     ) {
         if (dialog != null && dialog.isShowing()) {
@@ -185,6 +187,22 @@ public final class SettingsMenu {
             }
         });
         root.addView(overlaySwitch);
+
+        if (hasExternalDisplay && isSwapScreens != null && setSwapScreens != null) {
+            TextView swapLabel = new TextView(activity);
+            swapLabel.setText("Swap screens");
+            LinearLayout.LayoutParams swapLabelLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            swapLabelLp.topMargin = pad / 2;
+            swapLabel.setLayoutParams(swapLabelLp);
+            root.addView(swapLabel);
+
+            Switch swapSwitch = new Switch(activity);
+            swapSwitch.setChecked(isSwapScreens.get());
+            swapSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> setSwapScreens.set(isChecked));
+            root.addView(swapSwitch);
+        }
 
         if (inGame) {
             LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(

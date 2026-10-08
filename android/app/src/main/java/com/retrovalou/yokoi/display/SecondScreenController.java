@@ -14,6 +14,7 @@ import com.retrovalou.yokoi.gl.MenuUiTextureBuilder;
 import com.retrovalou.yokoi.gl.TextureInfo;
 import com.retrovalou.yokoi.gl.TextureLoader;
 import com.retrovalou.yokoi.nativebridge.YokoiNative;
+import com.retrovalou.yokoi.prefs.AppPrefs;
 
 public final class SecondScreenController {
     public interface OnExternalDisplayPresent {
@@ -27,11 +28,27 @@ public final class SecondScreenController {
     private SecondScreenPresentation presentation;
     private GLSurfaceView secondGlView;
     private volatile boolean dualDisplayEnabled;
+    // When true, the activity display shows the TOP panel and the secondary display shows the BOTTOM panel
+    // (needed on devices such as the AYN Thor where the primary display is the physical top screen).
+    private volatile boolean swapScreens;
 
     public SecondScreenController(Activity activity, OnExternalDisplayPresent onExternalDisplayPresent) {
         this.activity = activity;
         this.onExternalDisplayPresent = onExternalDisplayPresent;
         this.displayManager = (DisplayManager) activity.getSystemService(Context.DISPLAY_SERVICE);
+        this.swapScreens = AppPrefs.getSwapScreens(activity);
+    }
+
+    public boolean isSwapScreens() {
+        return swapScreens;
+    }
+
+    public void setSwapScreens(boolean swap) {
+        swapScreens = swap;
+        AppPrefs.setSwapScreens(activity, swap);
+        if (dualDisplayEnabled) {
+            YokoiNative.nativeSetEmulationDriverPanel(swap ? 0 : 1);
+        }
     }
 
     public boolean isDualDisplayEnabled() {
@@ -81,8 +98,8 @@ public final class SecondScreenController {
         try {
             presentation.show();
             dualDisplayEnabled = true;
-            // Main (touch) display renders panel 1 in dual-display mode, so make it the emulation driver.
-            YokoiNative.nativeSetEmulationDriverPanel(1);
+            // Main (touch) display renders panel 1 (or panel 0 when swapped), so make it the emulation driver.
+            YokoiNative.nativeSetEmulationDriverPanel(swapScreens ? 0 : 1);
         } catch (RuntimeException e) {
             dualDisplayEnabled = false;
             presentation = null;
@@ -226,8 +243,8 @@ public final class SecondScreenController {
                         uiLastGen = gen;
                     }
 
-                    // Secondary (physical top) display: render the TOP panel.
-                    YokoiNative.nativeRenderPanel(0);
+                    // Secondary display: render the TOP panel (or the BOTTOM panel when swapped).
+                    YokoiNative.nativeRenderPanel(swapScreens ? 1 : 0);
                 }
             });
             setContentView(secondGlView);
