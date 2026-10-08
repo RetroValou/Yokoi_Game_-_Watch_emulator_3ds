@@ -281,8 +281,8 @@ public final class MainActivity extends Activity {
                     }
 
                     if (secondScreenController != null && secondScreenController.isDualDisplayEnabled()) {
-                        // Default (physical bottom / touch) display: render the BOTTOM panel.
-                        YokoiNative.nativeRenderPanel(1);
+                        // Default (physical bottom / touch) display: render the BOTTOM panel (TOP when swapped).
+                        YokoiNative.nativeRenderPanel(secondScreenController.isSwapScreens() ? 0 : 1);
                     } else if (singleScreenTopOnly && !(secondScreenController != null && secondScreenController.hasExternalDisplayConnected())) {
                         // Single-display convenience mode.
                         YokoiNative.nativeRenderPanel(0);
@@ -299,6 +299,11 @@ public final class MainActivity extends Activity {
         glView.requestFocus();
 
         glView.setOnTouchListener((v, event) -> {
+            // When screens are swapped, the BOTTOM panel (and its touch input) lives on the secondary display.
+            if (secondScreenController != null && secondScreenController.isDualDisplayEnabled() && secondScreenController.isSwapScreens()) {
+                return true;
+            }
+            YokoiNative.nativeSetTouchSurfaceSize(v.getWidth(), v.getHeight());
             YokoiNative.nativeTouch(event.getX(), event.getY(), event.getActionMasked());
             return true;
         });
@@ -322,6 +327,8 @@ public final class MainActivity extends Activity {
                 () -> secondScreenController != null && secondScreenController.hasExternalDisplayConnected(),
                 () -> singleScreenTopOnly,
                 v -> singleScreenTopOnly = v,
+                () -> secondScreenController != null && secondScreenController.isSwapScreens(),
+                v -> { if (secondScreenController != null) secondScreenController.setSwapScreens(v); },
                 YokoiNative::nativeReturnToMenu
         );
     }
