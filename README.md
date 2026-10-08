@@ -8,6 +8,7 @@ A Game & Watch emulator for 3DS & Android: SM5A, SM510, and SM511/SM512.
 
 - **Nintendo 3DS/2DS family** (Old/New models) running Homebrew/CFW.
 - **Anbernic RGDS (dual screen, Android)**: supported and recommended. 
+- **AYN Thor (dual screen, Android)**: supported. (Thanks [ABerguerand](https://github.com/ABerguerand))
 - **Android (arm64-v8a)** devices (phones/tablets/handhelds).
 
 # Supported games
@@ -32,6 +33,8 @@ Supported games are all of the Game & Watch titles and some Tronica games.
 - Ajustable LCD Segment Shadow
 - Optional Full screen (Android only)
 - Optional Virtual Input (Android only) 
+- Optional Swap screens for dual-screen devices (Android only)
+- Optional Top screen only mode (Android only)
 
 # Installation
 
@@ -116,4 +119,5 @@ No attribution required :)
 # Credits
 Code inspired by MAME, Game & Watch FPGA projects (Adam Gastineau), and official Sharp documentation.  
 ROMs and artwork are based on MAME ROMs.  
-Thanks to everyone who contributed to MAME, Adam Gastineau, and all those who worked on Game & Watch ROMs and artwork!
+Thanks to everyone who contributed to MAME, Adam Gastineau, and all those who worked on Game & Watch ROMs and artwork!  
+Thanks to [ABerguerand](https://github.com/ABerguerand) for the Swap screens option and AYN Thor support!
