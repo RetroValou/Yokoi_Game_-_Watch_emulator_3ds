@@ -299,6 +299,11 @@ public final class MainActivity extends Activity {
         glView.requestFocus();
 
         glView.setOnTouchListener((v, event) -> {
+            // When screens are swapped, the BOTTOM panel (and its touch input) lives on the secondary display.
+            if (secondScreenController != null && secondScreenController.isDualDisplayEnabled() && secondScreenController.isSwapScreens()) {
+                return true;
+            }
+            YokoiNative.nativeSetTouchSurfaceSize(v.getWidth(), v.getHeight());
             YokoiNative.nativeTouch(event.getX(), event.getY(), event.getActionMasked());
             return true;
         });

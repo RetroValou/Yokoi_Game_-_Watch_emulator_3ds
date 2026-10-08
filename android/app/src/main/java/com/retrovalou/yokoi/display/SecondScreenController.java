@@ -247,6 +247,15 @@ public final class SecondScreenController {
                     YokoiNative.nativeRenderPanel(swapScreens ? 1 : 0);
                 }
             });
+            secondGlView.setOnTouchListener((v, event) -> {
+                // Only handle touch here when swapped, i.e. when this display shows the BOTTOM panel.
+                if (!dualDisplayEnabled || !swapScreens) {
+                    return true;
+                }
+                YokoiNative.nativeSetTouchSurfaceSize(v.getWidth(), v.getHeight());
+                YokoiNative.nativeTouch(event.getX(), event.getY(), event.getActionMasked());
+                return true;
+            });
             setContentView(secondGlView);
         }
 
