@@ -52,6 +52,8 @@ namespace yokoi
             {SDL_CONTROLLER_BUTTON_START, SDL_SCANCODE_RETURN, CTL_START},
             {SDL_CONTROLLER_BUTTON_BACK, SDL_SCANCODE_TAB, CTL_SELECT},
             {SDL_CONTROLLER_BUTTON_LEFTSHOULDER, SDL_SCANCODE_Q, CTL_L1},
+            {SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, SDL_SCANCODE_R, CTL_MENU},
+            {SDL_CONTROLLER_BUTTON_GUIDE, SDL_SCANCODE_F1, CTL_MENU},
         };
         const auto *keys = SDL_GetKeyboardState(nullptr);
         uint32_t mask = 0;

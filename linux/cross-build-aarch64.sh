@@ -13,7 +13,7 @@ Defaults:
 Successful builds also stage linux/portmaster/yokoi/yokoi.aarch64 for SD-card copying,
 including when --output selects a different build destination.
 
-On x86-64 Linux, get_gnu_toolchain.sh downloads and caches Ubuntu Jammy
+On x86-64 Linux, get_gnu_toolchain.sh downloads and caches Ubuntu Focal
 GNU cross-compilers and an ARM64 sysroot with PortMaster's SDL2 2.26.2.
 Host requirements: apt-get, dpkg-deb, make, pkg-config, curl, tar, gzip,
 sha256sum, flock. Ubuntu 22.04 or a compatible newer host is recommended.
@@ -86,6 +86,8 @@ sdl_libs=$("$pkg_config" --libs sdl2)
 mkdir -p -- "$script_dir/build"
 temp_dir=$(mktemp -d "$script_dir/build/.aarch64.XXXXXX")
 trap 'rm -rf -- "$temp_dir"' EXIT
+# Handheld libstdc++ versions vary, so only libc and SDL2 are taken from the device.
+LDFLAGS="${LDFLAGS:+$LDFLAGS }-static-libstdc++ -static-libgcc" \
 make --no-print-directory -C "$script_dir" -B \
     TARGET="$temp_dir/yokoi" CXX="$compiler" SYSROOT="$sysroot" \
     SDL_CFLAGS="$sdl_cflags" SDL_LIBS="$sdl_libs"

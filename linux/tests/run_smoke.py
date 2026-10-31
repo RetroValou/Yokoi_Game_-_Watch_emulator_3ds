@@ -1,4 +1,4 @@
-"""Run Linux build executables against four original fixtures and rejected packs."""
+"""Run Linux build executables against original synthetic fixtures and rejected packs."""
 import os
 from pathlib import Path
 import struct
@@ -11,12 +11,16 @@ smoke_binary = Path(os.environ.get('YOKOI_SMOKE_BINARY', root/'linux/build/smoke
 env = dict(os.environ, SDL_VIDEODRIVER='dummy', SDL_AUDIODRIVER='dummy')
 with tempfile.TemporaryDirectory(prefix='yokoi-smoke-') as temporary:
     base = Path(temporary)
-    for mode in ('single', 'vertical', 'horizontal', 'mask'):
+    for mode in ('single', 'vertical', 'horizontal', 'mask', 'multi', 'clock'):
         folder = base / mode
         folder.mkdir()
         pack = folder / 'fixture.ykp'
         subprocess.run(['python3', str(root/'linux/tests/make_fixture.py'), str(pack), mode], check=True)
-        subprocess.run([str(smoke_binary), str(pack), str(folder)], env=env, check=True)
+        subprocess.run([str(smoke_binary), str(pack), str(folder)],
+                       env=dict(env, TZ='UTC') if mode == 'clock' else env, check=True)
+    reordered = base/'multi/reordered.ykp'
+    subprocess.run(['python3', str(root/'linux/tests/make_fixture.py'), str(reordered), 'multi-reordered'], check=True)
+    subprocess.run([str(smoke_binary), str(reordered), str(base/'multi'), 'EL_02'], env=env, check=True)
     raw = bytearray((base/'single/fixture.ykp').read_bytes())
     for label, offset, value, expected in (
         ('wrong-platform', 8, 1, 'wrong pack platform'),

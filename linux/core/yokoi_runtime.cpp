@@ -2,6 +2,7 @@
 
 #include <SDL.h>
 #include <cstdio>
+#include <filesystem>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -18,12 +19,15 @@ namespace yokoi
     {
         std::string error;
         set_storage_root(storage_root);
+        std::filesystem::create_directories(::storage_root());
         if (!gw_pack::load(pack_path, &error))
             throw std::runtime_error(error);
         if (!gw_pack::game_count() || gw_pack::game_count() > 255)
             throw std::runtime_error("Pack must contain 1..255 games");
         require_sdl(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) == 0, "SDL init");
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+        SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+        SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
         const int display_count = SDL_GetNumVideoDisplays();
         require_sdl(display_count > 0, "SDL video displays");
         std::fprintf(stderr, "Video driver: %s; SDL displays: %d\n",
@@ -75,10 +79,13 @@ namespace yokoi
                 }
             }
             // Stock Linux RGDS exposes the top panel first, unlike Android's primary display.
-            std::fprintf(stderr, "%s\n", secondary_renderer ?
-                "Dual-screen mode: top display 0, bottom display 1." : "Single-screen mode.");
             App app(renderer.get(), secondary_renderer.get());
-            app.select(0);
+            app.initialize();
+            if (secondary_renderer)
+                std::fprintf(stderr, "Dual-screen mode: top display %d, bottom display %d.\n",
+                    app.ui().swap_screens ? 1 : 0, app.ui().swap_screens ? 0 : 1);
+            else
+                std::fprintf(stderr, "Single-screen mode.\n");
             app.open_audio();
             Controller controller;
             controller.open();
@@ -93,12 +100,39 @@ namespace yokoi
                     if (event.type == SDL_QUIT)
                         quit = true;
                     controller.handle_event(event);
-                    if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
+                    if (event.type == SDL_KEYDOWN && !event.key.repeat &&
+                        (event.key.keysym.sym == SDLK_ESCAPE || event.key.keysym.sym == SDLK_AC_BACK))
+                        app.toggle_settings();
+                    if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)
+                        quit = true;
+                    if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP ||
+                        (event.type == SDL_MOUSEMOTION && (event.motion.state & SDL_BUTTON_LMASK)))
                     {
-                        if (app.in_menu())
-                            quit = true;
-                        else
-                            app.return_to_menu();
+                        if ((event.type == SDL_MOUSEMOTION ? event.motion.which : event.button.which) == SDL_TOUCH_MOUSEID)
+                            continue;
+                        const Uint32 id = event.type == SDL_MOUSEMOTION ? event.motion.windowID : event.button.windowID;
+                        const bool bottom = secondary_window && id == SDL_GetWindowID(secondary_window.get());
+                        if (id != SDL_GetWindowID(window.get()) && !bottom)
+                            continue;
+                        if (event.type != SDL_MOUSEMOTION && event.button.button != SDL_BUTTON_LEFT)
+                            continue;
+                        app.handle_pointer({SDL_MOUSE_TOUCHID, 0},
+                            event.type == SDL_MOUSEMOTION ? event.motion.x : event.button.x,
+                            event.type == SDL_MOUSEMOTION ? event.motion.y : event.button.y,
+                            event.type == SDL_MOUSEMOTION ? PointerPhase::move :
+                                event.type == SDL_MOUSEBUTTONDOWN ? PointerPhase::press : PointerPhase::release, bottom);
+                    }
+                    if (event.type == SDL_FINGERDOWN || event.type == SDL_FINGERUP || event.type == SDL_FINGERMOTION)
+                    {
+                        if (event.tfinger.touchId == SDL_MOUSE_TOUCHID)
+                            continue;
+                        const bool bottom = secondary_window && event.tfinger.windowID == SDL_GetWindowID(secondary_window.get());
+                        if (event.tfinger.windowID != SDL_GetWindowID(window.get()) && !bottom)
+                            continue;
+                        app.handle_pointer({event.tfinger.touchId, event.tfinger.fingerId},
+                            event.tfinger.x * logical_width, event.tfinger.y * logical_height,
+                            event.type == SDL_FINGERMOTION ? PointerPhase::move :
+                                event.type == SDL_FINGERDOWN ? PointerPhase::press : PointerPhase::release, bottom);
                     }
                 }
                 const auto state = controller.poll();

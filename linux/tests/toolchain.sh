@@ -61,14 +61,14 @@ expect_failure 'Simulated download failure' yokoi_download \
     https://example.invalid/toolchain "$temp_dir/failed" "$checksum"
 [[ ! -e "$temp_dir/failed" && ! -e "$temp_dir/failed.part" ]]
 
-home="$temp_dir/cache/ubuntu-jammy-aarch64-gcc11-sdl2-2.26.2-v1"
+home="$temp_dir/cache/ubuntu-focal-aarch64-gcc10-sdl2-2.26.2-v1"
 mkdir -p "$home/bin" "$home/sysroot/usr/include/SDL2" \
     "$home/sysroot/usr/lib/aarch64-linux-gnu/pkgconfig"
 cat > "$home/bin/aarch64-linux-gnu-g++" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$1" in
-    -dumpfullversion) echo "${TEST_GCC_VERSION:-11.4.0}" ;;
+    -dumpfullversion) echo "${TEST_GCC_VERSION:-10.5.0}" ;;
     -dumpmachine) echo aarch64-linux-gnu ;;
     *) exit 1 ;;
 esac
@@ -78,7 +78,7 @@ chmod +x "$home/bin/aarch64-linux-gnu-g++" "$home/bin/aarch64-linux-gnu-readelf"
 touch "$home/sysroot/usr/include/SDL2/SDL.h" \
     "$home/sysroot/usr/lib/aarch64-linux-gnu/pkgconfig/sdl2.pc" \
     "$home/sysroot/usr/lib/aarch64-linux-gnu/libSDL2.so"
-printf '%s\n' ubuntu-jammy-aarch64-gcc11-sdl2-2.26.2-v1 > "$home/.yokoi-toolchain"
+printf '%s\n' ubuntu-focal-aarch64-gcc10-sdl2-2.26.2-v1 > "$home/.yokoi-toolchain"
 downloads_before=$(wc -l < "$TEST_DOWNLOAD_LOG")
 for run in 1 2; do
     (
@@ -92,7 +92,7 @@ for run in 1 2; do
 done
 [[ "$(wc -l < "$TEST_DOWNLOAD_LOG")" == "$downloads_before" ]]
 expect_failure 'Simulated download failure' env CXX= READELF= YOKOI_SYSROOT= \
-    YOKOI_TOOLCHAIN_CACHE="$temp_dir/cache" TEST_GCC_VERSION=12.1.0 \
+    YOKOI_TOOLCHAIN_CACHE="$temp_dir/cache" TEST_GCC_VERSION=11.4.0 \
     bash "$script_dir/get_gnu_toolchain.sh"
 [[ -f "$home/.yokoi-toolchain" && -x "$home/bin/aarch64-linux-gnu-g++" ]]
 echo 'Toolchain checksum, cache reuse, explicit override and failure tests passed.'

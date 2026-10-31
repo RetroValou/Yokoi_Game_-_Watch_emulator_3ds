@@ -6,6 +6,8 @@
 
 namespace yokoi
 {
+    inline constexpr uint32_t CTL_MENU = 1u << 11;
+
     struct ControllerState
     {
         uint32_t held = 0;

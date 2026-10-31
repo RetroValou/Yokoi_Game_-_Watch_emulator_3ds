@@ -13,6 +13,8 @@ constexpr uint32_t FREQUENCY_CPU = 32768; // Hz = 32,768 kHZ => 30.517us 1 cycle
 
 class SM5XX {
 public : 
+    virtual ~SM5XX() = default;
+
     SM5XX(const std::string& name) :
         name_cpu(name),
         frequency(FREQUENCY_CPU),

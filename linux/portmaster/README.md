@@ -11,11 +11,15 @@ The Linux frontend mirrors Android's `core/`, `input/`, and `render/` separation
 - [main.cpp](../main.cpp): command-line defaults, help, and top-level error reporting.
 - [core/yokoi_runtime.cpp](../core/yokoi_runtime.cpp): SDL lifetime, events, and 60 Hz frame pacing.
 - [core/yokoi_app.cpp](../core/yokoi_app.cpp): title selection, CPU boot/save/resume,
-  menu transitions, CPU stepping, and LCD blink protection.
+  grouped navigation, settings/pointer input, CPU stepping, and LCD blink protection.
+- [core/yokoi_ui.h](../core/yokoi_ui.h): shared menu/settings state and option lists.
+- [core/yokoi_preferences.cpp](../core/yokoi_preferences.cpp): saved screen-swap
+  preference.
 - [core/yokoi_audio.cpp](../core/yokoi_audio.cpp): CPU sound sampling, SDL format
   conversion, queue limits, and audio resource ownership.
 - [input/yokoi_controller.cpp](../input/yokoi_controller.cpp): keyboard/controller
   bindings, stick thresholds, hotplug, and held versus newly pressed buttons.
+- [input/yokoi_pointer.h](../input/yokoi_pointer.h): touch identity and pointer phases.
 - [render/yokoi_render.cpp](../render/yokoi_render.cpp): title textures, menu,
   multi-screen layout, and artwork/segment layering.
 - [render/yokoi_graphics.cpp](../render/yokoi_graphics.cpp): packed PNG decoding,
@@ -45,7 +49,26 @@ sysroot and use the matching PortMaster DEVICE_ARCH suffix. Do not rename an x86
 binary to aarch64. Avoid host-specific `-march=native` flags. Use `ldd`/`readelf`
 to check shared dependencies and GLIBC/GLIBCXX compatibility with the target CFW.
 The desktop build needs only SDL2 and the C++ standard library at runtime.
-PNG decoding and menu font code are vendored, with their licenses in the headers.
+PNG decoding and TrueType rendering are vendored, with their licenses in the headers.
+The Audiowide font and its SIL Open Font License are embedded in the executable;
+no external font files or SDL_ttf installation are needed.
+
+### Menu font
+
+Menus and settings use [Audiowide](https://fonts.google.com/specimen/Audiowide):
+smooth retro-futuristic lettering rather than a pixel font. stb_truetype rasterizes
+glyphs at 64 pixels and caches antialiased textures separately for each display.
+UTF-8 is decoded directly, without depending on firmware iconv/gconv conversion
+modules. Text uses the font's supported glyphs; missing characters produce a warning.
+Title and prompt text is fitted to the available width.
+
+Audiowide is free to bundle/use under SIL OFL 1.1. Its unmodified font and licence
+are vendored from Google Fonts revision `6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec`.
+The licence is embedded too, so a standalone handheld binary retains it:
+
+```sh
+./linux/build/yokoi --font-license
+```
 
 ### Cross-compile ARM64 from an x86-64 Linux host
 
@@ -62,12 +85,17 @@ but uses **GNU Linux**, not bare-metal, toolchains.
 
 The automatic environment follows
 [PortMaster's build guide](https://portmaster.games/build-environments.html):
-Ubuntu 22.04 (Jammy) GNU AArch64 cross-compilers, an ARM64 Ubuntu sysroot, and
+Ubuntu 20.04 (Focal) GNU AArch64 cross-compilers, an ARM64 Ubuntu sysroot, and
 SDL2 **2.26.2** built for that sysroot. Compiler packages come from the Ubuntu
 x86 archive; target packages come from `ports.ubuntu.com`. Signed APT metadata
 and package hashes verify the Ubuntu downloads; pinned SHA256 checksums verify
-the Ubuntu keyring and SDL2 source. GCC is restricted to the Jammy GCC 11 series;
-the exact package revisions follow Jammy updates when initially provisioned.
+the Ubuntu keyring and SDL2 source. GCC is restricted to the Focal GCC 10 series;
+the exact package revisions follow Focal updates when initially provisioned.
+
+A binary built against older libraries also runs on newer ones, but not the reverse,
+so Focal's glibc 2.31 is the newest version a build can require; the current build
+needs only GLIBC_2.27. libstdc++ and libgcc are linked statically, so handhelds
+only need to supply glibc and SDL2.
 
 Downloads and the completed compiler/sysroot are cached under
 `${XDG_CACHE_HOME:-$HOME/.cache}/yokoi/toolchains`. Subsequent builds reuse the
@@ -76,7 +104,7 @@ Installations are staged under a cache lock, so failed setup does not replace a
 previous environment. No `sudo`, system package installation, foreign-architecture
 registration, Docker, chroot, or QEMU is used.
 
-Use an x86-64 Ubuntu 22.04 or compatible newer Linux host with `apt-get`,
+Use an x86-64 Ubuntu 20.04 or compatible newer Linux host with `apt-get`,
 `dpkg-deb`, `make`, `pkg-config`, `curl`, `tar`, `gzip`, `sha256sum`, and `flock`.
 On Ubuntu/Mint the extra host prerequisites can be installed with:
 
@@ -104,7 +132,7 @@ CXX=/path/to/toolchain/bin/aarch64-linux-gnu-g++ \
 Manual sysroots must match the compiler's C++ runtime and the handheld's ABI.
 Expected pkg-config locations include `usr/lib/aarch64-linux-gnu/pkgconfig`
 and, for a supplied sysroot, `usr/lib/pkgconfig` or `usr/local/lib/pkgconfig`.
-Older CFWs may still require a lower GLIBC/GLIBCXX baseline than Jammy provides.
+Older CFWs may still require a lower GLIBC baseline than Focal provides.
 Verify the shared libraries on the actual device; do not blindly copy the whole
 cached sysroot to the handheld. The script preserves `linux/build/yokoi` and verifies
 ELF64/AArch64 before installing the result to
@@ -190,9 +218,11 @@ The video driver, SDL display count, and chosen mode are recorded in `log.txt`.
 Detection is performed at startup, not on hotplug. The SDL video backend must
 expose both displays and support windows on each; two physical panels alone
 do not guarantee this. If SDL reports one display or cannot initialize the second
-window/renderer, Yokoi logs the reason and keeps the original single-display
-layout: horizontal games side by side, clamshell games stacked, artwork in the
-selection menu.
+window/renderer, Yokoi logs the reason and composes the same top/bottom panels
+on one display. In-game settings can temporarily enlarge the top panel only.
+That choice resets when leaving the game. With two displays, the saved Swap
+screens option exchanges panel content; settings remain on
+the physical bottom display.
 
 ## Controls
 
@@ -201,33 +231,84 @@ Nintendo button labels. PortMaster supplies each device's SDL mapping.
 
 | Input | Menu | Playing |
 | --- | --- | --- |
-| D-pad / left stick | Left/right selects title | Left-side game controls |
-| A | Play/resume save | Right/action input |
-| B | Resume current game | Right/down input |
-| X | Start fresh | Right/up input |
+| D-pad / left stick | Left/right: game; up/down: manufacturer | Left-side game controls |
+| A | Open/confirm fresh or saved-state choice | Right/action input |
+| B | Cancel start choice | Right/down input |
+| X | — | Right/up input |
 | Y | — | Right/left input |
 | Start | — | Game A |
 | Select | — | Game B |
 | L | — | Time |
+| R / Guide / Back | Open/close settings | Open/close settings (pauses game) |
 | L + B | — | Save and return to menu |
 | Select + Start | Save and exit | Save and exit |
 
 Desktop: arrows; Z=A, X=B, S=X, A=Y; Enter=Start, Tab=Select, Q=L.
-Escape saves and opens the menu; Escape again exits. Selecting another game saves
-the running game first. X starts fresh without loading a save (the previous save
-is replaced when the new session is saved). No external kill helper is used for
-normal exit, so automatic save has time to finish.
+R, F1 or Escape toggles settings; B also closes them. In settings, up/down
+selects a row, left/right changes its value and A activates a button.
+Normal exit uses Select+Start or window close, saving the running game first.
+
+The selection panel shows manufacturer, game name and year in the Android
+layout. Left/right cycles only the current manufacturer's games; up/down changes
+manufacturer, skipping missing groups and restoring each group's last selection.
+A opens the Android-style fresh/saved-state prompt. Left/right toggles the choice,
+A confirms and B cancels. An existing saved state is selected by default.
+
+### Settings and persistence
+
+Both selection and in-game settings offer:
+- Segments: None (0), Light (5), Dark (10).
+- Background: Light Yellow, Light Blue, Greyish, White, Light Green or Cream.
+- Swap screens when a second display is active (off by default).
+
+In-game settings additionally offer Quit Game (save and return to selection),
+and Top screen only / Show both screens on a single display. Opening settings
+pauses emulation and clears queued audio; closing resumes play.
+
+Touch/mouse input follows Android's bottom-screen navigation and game-action
+regions; Linux uses physical controllers/keyboard rather than an on-screen
+button overlay. Confirmation presses are released/suppressed before
+gameplay so choosing a game does not accidentally press its action button.
+
+Under `ports/yokoi/conf/` (or the supplied desktop storage directory):
+- `yokoi_gw_settings.dat`: shared segment/background settings.
+- `yokoi_gw_last_game_by_mfr.dat`: last manufacturer and each manufacturer's
+  selected game reference. Boot restores the last selection, even after pack
+  reordering; a new profile prefers `JR_55`, otherwise the first game.
+- `yokoi_linux_preferences.dat`: screen swap (older controls preferences are ignored).
+- `yokoi_gw_saves/`: per-game CPU saved states.
+
+Top-only mode is deliberately temporary. Invalid settings files produce warnings;
+failed settings writes are reported rather than silently discarded.
+
+### Automatic clock
+
+Games with known clock RAM mappings initialize from the device's local time.
+Like Android, time is reapplied during ROM warm-up so startup cannot latch the
+default 12:00 clock, and after loading a saved state so its old clock is replaced.
+The selected time and timezone (or missing clock mapping) are logged at startup.
+Check `date` over SSH: incorrect device time/timezone also affects the game clock.
 
 ## Verification and remaining work
 
 Verified in this workspace on x86_64 Linux with SDL2 2.30:
 - Production executable builds and `--help` works.
-- ARM64 executable cross-compiles with cached Ubuntu Jammy GNU GCC 11 and SDL2
+- ARM64 executable cross-compiles with cached Ubuntu Focal GNU GCC 10 and SDL2
   2.26.2; ELF architecture and cache reuse are verified.
 - Four original synthetic ROM/PNG packs (single, vertical, horizontal, mask) exercise
   atlas orientation, PNG basename lookup, menu, CPU stepping, input mapping,
   SDL audio conversion (including a stereo-only device regression), rendering,
   save/load and title switch/resume.
+- Interleaved and reordered multi-manufacturer packs verify navigation, first-boot
+  defaults, stable-reference restoration and saved per-manufacturer selections.
+- An original SM510 startup program verifies that ROM clock overwrites do not
+  latch a stale display value and that restored saves use the current device time.
+- Settings tests cover context-specific options, all segment/background presets,
+  paused/resumed CPU state, saved swaps/legacy preferences, touch input, temporary top-only
+  mode, menu text/segment pixels, corrupt settings and failed writes.
+- Font checks verify proportional metrics, UTF-8 text, embedded licensing and
+  antialiased glyph pixels using real SDL rendering. They simulate unavailable
+  firmware character conversion and reject malformed/overlong UTF-8.
 - Wrong-platform packs, old packs and missing packs are rejected.
 - Virtual-controller checks cover button mappings, pressed/held edges, stick
   thresholds and hotplug; the real SDL window/event loop is exercised on exit.
@@ -240,13 +321,15 @@ Verified in this workspace on x86_64 Linux with SDL2 2.30:
 - Launcher tests cover Ports/APPS paths, early logging, old/new control scripts,
   missing files, architecture detection and executable exit status.
 
-Startup, sound and dual-display output have been reported working on stock RGDS.
-The corrected top/bottom routing still needs on-device confirmation.
+Startup, sound and the corrected top/bottom routing have been confirmed on stock
+RGDS. The new menu/settings behavior still needs on-device confirmation.
 This is a development port, **not a broadly
 tested handheld release**. Real-game accuracy, audio quality, display ordering,
 controller mappings, CFW compatibility and performance still require testing.
-The Android settings/overlay UI, manufacturer grouping, camera and stereoscopic
-3D are not implemented in this frontend. LCD shadow rendering is simplified.
+The menu/settings behavior is a controller-friendly SDL adaptation:
+the Audiowide font and widgets are not pixel-identical to Android's system UI.
+Android platform features such as camera, pack-import activities and stereoscopic
+3D are not implemented. LCD marking, shadow and tint passes follow Android.
 The existing core's known emulation issues remain applicable.
 
 Before PortMaster submission: produce target binaries, include required library
@@ -275,6 +358,10 @@ The smoke executable also writes menu/game BMP frames for visual inspection.
 Based on RetroValou/Yokoi_Game_-_Watch_emulator_3ds at
 `f273025cb372c2924e176c04ef821abafd080a17`.
 Upstream README declares Public Domain / Free to use. New frontend code is made
-available on the same terms. stb_image and stb_easy_font retain their embedded
+available on the same terms. stb_image and stb_truetype retain their embedded
 MIT/public-domain license notices. SDL2 is dynamically linked; include its license
 if redistributing its library. ROMs and artwork must be supplied separately.
+Audiowide is separately licensed under SIL OFL 1.1; its copyright notice and
+licence are in [Audiowide-OFL.txt](../third_party/Audiowide-OFL.txt) and embedded
+in each executable. stb_truetype is pinned to upstream revision
+`003501f6d7a8668ce8b6d875e34dd97ad0d5d5b5`.

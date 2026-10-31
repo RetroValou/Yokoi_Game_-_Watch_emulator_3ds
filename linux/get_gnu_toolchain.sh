@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Source to provision the Ubuntu Jammy cross-build environment documented at:
+# Source to provision the Ubuntu Focal cross-build environment documented at:
 # https://portmaster.games/build-environments.html
 # Cache/download workflow inspired by aminch/bma800xl's get_gnu_toolchain.sh.
 
@@ -27,13 +27,13 @@ yokoi_download() {
 yokoi_toolchain_valid() {
     local home=$1
     [[ -f "$home/.yokoi-toolchain" &&
-       "$(cat "$home/.yokoi-toolchain")" == ubuntu-jammy-aarch64-gcc11-sdl2-2.26.2-v1 &&
+       "$(cat "$home/.yokoi-toolchain")" == ubuntu-focal-aarch64-gcc10-sdl2-2.26.2-v1 &&
        -x "$home/bin/aarch64-linux-gnu-g++" &&
        -x "$home/bin/aarch64-linux-gnu-readelf" &&
        -f "$home/sysroot/usr/include/SDL2/SDL.h" &&
        -f "$home/sysroot/usr/lib/aarch64-linux-gnu/pkgconfig/sdl2.pc" &&
        -f "$home/sysroot/usr/lib/aarch64-linux-gnu/libSDL2.so" ]] &&
-        [[ "$("$home/bin/aarch64-linux-gnu-g++" -dumpfullversion)" == 11.* ]] &&
+        [[ "$("$home/bin/aarch64-linux-gnu-g++" -dumpfullversion)" == 10.* ]] &&
         [[ "$("$home/bin/aarch64-linux-gnu-g++" -dumpmachine)" == aarch64-linux-gnu ]]
 }
 
@@ -47,9 +47,9 @@ yokoi_ubuntu_packages() (
         "$apt_dir/var/cache/apt/archives/partial" "$apt_dir/plan/partial" || exit 1
     touch "$apt_dir/status" || exit 1
     cat > "$apt_dir/etc/apt/sources.list" <<EOF
-deb [arch=$arch signed-by=$keyring] https://$mirror jammy main universe
-deb [arch=$arch signed-by=$keyring] https://$mirror jammy-updates main universe
-deb [arch=$arch signed-by=$keyring] https://$mirror jammy-security main universe
+deb [arch=$arch signed-by=$keyring] https://$mirror focal main universe
+deb [arch=$arch signed-by=$keyring] https://$mirror focal-updates main universe
+deb [arch=$arch signed-by=$keyring] https://$mirror focal-security main universe
 EOF
     local -a options=(
         -o "Dir=$apt_dir"
@@ -64,7 +64,7 @@ EOF
         -o "Acquire::AllowInsecureRepositories=false"
         -o "Acquire::Languages=none"
     )
-    printf 'Downloading signed Ubuntu Jammy %s packages...\n' "$arch" >&2
+    printf 'Downloading signed Ubuntu Focal %s packages...\n' "$arch" >&2
     apt-get "${options[@]}" update > "$apt_dir/update.log" 2>&1 || {
         cat "$apt_dir/update.log" >&2
         exit 1
@@ -107,9 +107,9 @@ yokoi_install_toolchain() (
     mkdir "$stage/toolchain" "$stage/toolchain/sysroot" "$stage/toolchain/bin" \
         "$stage/sdl-build" || exit 1
     yokoi_ubuntu_packages "$cache" amd64 "$stage/toolchain" "$keyring" \
-        g++-11-aarch64-linux-gnu libwayland-bin || exit 1
+        g++-10-aarch64-linux-gnu libwayland-bin || exit 1
     yokoi_ubuntu_packages "$cache" arm64 "$stage/toolchain/sysroot" "$keyring" \
-        libc6-dev libstdc++-11-dev libsdl2-dev libdrm-dev libgbm-dev \
+        libc6-dev libstdc++-10-dev libsdl2-dev libdrm-dev libgbm-dev \
         libegl1-mesa-dev libgles2-mesa-dev || exit 1
 
     # Only compiler processes use the cached host libraries, never host make/APT.
@@ -135,7 +135,7 @@ case "$tool" in
         done
         # Prefer the sysroot's libc over Ubuntu's absolute-path cross-libc scripts.
         extra=("--sysroot=$sysroot" "-L$sysroot/usr/lib/aarch64-linux-gnu" "-L$sysroot/lib/aarch64-linux-gnu")
-        tool+=-11
+        tool+=-10
         ;;
 esac
 exec env LD_LIBRARY_PATH="$home/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
@@ -149,6 +149,11 @@ EOF
     ln -s tool "$stage/toolchain/bin/wayland-scanner" || exit 1
     export PATH="$stage/toolchain/bin:$stage/toolchain/usr/bin:$PATH"
     local sysroot="$stage/toolchain/sysroot"
+    # Focal's dev symlinks are absolute; left alone they dangle and the linker picks libc's .a files.
+    local link
+    while IFS= read -r -d '' link; do
+        ln -sfr -- "$sysroot$(readlink "$link")" "$link" || exit 1
+    done < <(find "$sysroot" -lname '/*' -print0)
     yokoi_download \
         https://github.com/libsdl-org/SDL/releases/download/release-2.26.2/SDL2-2.26.2.tar.gz \
         "$cache/SDL2-2.26.2.tar.gz" \
@@ -182,7 +187,7 @@ EOF
         cat "$stage/install.log" >&2
         exit 1
     }
-    printf '%s\n' ubuntu-jammy-aarch64-gcc11-sdl2-2.26.2-v1 \
+    printf '%s\n' ubuntu-focal-aarch64-gcc10-sdl2-2.26.2-v1 \
         > "$stage/toolchain/.yokoi-toolchain" || exit 1
     yokoi_toolchain_valid "$stage/toolchain" || {
         printf 'Error: cached Ubuntu ARM64 toolchain/SDL2 validation failed.\n' >&2
@@ -215,7 +220,7 @@ yokoi_get_gnu_toolchain() {
     fi
     mkdir -p -- "$cache" || return 1
     cache=$(cd -- "$cache" && pwd) || return 1
-    local home="$cache/ubuntu-jammy-aarch64-gcc11-sdl2-2.26.2-v1"
+    local home="$cache/ubuntu-focal-aarch64-gcc10-sdl2-2.26.2-v1"
     if ! yokoi_toolchain_valid "$home"; then
         yokoi_install_toolchain "$cache" "$home" || return 1
     fi
@@ -223,7 +228,7 @@ yokoi_get_gnu_toolchain() {
     export CXX="$home/bin/aarch64-linux-gnu-g++"
     export READELF=${READELF:-$home/bin/aarch64-linux-gnu-readelf}
     export YOKOI_SYSROOT=${YOKOI_SYSROOT:-$home/sysroot}
-    printf 'Using cached PortMaster Ubuntu Jammy ARM64 toolchain: %s\n' "$home" >&2
+    printf 'Using cached PortMaster Ubuntu Focal ARM64 toolchain: %s\n' "$home" >&2
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

@@ -1,13 +1,18 @@
 #include "render/yokoi_render.h"
 
 #include <algorithm>
+#include "core/yokoi_sdl.h"
+#include "std/settings.h"
 
 namespace yokoi
 {
     void GameRenderer::load(const GW_rom &game)
     {
         const bool mask_atlas = (game.segment_info[3] & 1) != 0;
-        atlas_ = load_texture(renderer_, game.path_segment, mask_atlas ? -1 : 0x080908);
+        atlas_ = load_texture(renderer_, game.path_segment, mask_atlas ? -1 : 0xffffff);
+        marking_.reset();
+        if (!mask_atlas)
+            marking_ = load_texture(renderer_, game.path_segment, 0x101010);
         background_.reset();
         console_.reset();
         if (!game.path_background.empty())
@@ -31,43 +36,142 @@ namespace yokoi
 
     void GameRenderer::draw(const GW_rom &game, const std::vector<Segment> &segments, bool menu)
     {
-        SDL_SetRenderDrawColor(renderer_, 22, 27, 33, 255);
-        SDL_RenderClear(renderer_);
-        if (menu)
+        UiState ui;
+        ui.mode = menu ? AppMode::select : AppMode::game;
+        draw(game, segments, ui);
+    }
+
+    void GameRenderer::draw(const GW_rom &game, const std::vector<Segment> &segments,
+                            const UiState &ui, bool settings_overlay)
+    {
+        const auto requested_panel = panel_;
+        if (requested_panel == Panel::combined && !ui.top_only)
         {
-            if (panel_ == Panel::bottom)
-                draw_console(game);
-            else
-                draw_menu(game);
+            if (!top_target_)
+            {
+                top_target_.reset(SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32,
+                    SDL_TEXTUREACCESS_TARGET, logical_width, logical_height));
+                bottom_target_.reset(SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32,
+                    SDL_TEXTUREACCESS_TARGET, logical_width, logical_height));
+                require_sdl(top_target_ && bottom_target_, "Create panel targets");
+            }
+            auto *target = SDL_GetRenderTarget(renderer_);
+            require_sdl(SDL_SetRenderTarget(renderer_, top_target_.get()) == 0, "Top panel target");
+            draw_panel(game, segments, ui, Panel::top);
+            require_sdl(SDL_SetRenderTarget(renderer_, bottom_target_.get()) == 0, "Bottom panel target");
+            draw_panel(game, segments, ui, Panel::bottom);
+            require_sdl(SDL_SetRenderTarget(renderer_, target) == 0, "Restore panel target");
+            SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+            SDL_RenderClear(renderer_);
+            SDL_FRect top{160, 0, 320, 240}, bottom{160, 240, 320, 240};
+            require_sdl(SDL_RenderCopyF(renderer_, top_target_.get(), nullptr, &top) == 0, "Copy top panel");
+            require_sdl(SDL_RenderCopyF(renderer_, bottom_target_.get(), nullptr, &bottom) == 0, "Copy bottom panel");
         }
         else
-            draw_game(game, segments);
+            draw_panel(game, segments, ui, requested_panel == Panel::combined ? Panel::top : requested_panel);
+        panel_ = requested_panel;
+        if (settings_overlay)
+            draw_settings(ui);
         SDL_RenderPresent(renderer_);
     }
 
-    void GameRenderer::draw_menu(const GW_rom &game)
+    void GameRenderer::draw_panel(const GW_rom &game, const std::vector<Segment> &segments,
+                                  const UiState &ui, Panel panel)
     {
-        draw_text(renderer_, 24, 24, "YOKOI - GAME & WATCH");
-        draw_text(renderer_, 24, 64, game.name, text_width(game.name) > 290 ? 1 : 2);
-        draw_text(renderer_, 24, 96, game.ref + "  " + game.date);
-        if (panel_ == Panel::combined)
-            draw_console(game, true);
-        draw_text(renderer_, 24, 375, "LEFT/RIGHT: CHOOSE   A: PLAY/RESUME");
-        draw_text(renderer_, 24, 405, "X: NEW GAME   B: RESUME");
-        draw_text(renderer_, 24, 435, "START: GAME A   SELECT: GAME B");
-        draw_text(renderer_, 24, 460, "SELECT + START: SAVE AND EXIT", 1);
+        panel_ = panel;
+        SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+        SDL_RenderClear(renderer_);
+        if (ui.mode == AppMode::game)
+            draw_game(game, segments);
+        else if (panel == Panel::bottom)
+            draw_console(game);
+        else
+            draw_menu(game, ui);
     }
 
-    void GameRenderer::draw_console(const GW_rom &game, bool in_menu)
+    void GameRenderer::draw_menu(const GW_rom &game, const UiState &ui)
+    {
+        const auto centered = [&](const std::string &text, float baseline, float scale, uint32_t color)
+        {
+            font_.draw((logical_width - text_width(text) * scale) / 2,
+                      baseline - 10 * scale, text, scale, color);
+        };
+        constexpr const char *manufacturers[] = {"Nintendo", "Tronica", "Elektronika"};
+        centered(manufacturers[game.manufacturer], 77, 2.1f, 0x888888);
+        centered(game.name, 144, std::min(4.8f, 608.f / std::max(1.f, text_width(game.name))), 0xffffff);
+        centered(game.date, 195, 2.5f, 0xcccccc);
+        if (ui.mode == AppMode::select)
+        {
+            centered("Up/Down: manufacturer", 272, 2.5f, 0x888888);
+            centered("Left/Right: game", 320, 2.5f, 0x888888);
+            centered("Tap center or press A", 368, 2.5f, 0x888888);
+        }
+        else
+        {
+            centered("Start:", 256, 2.5f, 0xffffff);
+            const auto left = ui.load_save ? "Load fresh" : "> Load fresh";
+            const auto right = ui.has_save ?
+                (ui.load_save ? "> Load savestate" : "Load savestate") : "No savestate";
+            const float scale = std::min(3.f, 288.f / std::max(text_width(left), text_width(right)));
+            font_.draw(160 - text_width(left) * scale / 2, 298, left, scale, 0xcccccc);
+            font_.draw(480 - text_width(right) * scale / 2, 298, right, scale, 0xcccccc);
+            centered("B: back", 371, 2.1f, 0x888888);
+        }
+    }
+
+    void GameRenderer::draw_settings(const UiState &ui)
+    {
+        SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 170);
+        SDL_RenderFillRect(renderer_, nullptr);
+        SDL_FRect box{56, 20, 528, 440};
+        SDL_SetRenderDrawColor(renderer_, 38, 38, 38, 255);
+        SDL_RenderFillRectF(renderer_, &box);
+        font_.draw(80, 36, "Settings", 3);
+        const auto items = settings_items(ui, panel_ != Panel::combined);
+        int alpha_index = 1, background_index = 0;
+        for (size_t i = 0; i < segment_alphas.size(); ++i)
+            if (g_settings.segment_marking_alpha == segment_alphas[i]) alpha_index = int(i);
+        for (int i = 0; i < NUM_BG_PRESETS; ++i)
+            if (g_settings.background_color == BACKGROUND_PRESETS[i].color) background_index = i;
+        for (size_t i = 0; i < items.size(); ++i)
+        {
+            std::string label, value;
+            switch (items[i])
+            {
+            case Setting::segments: label = "Segments"; value = segment_names[alpha_index]; break;
+            case Setting::background: label = "Background color"; value = BACKGROUND_PRESETS[background_index].name; break;
+            case Setting::swap: label = "Swap screens"; value = ui.swap_screens ? "On" : "Off"; break;
+            case Setting::quit_game: label = "Quit Game"; break;
+            case Setting::top_only: label = ui.top_only ? "Show both screens" : "Top screen only"; break;
+            case Setting::close: label = "Close"; break;
+            }
+            const float y = 78 + i * 50;
+            if (i == ui.settings_row)
+            {
+                SDL_FRect selected{64, y, 512, 46};
+                SDL_SetRenderDrawColor(renderer_, 65, 79, 102, 255);
+                SDL_RenderFillRectF(renderer_, &selected);
+            }
+            font_.draw(80, y + 12, label, 2);
+            const float scale = std::min(2.f,
+                (460.f - text_width(label) * 2) / std::max(1.f, text_width(value)));
+            font_.draw(560 - text_width(value) * scale, y + 12, value, scale, 0xcccccc);
+        }
+        font_.draw(80, 426, "Up/Down: select  Left/Right: change  A: choose  B/R: close", 1);
+        SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_NONE);
+    }
+
+    void GameRenderer::draw_console(const GW_rom &game)
     {
         if (!console_ || !game.console_info)
             return;
         const auto *info = game.console_info;
         SDL_Rect source{info[2], info[3], info[4], info[5]};
-        const float scale = std::min((in_menu ? 560.f : float(logical_width)) / std::max(1, source.w),
-                                     (in_menu ? 215.f : float(logical_height)) / std::max(1, source.h));
+        const float scale = std::min(float(logical_width) / std::max(1, source.w),
+                                     float(logical_height) / std::max(1, source.h));
         SDL_FRect destination{(logical_width - source.w * scale) / 2,
-                              in_menu ? 145.f : (logical_height - source.h * scale) / 2,
+                              (logical_height - source.h * scale) / 2,
                               source.w * scale, source.h * scale};
         copy_texture(renderer_, console_.get(), source, destination);
     }
@@ -144,24 +248,53 @@ namespace yokoi
             if (!want_screen(screen))
                 continue;
             const auto dest = destination(offset_x[screen], offset_y[screen], width[screen], height[screen]);
-            SDL_SetRenderDrawColor(renderer_, 195, 200, 178, 255);
+            const uint32_t color = (info[3] & 1) ? 0x080908 : g_settings.background_color;
+            SDL_SetRenderDrawColor(renderer_, (color >> 16) & 255, (color >> 8) & 255, color & 255, 255);
             SDL_RenderFillRectF(renderer_, &dest);
         }
         // Artwork can be behind the LCD segments or overlay them (mask packs).
         if (!background_in_front)
             draw_background();
         const bool mask = (info[3] & 1) != 0;
+        for (int pass = 0; pass < (mask ? 1 : 3); ++pass)
         for (const auto &segment : segments)
         {
-            if (segment.screen >= count || !want_screen(segment.screen) || (!segment.buffer_state && mask))
+            if (segment.screen >= count || !want_screen(segment.screen))
                 continue;
             SDL_Rect source{segment.pos_tex[0], segment.pos_tex[1], segment.size_tex[0], segment.size_tex[1]};
             const auto dest = destination(offset_x[segment.screen] + segment.pos_scr[0] / divisor,
                                           offset_y[segment.screen] + segment.pos_scr[1] / divisor,
                                           segment.size_tex[0] / divisor, segment.size_tex[1] / divisor);
+            if (!mask && pass == 0)
+            {
+                if (g_settings.segment_marking_alpha > 0)
+                {
+                    SDL_SetTextureAlphaMod(marking_.get(), g_settings.segment_marking_alpha);
+                    copy_texture(renderer_, marking_.get(), source, dest);
+                }
+                continue;
+            }
+            if (!segment.buffer_state)
+                continue;
+            if (!mask && pass == 1)
+            {
+                SDL_FRect shadow = dest;
+                shadow.x += 2 * zoom;
+                shadow.y += 2 * zoom;
+                SDL_SetTextureColorMod(atlas_.get(), 17, 17, 17);
+                SDL_SetTextureAlphaMod(atlas_.get(), 0x18);
+                copy_texture(renderer_, atlas_.get(), source, shadow);
+                continue;
+            }
+            if (!mask)
+            {
+                const auto color = g_settings.background_color;
+                SDL_SetTextureColorMod(atlas_.get(), Uint8(((color >> 16) & 255) * 0.12f),
+                    Uint8(((color >> 8) & 255) * 0.12f), Uint8((color & 255) * 0.12f));
+            }
             auto *texture = !mask && segment.color_index > 0 && segment.color_index < 5 ?
                 colors_[segment.color_index].get() : atlas_.get();
-            SDL_SetTextureAlphaMod(texture, segment.buffer_state ? 255 : 12);
+            SDL_SetTextureAlphaMod(texture, 255);
             copy_texture(renderer_, texture, source, dest);
         }
         if (background_in_front)

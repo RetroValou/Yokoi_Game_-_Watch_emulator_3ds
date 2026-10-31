@@ -5,9 +5,17 @@
 #include "GW_ROM.h"
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 // Global settings instance
 AppSettings g_settings;
+
+static void settings_warning([[maybe_unused]] const char* message, [[maybe_unused]] const std::string& path) {
+    YOKOI_LOG("settings: %s (path='%s')", message, path.c_str());
+#if defined(YOKOI_PORTMASTER)
+    fprintf(stderr, "Settings: %s: %s\n", message, path.c_str());
+#endif
+}
 
 static std::string settings_file_path() {
     return storage_path("yokoi_gw_settings.dat");
@@ -40,20 +48,29 @@ static bool try_load_last_games_by_mfr(LastGamesByManufacturer& out) {
     std::string path = last_games_by_mfr_file_path();
     FILE* file = fopen(path.c_str(), "rb");
     if (!file) {
+        if (errno != ENOENT) {
+            settings_warning("cannot read manufacturer selections", path);
+        }
         return false;
     }
 
     // Read based on on-disk size for forward/backward compatibility.
     if (fseek(file, 0, SEEK_END) != 0) {
+        settings_warning("cannot seek manufacturer selections", path);
         fclose(file);
         return false;
     }
     const long size = ftell(file);
     if (size < 0) {
+        settings_warning("cannot measure manufacturer selections", path);
         fclose(file);
         return false;
     }
-    (void)fseek(file, 0, SEEK_SET);
+    if (fseek(file, 0, SEEK_SET) != 0) {
+        settings_warning("cannot rewind manufacturer selections", path);
+        fclose(file);
+        return false;
+    }
 
     bool ok = false;
     if ((size_t)size == sizeof(LastGamesByManufacturer)) {
@@ -84,8 +101,10 @@ static bool try_load_last_games_by_mfr(LastGamesByManufacturer& out) {
     fclose(file);
 
     if (!ok) {
-        YOKOI_LOG("settings: last_games_by_mfr unreadable (path='%s'); deleting", path.c_str());
-        (void)remove(path.c_str());
+        settings_warning("unreadable manufacturer selections; resetting", path);
+        if (remove(path.c_str()) != 0) {
+            settings_warning("cannot remove unreadable manufacturer selections", path);
+        }
         memset(&out, 0, sizeof(out));
         return false;
     }
@@ -97,6 +116,10 @@ static bool try_load_last_games_by_mfr(LastGamesByManufacturer& out) {
             (unsigned)GW_rom::MANUFACTURER_COUNT
         );
         out.last_manufacturer = 0;
+        settings_warning("invalid stored manufacturer; resetting", path);
+    }
+    for (auto& ref : out.last_game_ref_by_mfr) {
+        ref[kLastGameRefMax - 1] = '\0';
     }
     return true;
 }
@@ -107,16 +130,19 @@ static LastGamesByManufacturer load_last_games_by_mfr() {
     return data;
 }
 
-static void save_last_games_by_mfr(const LastGamesByManufacturer& data) {
+static bool save_last_games_by_mfr(const LastGamesByManufacturer& data) {
     std::string path = last_games_by_mfr_file_path();
     FILE* file = fopen(path.c_str(), "wb");
     if (!file) {
-        YOKOI_LOG("settings: last_games_by_mfr save open failed: '%s'", path.c_str());
-        return;
+        settings_warning("cannot open manufacturer selections for writing", path);
+        return false;
     }
     const size_t wrote = fwrite(&data, sizeof(LastGamesByManufacturer), 1, file);
-    fclose(file);
-    (void)wrote;
+    const bool closed = fclose(file) == 0;
+    if (wrote != 1 || !closed) {
+        settings_warning("cannot write manufacturer selections", path);
+    }
+    return wrote == 1 && closed;
 }
 
 void load_settings() {
@@ -124,29 +150,36 @@ void load_settings() {
     FILE* file = fopen(path.c_str(), "rb");
     if (file) {
         size_t read = fread(&g_settings, sizeof(AppSettings), 1, file);
-        fclose(file);
+        const bool closed = fclose(file) == 0;
         
-        if (read != 1) {
+        if (read != 1 || !closed) {
             // File corrupted, reset to defaults
-            YOKOI_LOG("settings: settings.dat corrupted/unreadable (path='%s'), resetting", path.c_str());
+            settings_warning("unreadable settings; using defaults", path);
             reset_settings_to_default();
         }
     } else {
+        if (errno != ENOENT) {
+            settings_warning("cannot read settings; using defaults", path);
+        }
         // No settings file, use defaults
         reset_settings_to_default();
     }
 }
 
-void save_settings() {
+bool save_settings() {
     std::string path = settings_file_path();
     FILE* file = fopen(path.c_str(), "wb");
     if (file) {
         const size_t wrote = fwrite(&g_settings, sizeof(AppSettings), 1, file);
-        fclose(file);
-        (void)wrote;
+        const bool closed = fclose(file) == 0;
+        if (wrote != 1 || !closed) {
+            settings_warning("cannot write settings", path);
+        }
+        return wrote == 1 && closed;
     } else {
-        YOKOI_LOG("settings: settings.dat save open failed: '%s'", path.c_str());
+        settings_warning("cannot open settings for writing", path);
     }
+    return false;
 }
 
 void reset_settings_to_default() {
@@ -162,9 +195,10 @@ uint8_t load_last_selected_manufacturer(uint8_t default_manufacturer) {
     return data.last_manufacturer;
 }
 
-void save_last_selected_game(uint8_t manufacturer_id, const std::string& game_ref) {
+bool save_last_selected_game(uint8_t manufacturer_id, const std::string& game_ref) {
     if (manufacturer_id >= GW_rom::MANUFACTURER_COUNT) {
-        return;
+        settings_warning("invalid manufacturer to save", last_games_by_mfr_file_path());
+        return false;
     }
 
     LastGamesByManufacturer data = load_last_games_by_mfr();
@@ -175,7 +209,7 @@ void save_last_selected_game(uint8_t manufacturer_id, const std::string& game_re
         sizeof(data.last_game_ref_by_mfr[manufacturer_id]) - 1
     );
     data.last_game_ref_by_mfr[manufacturer_id][sizeof(data.last_game_ref_by_mfr[manufacturer_id]) - 1] = '\0';
-    save_last_games_by_mfr(data);
+    return save_last_games_by_mfr(data);
 }
 
 bool try_load_last_game_index_for_manufacturer(uint8_t manufacturer_id, uint8_t* out_index) {
