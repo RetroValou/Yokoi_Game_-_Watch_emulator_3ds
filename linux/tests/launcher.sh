@@ -87,14 +87,40 @@ expect_failure 42 "$ports/Yokoi.sh"
 grep -Fq 'Yokoi exited with status 42' "$game/log.txt"
 unset TEST_EXIT_CODE TEST_HELPERS TEST_DEVICE_ARCH
 
+# Firmware can run the launcher under BusyBox ash despite its bash shebang.
+if command -v busybox >/dev/null; then
+    posix_shell=("$(command -v busybox)" sh)
+elif command -v dash >/dev/null; then
+    posix_shell=("$(command -v dash)")
+else
+    posix_shell=()
+fi
+if [ "${#posix_shell[@]}" -gt 0 ]; then
+    rm -f "$game/log.txt"
+    "${posix_shell[@]}" "$ports/Yokoi.sh" 2>&1 | cat > "$temp_dir/capture"
+    grep -Fq "Yokoi game directory: $game" "$game/log.txt"
+    grep -Fq 'Fake Yokoi started' "$game/log.txt"
+    ! grep -Fq 'bad substitution' "$temp_dir/capture"
+
+    mkdir "$temp_dir/fake-bash"
+    printf '#!/bin/sh\nexit 1\n' > "$temp_dir/fake-bash/bash"
+    chmod +x "$temp_dir/fake-bash/bash"
+    if PATH="$temp_dir/fake-bash" "${posix_shell[@]}" "$ports/Yokoi.sh" > "$temp_dir/capture" 2>&1; then
+        echo 'Expected launcher failure without a real bash' >&2
+        exit 1
+    fi
+    grep -Fq 'no real bash was found' "$temp_dir/capture"
+fi
+
 mv "$game/yokoi_pack_rgds.ykp" "$temp_dir/pack"
 expect_failure 1 "$ports/Yokoi.sh"
 grep -Fq 'needs your Android ROM pack' "$game/log.txt"
 mv "$temp_dir/pack" "$game/yokoi_pack_rgds.ykp"
-chmod -x "$game/yokoi.aarch64"
+# The launcher restores the executable bit itself, so remove the binary instead.
+mv "$game/yokoi.aarch64" "$temp_dir/binary"
 expect_failure 1 "$ports/Yokoi.sh"
 grep -Fq 'Missing Yokoi executable for aarch64' "$game/log.txt"
-chmod +x "$game/yokoi.aarch64"
+mv "$temp_dir/binary" "$game/yokoi.aarch64"
 
 export TEST_MACHINE=riscv64
 expect_failure 1 "$ports/Yokoi.sh"

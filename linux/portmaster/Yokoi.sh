@@ -1,4 +1,17 @@
 #!/bin/bash
+# TrimUI Brick on SpruceOS ran this under BusyBox ash despite the line above, and
+# PortMaster's device_info.txt uses bash arrays, so ash cannot source control.txt.
+# Switch to a real bash first. ash reads one command at a time, so this block must
+# stay POSIX but the bash syntax below it is never parsed.
+if [ -z "${BASH_VERSION:-}" ]; then
+    for candidate in "$(command -v bash)" /mnt/SDCARD/spruce/smartpro/bin/bash; do
+        if [ -n "$candidate" ] && "$candidate" -c '[ -n "${BASH_VERSION:-}" ]' 2>/dev/null; then
+            exec "$candidate" "$0" "$@"
+        fi
+    done
+    printf 'Yokoi needs bash for PortMaster, but no real bash was found.\n' >&2
+    exit 1
+fi
 launcher_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd) || exit 1
 GAMEDIR="$launcher_dir/yokoi"
 # The launcher can live away from the port data: stock RGDS can expose a second
