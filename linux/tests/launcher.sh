@@ -128,8 +128,20 @@ grep -Fq 'unsupported host architecture: riscv64' "$game/log.txt"
 unset TEST_MACHINE
 export controlfolder="$temp_dir/no-control"
 expect_failure 1 "$ports/Yokoi.sh"
-grep -Fq 'control.txt' "$game/log.txt"
+grep -Fq "Looked in: $temp_dir/no-control" "$game/log.txt"
 ! grep -Fq 'Fake Yokoi started' "$game/log.txt"
+
+# ROCKNIX: nothing inherited, and PortMaster sits beside the launcher in ports/.
+unset controlfolder
+cp -r "$temp_dir/control" "$ports/PortMaster"
+run_launcher "$ports/Yokoi.sh"
+grep -Fq "PortMaster control folder: $ports/PortMaster" "$game/log.txt"
+grep -Fq 'Fake Yokoi started' "$game/log.txt"
+# A folder without control.txt must not stop the search.
+rm "$ports/PortMaster/control.txt"
+expect_failure 1 "$ports/Yokoi.sh"
+grep -Fq "/storage/.config/PortMaster" "$game/log.txt"
+grep -Fq "$ports/PortMaster" "$game/log.txt"
 
 expect_failure 1 "$temp_dir/missing/Yokoi.sh"
 grep -Fq 'Missing Yokoi game directory' "$temp_dir/missing/yokoi-launch.log"

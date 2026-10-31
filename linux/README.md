@@ -177,10 +177,13 @@ The launcher resolves the game folder alongside itself instead of assuming
 into `/mnt/mmc/Roms/APPS` also finds that same Ports folder. Update both launcher
 copies if your device has both menu entries.
 
-PortMaster is detected at `/mnt/ports/PortMaster`, `/PortMaster`, the usual
-`/opt/...` locations, or the user data directory. An inherited `controlfolder`
-can override detection. Older stock control scripts without `DEVICE_ARCH` use
-the host's ARM64/x86-64 architecture; optional `pm_*` helpers are used when present.
+PortMaster is detected by looking for `control.txt` in `/mnt/ports/PortMaster`,
+`/PortMaster`, the usual `/opt/...` locations, the user data directory,
+`/roms/ports/PortMaster`, the `/storage/...` locations used by ROCKNIX, or a
+`PortMaster` folder alongside the launcher. If none match, `log.txt` lists every
+path tried. An inherited `controlfolder` can override detection. Older stock control
+scripts without `DEVICE_ARCH` use the host's ARM64/x86-64 architecture; optional
+`pm_*` helpers are used when present.
 
 Logging starts **before** PortMaster setup. If the game directory is missing,
 diagnostics go to `yokoi-launch.log` alongside the launcher instead. Normal

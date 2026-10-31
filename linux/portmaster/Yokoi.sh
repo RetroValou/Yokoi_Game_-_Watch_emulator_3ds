@@ -44,25 +44,28 @@ if [ ! -d "$GAMEDIR" ]; then
 fi
 printf 'Yokoi game directory: %s\n' "$GAMEDIR"
 XDG_DATA_HOME=${XDG_DATA_HOME:-${HOME:-/}/.local/share}
-if [ -z "${controlfolder:-}" ]; then
-    if [ -d /mnt/ports/PortMaster ]; then
-        controlfolder=/mnt/ports/PortMaster
-    elif [ -d /PortMaster ]; then
-        controlfolder=/PortMaster
-    elif [ -d /opt/system/Tools/PortMaster ]; then
-        controlfolder=/opt/system/Tools/PortMaster
-    elif [ -d /opt/tools/PortMaster ]; then
-        controlfolder=/opt/tools/PortMaster
-    elif [ -d "$XDG_DATA_HOME/PortMaster" ]; then
-        controlfolder="$XDG_DATA_HOME/PortMaster"
-    else
-        controlfolder=/roms/ports/PortMaster
-    fi
+if [ -n "${controlfolder:-}" ]; then
+    control_candidates=("$controlfolder")
+else
+    # ROCKNIX keeps PortMaster under /storage and may have no /roms path. Test for
+    # control.txt rather than the folder so an empty PortMaster folder is skipped.
+    control_candidates=(/mnt/ports/PortMaster /PortMaster /opt/system/Tools/PortMaster
+        /opt/tools/PortMaster "$XDG_DATA_HOME/PortMaster" /roms/ports/PortMaster
+        /storage/.config/PortMaster /storage/.local/share/PortMaster
+        /storage/roms/ports/PortMaster "$launcher_dir/PortMaster")
 fi
-if [ ! -f "$controlfolder/control.txt" ]; then
-    notify "Missing PortMaster control.txt in $controlfolder"
+controlfolder=
+for candidate in "${control_candidates[@]}"; do
+    if [ -f "$candidate/control.txt" ]; then
+        controlfolder=$candidate
+        break
+    fi
+done
+if [ -z "$controlfolder" ]; then
+    notify "Missing PortMaster control.txt. Looked in: ${control_candidates[*]}"
     exit 1
 fi
+printf 'PortMaster control folder: %s\n' "$controlfolder"
 # Its exit status is whatever its last line returned, so it does not signal failure.
 source "$controlfolder/control.txt"
 [ -f "$controlfolder/mod_${CFW_NAME:-}.txt" ] && source "$controlfolder/mod_${CFW_NAME:-}.txt"
