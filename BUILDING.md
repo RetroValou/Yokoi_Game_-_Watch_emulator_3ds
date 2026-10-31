@@ -51,5 +51,5 @@ This mode builds an app that includes ROMs/assets embedded in the application.
 ## Linux / PortMaster
 
 The `linux/` SDL2 frontend uses the Android/RGDS ROM-pack format and shared C++
-emulator core. See [linux/portmaster/README.md](linux/portmaster/README.md) for build,
+emulator core. See [linux/README.md](linux/README.md) for build,
 installation, controls, test instructions and current limitations.

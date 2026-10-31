@@ -60,7 +60,7 @@ compiler=${CXX:-aarch64-linux-gnu-g++}
 pkg_config=${PKG_CONFIG:-pkg-config}
 readelf=${READELF:-readelf}
 for tool in "$compiler" "$pkg_config" "$readelf" make; do
-    command -v "$tool" >/dev/null || fail "Missing tool: $tool. See linux/portmaster/README.md for prerequisites."
+    command -v "$tool" >/dev/null || fail "Missing tool: $tool. See linux/README.md for prerequisites."
 done
 machine=$("$compiler" -dumpmachine)
 case "$machine" in

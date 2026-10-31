@@ -8,21 +8,21 @@ No Android runtime or APK is required. No ROMs or commercial artwork are include
 
 The Linux frontend mirrors Android's `core/`, `input/`, and `render/` separation:
 
-- [main.cpp](../main.cpp): command-line defaults, help, and top-level error reporting.
-- [core/yokoi_runtime.cpp](../core/yokoi_runtime.cpp): SDL lifetime, events, and 60 Hz frame pacing.
-- [core/yokoi_app.cpp](../core/yokoi_app.cpp): title selection, CPU boot/save/resume,
+- [main.cpp](main.cpp): command-line defaults, help, and top-level error reporting.
+- [core/yokoi_runtime.cpp](core/yokoi_runtime.cpp): SDL lifetime, events, and 60 Hz frame pacing.
+- [core/yokoi_app.cpp](core/yokoi_app.cpp): title selection, CPU boot/save/resume,
   grouped navigation, settings/pointer input, CPU stepping, and LCD blink protection.
-- [core/yokoi_ui.h](../core/yokoi_ui.h): shared menu/settings state and option lists.
-- [core/yokoi_preferences.cpp](../core/yokoi_preferences.cpp): saved screen-swap
+- [core/yokoi_ui.h](core/yokoi_ui.h): shared menu/settings state and option lists.
+- [core/yokoi_preferences.cpp](core/yokoi_preferences.cpp): saved screen-swap
   preference.
-- [core/yokoi_audio.cpp](../core/yokoi_audio.cpp): CPU sound sampling, SDL format
+- [core/yokoi_audio.cpp](core/yokoi_audio.cpp): CPU sound sampling, SDL format
   conversion, queue limits, and audio resource ownership.
-- [input/yokoi_controller.cpp](../input/yokoi_controller.cpp): keyboard/controller
+- [input/yokoi_controller.cpp](input/yokoi_controller.cpp): keyboard/controller
   bindings, stick thresholds, hotplug, and held versus newly pressed buttons.
-- [input/yokoi_pointer.h](../input/yokoi_pointer.h): touch identity and pointer phases.
-- [render/yokoi_render.cpp](../render/yokoi_render.cpp): title textures, menu,
+- [input/yokoi_pointer.h](input/yokoi_pointer.h): touch identity and pointer phases.
+- [render/yokoi_render.cpp](render/yokoi_render.cpp): title textures, menu,
   multi-screen layout, and artwork/segment layering.
-- [render/yokoi_graphics.cpp](../render/yokoi_graphics.cpp): packed PNG decoding,
+- [render/yokoi_graphics.cpp](render/yokoi_graphics.cpp): packed PNG decoding,
   tinting, atlas coordinate conversion, and text drawing.
 
 The shared CPU utilities and per-game input mappings still come from Android.
@@ -50,7 +50,7 @@ binary to aarch64. Avoid host-specific `-march=native` flags. Use `ldd`/`readelf
 to check shared dependencies and GLIBC/GLIBCXX compatibility with the target CFW.
 The desktop build needs only SDL2 and the C++ standard library at runtime.
 PNG decoding and TrueType rendering are vendored, with their licenses in the headers
-and in `yokoi/licenses/`.
+and in `portmaster/yokoi/licenses/`.
 The Audiowide font and its SIL Open Font License are embedded in the executable;
 no external font files or SDL_ttf installation are needed.
 
@@ -166,7 +166,7 @@ success or failure. The downloaded toolchain cache remains outside the repositor
 2. The ARM64 cross-build already stages `yokoi/yokoi.aarch64`. For another
    architecture, place its executable in `ports/yokoi/` with the matching suffix.
 3. Generate your own **Android/RGDS pack**, as described in
-   [CONVERT_ROM/README.md](../../CONVERT_ROM/README.md).
+   [CONVERT_ROM/README.md](../CONVERT_ROM/README.md).
    Copy it to `ports/yokoi/yokoi_pack_rgds.ykp` (content version 3 or later).
    A 3DS pack contains incompatible textures and is explicitly rejected.
 4. Run Yokoi from the Ports menu. Saves are in `ports/yokoi/conf/yokoi_gw_saves/`;
@@ -200,8 +200,8 @@ An audio failure does not prevent play, but there will be no sound.
 
 At startup, SDL's display count is detected. With two or more displays, Yokoi
 opens fullscreen windows on the first two and uses the same panel policy as
-the [Android layout](../../android/app/src/main/cpp/core/yokoi_layout.cpp) and
-[3DS renderer](../../source/virtual_i_o/3ds_screen.cpp):
+the [Android layout](../android/app/src/main/cpp/core/yokoi_layout.cpp) and
+[3DS renderer](../source/virtual_i_o/3ds_screen.cpp):
 
 | Mode | Top display | Bottom display |
 | --- | --- | --- |
@@ -412,7 +412,7 @@ The existing core's known emulation issues remain applicable.
 
 Before PortMaster submission: produce target binaries, include required library
 licenses, add real-device screenshot/metadata (`port.json`, `gameinfo.xml`), and
-complete the official community testing process. This folder is an installation
+complete the official community testing process. The `portmaster/` folder is an installation
 staging directory, not a submission-ready PortMaster archive.
 
 ## Synthetic smoke check (no commercial data)
@@ -440,10 +440,10 @@ available on the same terms. stb_image and stb_truetype retain their embedded
 MIT/public-domain license notices. SDL2 is dynamically linked; include its license
 if redistributing its library. ROMs and artwork must be supplied separately.
 Audiowide is separately licensed under SIL OFL 1.1; its copyright notice and
-licence are in [Audiowide-OFL.txt](../third_party/Audiowide-OFL.txt) and embedded
+licence are in [Audiowide-OFL.txt](third_party/Audiowide-OFL.txt) and embedded
 in each executable. stb_truetype is pinned to upstream revision
 `003501f6d7a8668ce8b6d875e34dd97ad0d5d5b5`.
 
-The port ships these notices in `yokoi/licenses/`: `stb_image.txt`,
+The port ships these notices in `portmaster/yokoi/licenses/`: `stb_image.txt`,
 `stb_truetype.txt` and `Audiowide-OFL.txt`. Keep `Audiowide-OFL.txt` identical to
 the copy in `third_party/`.
