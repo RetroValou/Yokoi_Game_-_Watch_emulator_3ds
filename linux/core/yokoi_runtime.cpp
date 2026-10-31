@@ -1,6 +1,7 @@
 #include "core/yokoi_runtime.h"
 
 #include <SDL.h>
+#include <cstdio>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -23,21 +24,60 @@ namespace yokoi
             throw std::runtime_error("Pack must contain 1..255 games");
         require_sdl(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) == 0, "SDL init");
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+        const int display_count = SDL_GetNumVideoDisplays();
+        require_sdl(display_count > 0, "SDL video displays");
+        std::fprintf(stderr, "Video driver: %s; SDL displays: %d\n",
+                     SDL_GetCurrentVideoDriver(), display_count);
         {
             // Destroy controllers, sessions and textures before the renderer/window and SDL.
             using Window = std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)>;
             using Renderer = std::unique_ptr<SDL_Renderer, decltype(&SDL_DestroyRenderer)>;
-            Window window(SDL_CreateWindow("Yokoi", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            Window window(SDL_CreateWindow("Yokoi", SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0),
                                            logical_width, logical_height, SDL_WINDOW_FULLSCREEN_DESKTOP),
                           SDL_DestroyWindow);
             require_sdl(window != nullptr, "Window");
-            Renderer renderer(SDL_CreateRenderer(window.get(), -1, SDL_RENDERER_ACCELERATED),
-                              SDL_DestroyRenderer);
-            if (!renderer)
-                renderer.reset(SDL_CreateRenderer(window.get(), -1, SDL_RENDERER_SOFTWARE));
+            const auto create_renderer = [](SDL_Window *target)
+            {
+                Renderer result(SDL_CreateRenderer(target, -1, SDL_RENDERER_ACCELERATED), SDL_DestroyRenderer);
+                if (!result)
+                    result.reset(SDL_CreateRenderer(target, -1, SDL_RENDERER_SOFTWARE));
+                return result;
+            };
+            Renderer renderer = create_renderer(window.get());
             require_sdl(renderer != nullptr, "Renderer");
-            SDL_RenderSetLogicalSize(renderer.get(), logical_width, logical_height);
-            App app(renderer.get());
+            require_sdl(SDL_RenderSetLogicalSize(renderer.get(), logical_width, logical_height) == 0, "Logical size");
+            Window secondary_window(nullptr, SDL_DestroyWindow);
+            Renderer secondary_renderer(nullptr, SDL_DestroyRenderer);
+            if (display_count >= 2)
+            {
+                secondary_window.reset(SDL_CreateWindow("Yokoi - second screen",
+                    SDL_WINDOWPOS_CENTERED_DISPLAY(1), SDL_WINDOWPOS_CENTERED_DISPLAY(1),
+                    logical_width, logical_height, SDL_WINDOW_FULLSCREEN_DESKTOP));
+                if (!secondary_window)
+                    std::fprintf(stderr, "Second display window unavailable: %s; using one display.\n", SDL_GetError());
+                else if (SDL_GetWindowDisplayIndex(secondary_window.get()) != 1)
+                {
+                    std::fprintf(stderr, "Second window was not placed on display 1; using one display.\n");
+                    secondary_window.reset();
+                }
+                else
+                {
+                    secondary_renderer = create_renderer(secondary_window.get());
+                    if (!secondary_renderer)
+                        std::fprintf(stderr, "Second display renderer unavailable: %s; using one display.\n", SDL_GetError());
+                    else if (SDL_RenderSetLogicalSize(secondary_renderer.get(), logical_width, logical_height) < 0)
+                    {
+                        std::fprintf(stderr, "Second display logical size failed: %s; using one display.\n", SDL_GetError());
+                        secondary_renderer.reset();
+                    }
+                    if (!secondary_renderer)
+                        secondary_window.reset();
+                }
+            }
+            // Stock Linux RGDS exposes the top panel first, unlike Android's primary display.
+            std::fprintf(stderr, "%s\n", secondary_renderer ?
+                "Dual-screen mode: top display 0, bottom display 1." : "Single-screen mode.");
+            App app(renderer.get(), secondary_renderer.get());
             app.select(0);
             app.open_audio();
             Controller controller;

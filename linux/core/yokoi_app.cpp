@@ -11,7 +11,10 @@
 
 namespace yokoi
 {
-    App::App(SDL_Renderer *renderer) : graphics_(renderer) {}
+    App::App(SDL_Renderer *renderer, SDL_Renderer *secondary_renderer)
+        : graphics_(renderer, secondary_renderer ? Panel::top : Panel::combined),
+          secondary_graphics_(secondary_renderer ?
+              std::make_unique<GameRenderer>(secondary_renderer, Panel::bottom) : nullptr) {}
     App::~App() = default;
 
     void App::save()
@@ -32,6 +35,8 @@ namespace yokoi
         if (!game_ || !game_->segment_info)
             throw std::runtime_error("Missing game metadata");
         graphics_.load(*game_);
+        if (secondary_graphics_)
+            secondary_graphics_->load(*game_);
         segments_.assign(game_->segment, game_->segment + game_->size_segment);
     }
 
@@ -151,5 +156,7 @@ namespace yokoi
     void App::draw()
     {
         graphics_.draw(*game_, segments_, menu_);
+        if (secondary_graphics_)
+            secondary_graphics_->draw(*game_, segments_, menu_);
     }
 }

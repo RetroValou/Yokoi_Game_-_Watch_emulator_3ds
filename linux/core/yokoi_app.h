@@ -16,7 +16,7 @@ namespace yokoi
     class App
     {
     public:
-        explicit App(SDL_Renderer *renderer);
+        explicit App(SDL_Renderer *renderer, SDL_Renderer *secondary_renderer = nullptr);
         ~App();
         void select(size_t selected);
         void start(bool resume);
@@ -38,6 +38,7 @@ namespace yokoi
         void update_segments();
 
         GameRenderer graphics_;
+        std::unique_ptr<GameRenderer> secondary_graphics_;
         Audio audio_;
         const GW_rom *game_ = nullptr;
         uint8_t index_ = 0;

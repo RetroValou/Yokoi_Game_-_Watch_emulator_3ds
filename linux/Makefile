@@ -15,6 +15,7 @@ LDLIBS += $(SDL_LIBS) -pthread
 CORE := $(wildcard ../source/SM5XX/*.cpp ../source/SM5XX/*/*.cpp ../source/std/*.cpp)
 ANDROID := ../android/app/src/main/cpp/core/yokoi_cpu_utils.cpp ../android/app/src/main/cpp/input/yokoi_input_mapping.cpp
 FRONTEND := $(wildcard core/*.cpp input/*.cpp render/*.cpp)
+SMOKE_WRAPS := SDL_OpenAudioDevice SDL_NewAudioStream SDL_GetNumVideoDisplays SDL_CreateWindow SDL_GetWindowDisplayIndex SDL_CreateRenderer SDL_RenderSetLogicalSize SDL_RenderPresent
 .PHONY: all clean check check-cross-build check-launcher smoke-test
 all: $(TARGET)
 HEADERS := $(wildcard core/*.h input/*.h render/*.h ../source/SM5XX/*.h ../source/SM5XX/*/*.h ../source/std/*.h ../source/virtual_i_o/virtual_input.h ../android/app/src/main/cpp/core/yokoi_cpu_utils.h ../android/app/src/main/cpp/input/yokoi_input_mapping.h third_party/*.h)
@@ -26,7 +27,7 @@ clean:
 smoke-test: $(SMOKE_TARGET)
 $(SMOKE_TARGET): tests/smoke.cpp $(FRONTEND) $(CORE) $(ANDROID) $(HEADERS)
 	mkdir -p "$(@D)"
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) tests/smoke.cpp $(FRONTEND) $(CORE) $(ANDROID) $(LDFLAGS) -Wl,--wrap=SDL_OpenAudioDevice -Wl,--wrap=SDL_NewAudioStream $(LDLIBS) -o "$@"
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) tests/smoke.cpp $(FRONTEND) $(CORE) $(ANDROID) $(LDFLAGS) $(foreach symbol,$(SMOKE_WRAPS),-Wl,--wrap=$(symbol)) $(LDLIBS) -o "$@"
 
 check-cross-build:
 	bash tests/cross-build.sh

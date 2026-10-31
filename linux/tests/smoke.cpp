@@ -1,6 +1,10 @@
 #include <SDL.h>
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdio>
+#include <cstring>
+#include <stdexcept>
 #include <string>
 #include "core/yokoi_app.h"
 #include "core/yokoi_runtime.h"
@@ -17,6 +21,104 @@ extern "C" SDL_AudioDeviceID __real_SDL_OpenAudioDevice(
     const char *, int, const SDL_AudioSpec *, SDL_AudioSpec *, int);
 extern "C" SDL_AudioStream *__real_SDL_NewAudioStream(
     SDL_AudioFormat, Uint8, int, SDL_AudioFormat, Uint8, int);
+extern "C" int __real_SDL_GetNumVideoDisplays();
+extern "C" SDL_Window *__real_SDL_CreateWindow(const char *, int, int, int, int, Uint32);
+extern "C" int __real_SDL_GetWindowDisplayIndex(SDL_Window *);
+extern "C" SDL_Renderer *__real_SDL_CreateRenderer(SDL_Window *, int, Uint32);
+extern "C" int __real_SDL_RenderSetLogicalSize(SDL_Renderer *, int, int);
+extern "C" void __real_SDL_RenderPresent(SDL_Renderer *);
+
+enum class DisplayFailure { none, window, placement, renderer, logical_size };
+static struct
+{
+    int count = -1;
+    DisplayFailure failure = DisplayFailure::none;
+    SDL_Window *primary = nullptr;
+    SDL_Window *secondary = nullptr;
+    int window_attempts = 0;
+    int primary_frames = 0;
+    int secondary_frames = 0;
+} displays;
+
+extern "C" int __wrap_SDL_GetNumVideoDisplays()
+{
+    if (displays.count < 0)
+        return __real_SDL_GetNumVideoDisplays();
+    if (displays.count == 0)
+        SDL_SetError("Test device has no displays");
+    return displays.count;
+}
+
+// The dummy backend has one display; emulate placement but use real SDL windows.
+extern "C" SDL_Window *__wrap_SDL_CreateWindow(
+    const char *title, int x, int y, int width, int height, Uint32 flags)
+{
+    if (displays.count < 0)
+        return __real_SDL_CreateWindow(title, x, y, width, height, flags);
+    assert(SDL_WINDOWPOS_ISCENTERED(x) && x == y);
+    const int index = x & 0xffff;
+    assert(index == 0 || index == 1);
+    ++displays.window_attempts;
+    if (index == 1 && displays.failure == DisplayFailure::window)
+    {
+        SDL_SetError("Test second window unavailable");
+        return nullptr;
+    }
+    auto *window = __real_SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED_DISPLAY(0),
+                                           SDL_WINDOWPOS_CENTERED_DISPLAY(0), width, height, flags);
+    (index == 0 ? displays.primary : displays.secondary) = window;
+    return window;
+}
+
+extern "C" int __wrap_SDL_GetWindowDisplayIndex(SDL_Window *window)
+{
+    if (displays.count >= 0 && window == displays.secondary)
+        return displays.failure == DisplayFailure::placement ? 0 : 1;
+    return __real_SDL_GetWindowDisplayIndex(window);
+}
+
+extern "C" SDL_Renderer *__wrap_SDL_CreateRenderer(SDL_Window *window, int index, Uint32 flags)
+{
+    if (displays.count >= 0 && window == displays.secondary &&
+        displays.failure == DisplayFailure::renderer)
+    {
+        SDL_SetError("Test second renderer unavailable");
+        return nullptr;
+    }
+    return __real_SDL_CreateRenderer(window, index, flags);
+}
+
+extern "C" int __wrap_SDL_RenderSetLogicalSize(SDL_Renderer *renderer, int width, int height)
+{
+    if (displays.count >= 0 && SDL_RenderGetWindow(renderer) == displays.secondary &&
+        displays.failure == DisplayFailure::logical_size)
+        return SDL_SetError("Test second logical size unavailable");
+    return __real_SDL_RenderSetLogicalSize(renderer, width, height);
+}
+
+extern "C" void __wrap_SDL_RenderPresent(SDL_Renderer *renderer)
+{
+    if (displays.count >= 0)
+    {
+        auto *window = SDL_RenderGetWindow(renderer);
+        if (window == displays.primary)
+            ++displays.primary_frames;
+        else if (window == displays.secondary)
+            ++displays.secondary_frames;
+        if (displays.count >= 2 && displays.failure == DisplayFailure::none)
+        {
+            int width, height;
+            assert(SDL_GetRendererOutputSize(renderer, &width, &height) == 0);
+            SDL_Rect center{width / 2, height / 2, 1, 1};
+            Uint8 rgba[4];
+            assert(SDL_RenderReadPixels(renderer, &center, SDL_PIXELFORMAT_RGBA32, rgba, sizeof(rgba)) == 0);
+            const bool empty = rgba[0] == 22 && rgba[1] == 27 && rgba[2] == 33;
+            // The menu center is empty above; console artwork fills it below.
+            assert(empty == (window == displays.primary));
+        }
+    }
+    __real_SDL_RenderPresent(renderer);
+}
 
 // Model handheld ALSA hardware that rejects mono while retaining real SDL audio.
 extern "C" SDL_AudioDeviceID __wrap_SDL_OpenAudioDevice(
@@ -133,6 +235,148 @@ static void check_controller()
 #endif
 }
 
+static std::array<Uint8, 3> pixel(SDL_Surface *surface, int x, int y)
+{
+    const auto *row = static_cast<const Uint8 *>(surface->pixels) + y * surface->pitch;
+    Uint32 value;
+    std::memcpy(&value, row + x * sizeof(value), sizeof(value));
+    Uint8 r, g, b, a;
+    SDL_GetRGBA(value, surface->format, &r, &g, &b, &a);
+    return {r, g, b};
+}
+
+static void check_panels(SDL_Renderer *renderer, SDL_Surface *surface)
+{
+    auto *bottom_surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBA32);
+    assert(bottom_surface);
+    auto *bottom_renderer = SDL_CreateSoftwareRenderer(bottom_surface);
+    assert(bottom_renderer);
+    {
+        const auto *game = load_game(0);
+        assert(game);
+        std::vector<Segment> segments(game->segment, game->segment + game->size_segment);
+        const bool split = segments.size() == 2 && !(game->segment_info[3] & 2);
+        GameRenderer top(renderer, Panel::top);
+        GameRenderer bottom(bottom_renderer, Panel::bottom);
+        GameRenderer combined(renderer);
+        top.load(*game);
+        bottom.load(*game);
+        combined.load(*game);
+        top.draw(*game, segments, true);
+        bottom.draw(*game, segments, true);
+        const std::array<Uint8, 3> empty{22, 27, 33};
+        const std::array<Uint8, 3> lcd{195, 200, 178};
+        assert(pixel(surface, 320, 240) == empty);
+        assert(pixel(bottom_surface, 320, 240) != empty);
+        const size_t bytes = bottom_surface->pitch * bottom_surface->h;
+        std::vector<Uint8> console(bytes);
+        std::memcpy(console.data(), bottom_surface->pixels, bytes);
+        top.draw(*game, segments, false);
+        bottom.draw(*game, segments, false);
+        if (!split)
+        {
+            assert(std::memcmp(console.data(), bottom_surface->pixels, bytes) == 0);
+            std::vector<Uint8> top_game(surface->pitch * surface->h);
+            std::memcpy(top_game.data(), surface->pixels, top_game.size());
+            combined.draw(*game, segments, false);
+            assert(std::memcmp(top_game.data(), surface->pixels, top_game.size()) == 0);
+        }
+
+        std::array<uint16_t, 8> info{};
+        std::copy_n(game->segment_info, 6, info.begin());
+        if (segments.size() == 2)
+        {
+            info[6] = 120;
+            info[7] = 60;
+        }
+        for (auto &segment : segments)
+        {
+            segment.buffer_state = true;
+            segment.pos_scr[0] = segment.screen == 0 ? 24 : 48;
+            segment.pos_scr[1] = 24;
+        }
+        GW_rom isolated(game->name, game->ref, game->date, game->rom, game->size_rom,
+                        game->melody, game->size_melody, game->path_segment,
+                        segments.data(), segments.size(), info.data(), "", nullptr, "", nullptr);
+        top.load(isolated);
+        bottom.load(isolated);
+        top.draw(isolated, segments, false);
+        bottom.draw(isolated, segments, false);
+        if (split)
+        {
+            // Distinct segments and aspect ratios prove each panel draws only its LCD.
+            assert(pixel(surface, 200, 200) != lcd);
+            assert(pixel(bottom_surface, 200, 200) == lcd);
+            assert(pixel(surface, 260, 210) == lcd);
+            assert(pixel(bottom_surface, 260, 210) != lcd);
+            assert(pixel(surface, 20, 20) == lcd);
+            assert(pixel(bottom_surface, 20, 20) == empty);
+        }
+        else
+            assert(pixel(bottom_surface, 320, 240) == empty);
+        bottom.draw(isolated, segments, true);
+        assert(pixel(bottom_surface, 320, 240) == empty);
+        {
+            App app(renderer, bottom_renderer);
+            app.select(0);
+            app.draw();
+            assert(std::memcmp(console.data(), bottom_surface->pixels, bytes) == 0);
+            app.start(false);
+            app.tick(0);
+            app.draw();
+            if (!split)
+                assert(std::memcmp(console.data(), bottom_surface->pixels, bytes) == 0);
+            else
+                assert(std::memcmp(console.data(), bottom_surface->pixels, bytes) != 0);
+            app.return_to_menu();
+            app.draw();
+            assert(std::memcmp(console.data(), bottom_surface->pixels, bytes) == 0);
+            app.select(0);
+            app.draw();
+            assert(std::memcmp(console.data(), bottom_surface->pixels, bytes) == 0);
+        }
+    }
+    SDL_DestroyRenderer(bottom_renderer);
+    SDL_FreeSurface(bottom_surface);
+}
+
+static void check_displays(const char *pack, const char *storage)
+{
+    const std::pair<int, DisplayFailure> cases[] = {
+        {0, DisplayFailure::none}, {1, DisplayFailure::none}, {2, DisplayFailure::none},
+        {3, DisplayFailure::none}, {2, DisplayFailure::window}, {2, DisplayFailure::placement},
+        {2, DisplayFailure::renderer}, {2, DisplayFailure::logical_size},
+    };
+    for (const auto &[count, failure] : cases)
+    {
+        displays = {count, failure};
+        assert(SDL_Init(SDL_INIT_EVENTS) == 0);
+        SDL_Event quit{};
+        quit.type = SDL_QUIT;
+        assert(SDL_PushEvent(&quit) == 1);
+        if (count == 0)
+        {
+            bool rejected = false;
+            try { run_application(pack, storage); }
+            catch (const std::runtime_error &error)
+            {
+                rejected = std::string(error.what()).find("SDL video displays") != std::string::npos;
+            }
+            assert(rejected && displays.window_attempts == 0);
+            SDL_Quit();
+            gw_pack::unload();
+            continue;
+        }
+        run_application(pack, storage);
+        const bool dual = count >= 2 && failure == DisplayFailure::none;
+        assert(displays.window_attempts == (count >= 2 ? 2 : 1));
+        assert(displays.primary_frames == 1);
+        assert(displays.secondary_frames == (dual ? 1 : 0));
+        assert(SDL_WasInit(0) == 0);
+    }
+    displays = {};
+}
+
 int main(int argc, char **argv)
 {
     assert(argc == 3);
@@ -189,6 +433,7 @@ int main(int argc, char **argv)
         app.start(true);
         app.tick(0);
     }
+    check_panels(renderer, surface);
     check_controller();
     SDL_DestroyRenderer(renderer);
     SDL_FreeSurface(surface);
@@ -201,5 +446,6 @@ int main(int argc, char **argv)
     assert(SDL_PushEvent(&quit) == 1);
     run_application(argv[1], argv[2]);
     assert(SDL_WasInit(0) == 0);
-    std::puts("PASS: pack, PNG, menu, CPU, inputs, SDL audio, render, save/load, switch/resume, controller polling, SDL lifecycle");
+    check_displays(argv[1], argv[2]);
+    std::puts("PASS: pack, PNG, menu, CPU, inputs, SDL audio, render, save/load, switch/resume, controller polling, SDL lifecycle, dual displays/panels/fallback");
 }

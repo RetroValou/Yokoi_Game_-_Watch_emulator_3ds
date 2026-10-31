@@ -169,9 +169,30 @@ Some handheld ALSA devices reject mono output requests. The log records the
 opened frequency and channel count, or `Audio disabled` if opening fails.
 An audio failure does not prevent play, but there will be no sound.
 
-Both game screens share one display: horizontal titles sit side by side;
-clamshell titles stack vertically. The aspect ratio is preserved. The console
-artwork appears in the game selection menu. There is no second-monitor output.
+At startup, SDL's display count is detected. With two or more displays, Yokoi
+opens fullscreen windows on the first two and uses the same panel policy as
+the [Android layout](../../android/app/src/main/cpp/core/yokoi_layout.cpp) and
+[3DS renderer](../../source/virtual_i_o/3ds_screen.cpp):
+
+| Mode | Top display | Bottom display |
+| --- | --- | --- |
+| Selection menu | Game details and controls | Console artwork |
+| Single-screen game | Game LCD | Console artwork |
+| Horizontal two-screen game | Both LCDs side by side | Console artwork |
+| Clamshell two-screen game | LCD 0 | LCD 1 |
+
+Each panel preserves its own aspect ratio. Missing console artwork leaves
+the bottom panel empty. On stock Linux RGDS, SDL display 0 is the physical top
+panel and display 1 is the bottom panel. This differs from Android's default
+display ordering but produces the same physical top/bottom layout.
+
+The video driver, SDL display count, and chosen mode are recorded in `log.txt`.
+Detection is performed at startup, not on hotplug. The SDL video backend must
+expose both displays and support windows on each; two physical panels alone
+do not guarantee this. If SDL reports one display or cannot initialize the second
+window/renderer, Yokoi logs the reason and keeps the original single-display
+layout: horizontal games side by side, clamshell games stacked, artwork in the
+selection menu.
 
 ## Controls
 
@@ -202,7 +223,7 @@ normal exit, so automatic save has time to finish.
 Verified in this workspace on x86_64 Linux with SDL2 2.30:
 - Production executable builds and `--help` works.
 - ARM64 executable cross-compiles with cached Ubuntu Jammy GNU GCC 11 and SDL2
-  2.26.2; ELF architecture and cache reuse are verified (not run on a handheld).
+  2.26.2; ELF architecture and cache reuse are verified.
 - Four original synthetic ROM/PNG packs (single, vertical, horizontal, mask) exercise
   atlas orientation, PNG basename lookup, menu, CPU stepping, input mapping,
   SDL audio conversion (including a stereo-only device regression), rendering,
@@ -210,12 +231,19 @@ Verified in this workspace on x86_64 Linux with SDL2 2.30:
 - Wrong-platform packs, old packs and missing packs are rejected.
 - Virtual-controller checks cover button mappings, pressed/held edges, stick
   thresholds and hotplug; the real SDL window/event loop is exercised on exit.
+- Dual-panel pixel checks cover menus, gameplay, console restoration, horizontal
+  games, clamshell LCD isolation, independent aspect ratios and missing artwork.
+  Window pixel checks verify that menu details go to display 0 and artwork to display 1.
+  Mocked display enumeration covers 0/1/2/3 displays and second-window, placement,
+  renderer and logical-size failures, using real SDL windows/renderers.
 - Launcher passes `bash -n`.
 - Launcher tests cover Ports/APPS paths, early logging, old/new control scripts,
   missing files, architecture detection and executable exit status.
 
-This is a development port, **not a tested handheld release**. No commercial ROM
-pack or ARM handheld was available. Real games, audio quality, display layout,
+Startup, sound and dual-display output have been reported working on stock RGDS.
+The corrected top/bottom routing still needs on-device confirmation.
+This is a development port, **not a broadly
+tested handheld release**. Real-game accuracy, audio quality, display ordering,
 controller mappings, CFW compatibility and performance still require testing.
 The Android settings/overlay UI, manufacturer grouping, camera and stereoscopic
 3D are not implemented in this frontend. LCD shadow rendering is simplified.

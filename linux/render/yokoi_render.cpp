@@ -34,7 +34,12 @@ namespace yokoi
         SDL_SetRenderDrawColor(renderer_, 22, 27, 33, 255);
         SDL_RenderClear(renderer_);
         if (menu)
-            draw_menu(game);
+        {
+            if (panel_ == Panel::bottom)
+                draw_console(game);
+            else
+                draw_menu(game);
+        }
         else
             draw_game(game, segments);
         SDL_RenderPresent(renderer_);
@@ -45,19 +50,26 @@ namespace yokoi
         draw_text(renderer_, 24, 24, "YOKOI - GAME & WATCH");
         draw_text(renderer_, 24, 64, game.name, text_width(game.name) > 290 ? 1 : 2);
         draw_text(renderer_, 24, 96, game.ref + "  " + game.date);
-        if (console_ && game.console_info)
-        {
-            const auto *info = game.console_info;
-            SDL_Rect source{info[2], info[3], info[4], info[5]};
-            const float scale = std::min(560.f / std::max(1, source.w), 215.f / std::max(1, source.h));
-            SDL_FRect destination{(logical_width - source.w * scale) / 2, 145,
-                                  source.w * scale, source.h * scale};
-            copy_texture(renderer_, console_.get(), source, destination);
-        }
+        if (panel_ == Panel::combined)
+            draw_console(game, true);
         draw_text(renderer_, 24, 375, "LEFT/RIGHT: CHOOSE   A: PLAY/RESUME");
         draw_text(renderer_, 24, 405, "X: NEW GAME   B: RESUME");
         draw_text(renderer_, 24, 435, "START: GAME A   SELECT: GAME B");
         draw_text(renderer_, 24, 460, "SELECT + START: SAVE AND EXIT", 1);
+    }
+
+    void GameRenderer::draw_console(const GW_rom &game, bool in_menu)
+    {
+        if (!console_ || !game.console_info)
+            return;
+        const auto *info = game.console_info;
+        SDL_Rect source{info[2], info[3], info[4], info[5]};
+        const float scale = std::min((in_menu ? 560.f : float(logical_width)) / std::max(1, source.w),
+                                     (in_menu ? 215.f : float(logical_height)) / std::max(1, source.h));
+        SDL_FRect destination{(logical_width - source.w * scale) / 2,
+                              in_menu ? 145.f : (logical_height - source.h * scale) / 2,
+                              source.w * scale, source.h * scale};
+        copy_texture(renderer_, console_.get(), source, destination);
     }
 
     void GameRenderer::draw_game(const GW_rom &game, const std::vector<Segment> &segments)
@@ -77,9 +89,17 @@ namespace yokoi
         }
         // Preserve both screens' aspect ratios in a side-by-side or stacked canvas.
         const bool horizontal = (info[3] & 2) != 0;
-        const float canvas_width = count == 1 ? width[0] :
+        // Android/3DS keep horizontal games together; only clamshell games split.
+        const bool split = panel_ != Panel::combined && count == 2 && !horizontal;
+        if (panel_ == Panel::bottom && !split)
+        {
+            draw_console(game);
+            return;
+        }
+        const int selected_screen = panel_ == Panel::bottom ? 1 : 0;
+        const float canvas_width = split ? width[selected_screen] : count == 1 ? width[0] :
             horizontal ? width[0] + width[1] : std::max(width[0], width[1]);
-        const float canvas_height = count == 1 ? height[0] :
+        const float canvas_height = split ? height[selected_screen] : count == 1 ? height[0] :
             horizontal ? std::max(height[0], height[1]) : height[0] + height[1];
         const float zoom = std::min(logical_width / std::max(1.f, canvas_width),
                                     logical_height / std::max(1.f, canvas_height));
@@ -92,6 +112,12 @@ namespace yokoi
             offset_y[0] = (canvas_height - height[0]) / 2;
             offset_y[1] = (canvas_height - height[1]) / 2;
         }
+        if (split)
+        {
+            offset_x[0] = offset_x[1] = 0;
+            offset_y[0] = offset_y[1] = 0;
+        }
+        const auto want_screen = [&](int screen) { return !split || screen == selected_screen; };
         const auto destination = [&](float x, float y, float w, float h)
         {
             return SDL_FRect{(logical_width - canvas_width * zoom) / 2 + x * zoom,
@@ -105,6 +131,8 @@ namespace yokoi
                 return;
             for (int screen = 0; screen < count; ++screen)
             {
+                if (!want_screen(screen))
+                    continue;
                 const auto *background = game.background_info + 2 + screen * 4;
                 SDL_Rect source{background[0], background[1], background[2], background[3]};
                 const auto dest = destination(offset_x[screen], offset_y[screen], width[screen], height[screen]);
@@ -113,6 +141,8 @@ namespace yokoi
         };
         for (int screen = 0; screen < count; ++screen)
         {
+            if (!want_screen(screen))
+                continue;
             const auto dest = destination(offset_x[screen], offset_y[screen], width[screen], height[screen]);
             SDL_SetRenderDrawColor(renderer_, 195, 200, 178, 255);
             SDL_RenderFillRectF(renderer_, &dest);
@@ -123,7 +153,7 @@ namespace yokoi
         const bool mask = (info[3] & 1) != 0;
         for (const auto &segment : segments)
         {
-            if (segment.screen >= count || (!segment.buffer_state && mask))
+            if (segment.screen >= count || !want_screen(segment.screen) || (!segment.buffer_state && mask))
                 continue;
             SDL_Rect source{segment.pos_tex[0], segment.pos_tex[1], segment.size_tex[0], segment.size_tex[1]};
             const auto dest = destination(offset_x[segment.screen] + segment.pos_scr[0] / divisor,
