@@ -1,6 +1,10 @@
 # CONVERT_ROM tools
 
-Helper scripts for converting  MAME ROMs + artwork data (version 0.282 as of writing) into Yokoi assets, roms, graphics and rompacks, used by the 3DS and Android versions of the emulator.
+Helper scripts for converting  MAME ROMs + artwork data (version 0.282 as of writing) into Yokoi assets, roms, graphics and rompacks, used by the 3DS, Android and Linux/PortMaster versions of the emulator.
+
+Android and Linux/PortMaster use the **same rompacks**, generated with `--target rgds`.
+The `rgds` target is shared by these platforms, not limited to the RGDS device.
+3DS requires its separate `--target 3ds` rompack.
 
 This repo does **not** include original Game & Watch ROMs or artwork. You need to find them yourself.
 
@@ -19,8 +23,11 @@ If you are looking for how to build the apps themselves, see [BUILDING.md](/BUIL
       - [Generating console png screenshots with MAME](#generating-console-png-screenshots-with-mame)
   - [Build assets, roms, graphics and rompacks](#build-assets-roms-graphics-and-rompacks)
     - [3DS](#3ds)
-    - [Android (RGDS)](#android-rgds)
-    - [Android (rompack-only hi-res)](#android-rompack-only-hi-res)
+    - [Android and Linux/PortMaster (RGDS rompack)](#android-and-linuxportmaster-rgds-rompack)
+    - [Android and Linux/PortMaster (rompack-only hi-res)](#android-and-linuxportmaster-rompack-only-hi-res)
+      - [Additional notes](#additional-notes)
+  - [Advanced script descriptions and options](#advanced-script-descriptions-and-options)
+    - [`convert_original.py`](#convert_originalpy)
     - [`convert_3ds.py`](#convert_3dspy)
   - [External ROM pack](#external-rom-pack)
     - [Rom pack locations](#rom-pack-locations)
@@ -36,7 +43,7 @@ Notes: You do not have to include all games, you only need to include the games 
 
 ## Manufacturer grouping (menu)
 
-The 3DS and Android menus group games by manufacturer automatically.
+The 3DS, Android and Linux/PortMaster menus group games by manufacturer automatically.
 
 - **Left/Right**: change game within the current manufacturer
 - **Up/Down**: switch manufacturer group
@@ -105,7 +112,9 @@ Outputs:
 - External rompack written into `CONVERT_ROM/` as `yokoi_pack_3ds.ykp` and `yokoi_pack_3ds_vX.X.ykp`. 
     - Both files are identical, but one includes versioning for convenience.
 
-### Android (RGDS)
+### Android and Linux/PortMaster (RGDS rompack)
+
+Generate this shared rompack for either Android or Linux/PortMaster.
 
 ```powershell
 cd CONVERT_ROM
@@ -118,9 +127,9 @@ Outputs:
 - External rompack written into `CONVERT_ROM/` as `yokoi_pack_rgds.ykp` and `yokoi_pack_rgds_vX.X.ykp`.
     - Both files are identical, but one includes versioning for convenience.
 
-### Android (rompack-only hi-res)
+### Android and Linux/PortMaster (rompack-only hi-res)
 
-Build optional higher-resolution Android/RGDS-compatible rompack.
+Build an optional higher-resolution rompack compatible with Android and Linux/PortMaster.
 
 This workflow is **pack-only** and does **not** generate embedded-build C++ outputs (`GW_ALL*.h`, `GW_ROM_*/<game>.cpp/.h`).
 
@@ -128,15 +137,17 @@ This workflow is **pack-only** and does **not** generate embedded-build C++ outp
 cd CONVERT_ROM
 python convert_original.py --target rgds
 python convert_3ds.py --target rgds --hires
+```
 
 This writes `yokoi_pack_rgds3x.ykp` and does not generate embedded C++ outputs.
+For Linux/PortMaster, copy it using the required filename `yokoi_pack_rgds.ykp`.
 
 #### Additional notes
 
 - Rompacks are versioned, so if there are changes to the format you will need to build a new rompack
 - Sorting order of games in the menu can be adjusted as desired in the rompack with the `--sort {none,key,display_name,date,ref}` (and `--sort-reverse`) option. The default is alphabetical order.
     - e.g. `python convert_3ds.py --target rgds --sort date`
-- 3DS and Android assets are stored in separate folders so the scripts can be run safely while switching between targets
+- 3DS assets and shared Android/Linux (`rgds`) assets are stored in separate folders so the scripts can be run safely while switching between targets
 
 ## Advanced script descriptions and options
 
@@ -171,7 +182,7 @@ python convert_original.py --target rgds
 
 Takes the prepared raw MAME assets (ROMs, PNG backgrounds, SVG visuals, `games_path.py`) and converts them into both assets for an embedded build and the rompack data.
 
-The script supports `3ds` and `rgds`.
+The script supports `3ds` and `rgds` (shared by Android and Linux/PortMaster).
 
 Typical usage:
 
@@ -179,7 +190,7 @@ Typical usage:
 # Original 3DS-sized outputs
 python convert_3ds.py --target 3ds
 
-# RGDS / 640x480-class: generates higher-res source PNGs + updated metadata
+# Android and Linux/PortMaster / 640x480-class: generates higher-res source PNGs + updated metadata
 python convert_3ds.py --target rgds
 ```
 
@@ -203,7 +214,7 @@ Command-line arguments:
   - If you have problems with your rompack, rebuild **WITHOUT** this option!
 - `--sort {none,key,display_name,date,ref}`
   - Optional deterministic ordering for games in the generated ROM pack.
-  - This affects the pack entry order, which is the menu order on 3DS/Android pack-only builds.
+  - This affects the pack entry order within manufacturer groups in the 3DS, Android and Linux/PortMaster menus.
   - Default is `none`, which preserves the iteration order from the `games_path_<target>.py` dict.
 - `--sort-reverse`
   - Reverse the selected `--sort` ordering.
@@ -223,13 +234,19 @@ python convert_3ds.py --target 3ds --sort ref --sort-reverse
 
 ## External ROM pack
 
-An external ROM pack is built at the same time as the embedded asset files. This external ROM pack can be used with both Android and 3DS builds that do not include embedded assets.
+An external ROM pack is built at the same time as the embedded asset files.
+Android and Linux/PortMaster share the `yokoi_pack_rgds.ykp` rompack; 3DS builds
+that do not include embedded assets use `yokoi_pack_3ds.ykp` instead. The 3DS
+rompack is not compatible with Android or Linux/PortMaster.
 
 The rom pack files are named with the pack version and content version (i.e. `vX.X`).
 
 ### Rom pack locations
 
 - Android: the app asks to import/update the ROM pack when needed; select the file and it is copied into place.
+- Linux/PortMaster: copy the shared Android/RGDS pack to `ports/yokoi/yokoi_pack_rgds.ykp`
+  (content version 3 or later). No in-app import is needed. For desktop Linux,
+  pass the pack's path to the executable; see [linux/README.md](../linux/README.md).
 - 3DS: pack-only builds require `sdmc:/3ds/yokoi_pack_3ds.ykp`.
 
 ## Developer SCripts

@@ -1,6 +1,6 @@
-# Yokoi - Game & Watch Emulator for 3DS
+# Yokoi - Game & Watch Emulator for 3DS, Android & PortMaster
 
-A Game & Watch emulator for 3DS & Android: SM5A, SM510, and SM511/SM512.
+A Game & Watch emulator for 3DS, Android & Linux/PortMaster: SM5A, SM510, and SM511/SM512.
 
 <img src="screenshot/all.png" alt="Gameplay"/>
 
@@ -10,10 +10,13 @@ A Game & Watch emulator for 3DS & Android: SM5A, SM510, and SM511/SM512.
 - **Anbernic RGDS (dual screen, Android)**: supported and recommended. 
 - **AYN Thor (dual screen, Android)**: supported. (Thanks [ABerguerand](https://github.com/ABerguerand))
 - **Android (arm64-v8a)** devices (phones/tablets/handhelds).
+- **Linux handhelds via PortMaster**: tested on SpruceOS, MustardOS, ArkOS, and
+  Anbernic RGDS running Linux. The PortMaster version supports single and dual-screen devices,
+  including RGDS. Single-screen devices display both panels on one screen.
 
 # Supported games
 
-Supported games are all of the Game & Watch titles and some Tronica games.
+Supported games are all of the Game & Watch titles and some Tronica and Elektronika games.
 
 - Full list: [CONVERT_ROM/GNW_LIST.md](/CONVERT_ROM/GNW_LIST.md)
 - Compatible Game & Watch models are those equipped with Sharp processors SM5A, SM510, SM511, SM512
@@ -25,7 +28,7 @@ Supported games are all of the Game & Watch titles and some Tronica games.
 
 # Features
 
-- Dual-screen support for double-screen Game & Watch on 3DS and Anbernic RGDS
+- Dual-screen support for double-screen Game & Watch on 3DS, Android dual-screen devices, and Linux/PortMaster dual-screen devices (including Anbernic RGDS)
 - Save state support
 - Time synchronization
 - Stereoscopic 3D on 3ds
@@ -33,8 +36,8 @@ Supported games are all of the Game & Watch titles and some Tronica games.
 - Ajustable LCD Segment Shadow
 - Optional Full screen (Android only)
 - Optional Virtual Input (Android only) 
-- Optional Swap screens for dual-screen devices (Android only)
-- Optional Top screen only mode (Android only)
+- Optional Swap screens for dual-screen devices (Android and Linux/PortMaster)
+- Optional Top screen only mode (Android and Linux/PortMaster)
 
 # Installation
 
@@ -101,9 +104,44 @@ The rompack is **not provided**, you will need to generate your own from MAME ro
 2. Copy the generated rompack `yokoi_pack_rgds.ykp` somewhere accessible (e.g. `Download/`).
 3. Launch the app and use **Import/Update ROM pack** option shown to select the file.
 
+## Linux / PortMaster
+
+Use a PortMaster setup supported by your device's firmware. Tested platforms are
+SpruceOS, MustardOS, ArkOS, and Linux on Anbernic RGDS.
+
+The PortMaster ZIP includes the launcher, executable, and all required support
+files. No compilation is needed; the rompack must be supplied separately.
+
+1. Download and extract the provided **Yokoi PortMaster ZIP**.
+2. Copy the entire extracted `yokoi/` folder into your device's `ports/`
+   directory. On most firmwares, place `Yokoi.sh` alongside it, but some firmwares
+   require the launcher in a separate apps/launcher directory instead. Follow
+   your firmware's layout.
+3. Generate an **Android/RGDS rompack** as detailed in
+   [CONVERT_ROM/README.md](/CONVERT_ROM/README.md), then drop
+   `yokoi_pack_rgds.ykp` into `ports/yokoi/`. Use content version 3 or later.
+   The 3DS rompack is not compatible.
+4. Launch **Yokoi** from the device's Ports menu.
+
+Typical installed layout (the launcher location may differ by firmware):
+
+```text
+ports/
+  Yokoi.sh
+  yokoi/
+    yokoi.aarch64
+    yokoi_pack_rgds.ykp
+    licenses/
+```
+
+The executable name above is for ARM64 devices. Saves are stored under
+`ports/yokoi/conf/`, and launch diagnostics are written to `ports/yokoi/log.txt`.
+Dual-screen support is automatic when SDL exposes both displays. Otherwise,
+both panels are composed on one screen.
+
 # Building
 
-See [BUILDING.md](BUILDING.md) for how to build the 3DS and Android applications.
+See [BUILDING.md](BUILDING.md) for how to build the 3DS, Android, and Linux/PortMaster applications.
 
 For ROM pack / asset generation, see [CONVERT_ROM/README.md](/CONVERT_ROM/README.md).
 
