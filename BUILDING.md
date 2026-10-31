@@ -47,3 +47,9 @@ This mode builds an app that includes ROMs/assets embedded in the application.
 2. Open the `android/` folder in Android Studio.
 3. Use **Build Variants** to select `rompackOnlyDebug` (default) or `embeddedDebug`.
 4. Build/run from Android Studio.
+
+## Linux / PortMaster
+
+The `linux/` SDL2 frontend uses the Android/RGDS ROM-pack format and shared C++
+emulator core. See [linux/portmaster/README.md](linux/portmaster/README.md) for build,
+installation, controls, test instructions and current limitations.

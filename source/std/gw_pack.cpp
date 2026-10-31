@@ -172,7 +172,7 @@ static bool bounds_ok(size_t off, size_t len, size_t total) {
 static constexpr uint32_t expected_platform_id() {
 #if defined(__3DS__)
     return kPlatform3ds;
-#elif defined(__ANDROID__)
+#elif defined(__ANDROID__) || defined(YOKOI_PORTMASTER)
     return kPlatformRgds;
 #else
     // Unknown/desktop builds: allow any.

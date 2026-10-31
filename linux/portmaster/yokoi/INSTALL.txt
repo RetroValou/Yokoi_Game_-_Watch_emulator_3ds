@@ -1,0 +1,3 @@
+The ARM64 cross-build automatically places yokoi.aarch64 here.
+For another DEVICE_ARCH, build and place its matching executable here.
+Supply your own yokoi_pack_rgds.ykp. See ../README.md for instructions.

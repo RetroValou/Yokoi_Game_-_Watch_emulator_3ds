@@ -42,7 +42,7 @@ extern AppSettings g_settings;
 
 // Settings management functions
 void load_settings();
-void save_settings();
+bool save_settings();
 void reset_settings_to_default();
 
 // Menu selection persistence (single source of truth).
@@ -50,5 +50,5 @@ void reset_settings_to_default();
 // The global "last game" setting is intentionally not used.
 uint8_t load_last_selected_manufacturer(uint8_t default_manufacturer = 0);
 // Persists the last selected game *ref* for the given manufacturer.
-void save_last_selected_game(uint8_t manufacturer_id, const std::string& game_ref);
+bool save_last_selected_game(uint8_t manufacturer_id, const std::string& game_ref);
 bool try_load_last_game_index_for_manufacturer(uint8_t manufacturer_id, uint8_t* out_index);

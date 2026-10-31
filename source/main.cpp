@@ -564,10 +564,8 @@ bool init_game(SM5XX** cpu, Virtual_Screen* v_screen, Virtual_Sound* v_sound, Vi
     v_screen->Quit_Game();
     v_sound->Quit_Game();
 
-    // NOTE: Do not delete *cpu or *v_input here.
-    // On this codebase SM5XX and Virtual_Input do not guarantee virtual destructors,
-    // so deleting via base pointer is undefined behavior and can crash on real hardware.
-    // We'll leak during debugging; once we identify the crash point we can refactor ownership safely.
+    // Keep existing instances alive during 3DS startup diagnostics.
+    // This debug flow still needs explicit ownership cleanup.
 
     const GW_rom* game = load_game(index_game);
     YOKOI_LOG("init_game: load_game -> %p", (const void*)game);
