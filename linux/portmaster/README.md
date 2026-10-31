@@ -222,6 +222,9 @@ window/renderer, Yokoi logs the reason and composes the same top/bottom panels
 on one display. In-game settings can temporarily enlarge the top panel only.
 On one display, each panel is fitted into half of the actual output height,
 including square 720x720 screens, instead of a letterboxed 640x480 outer canvas.
+Fitting uses the actual LCD/console bounds, excluding padding inside the render
+targets. Landscape clamshell LCDs that fit the display width therefore fill each
+half vertically and meet at the middle, without stretching or cropping artwork.
 Artwork proportions are preserved: side padding can remain when stacking two
 landscape panels on a square display. Window resizing updates this fit.
 That choice resets when leaving the game. With two displays, the saved Swap
@@ -341,8 +344,10 @@ Verified in this workspace on x86_64 Linux with SDL2 2.30:
 - Real SDL pixel checks cover 720x720 and odd-height square composition,
   artwork proportions, full-output modal dimming and top-only fitting.
   Window resizing covers square, 4:3 and widescreen outputs plus transformed
-  pointer activation of settings. Square/resize checks also pass with offscreen
-  OpenGL on the host; handheld GPU behavior still needs device confirmation.
+  pointer activation of settings using the software renderer. Landscape LCD
+  tests check top/bottom edges, the center seam, fractional bounds and preserved
+  image edges. Fixed-size square windows also exercise offscreen OpenGL;
+  handheld GPU behavior still needs device confirmation.
 - Launcher passes `bash -n`.
 - Launcher tests cover Ports/APPS paths, early logging, old/new control scripts,
   missing files, architecture detection and executable exit status.

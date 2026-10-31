@@ -1,11 +1,25 @@
 #include "render/yokoi_render.h"
 
 #include <algorithm>
+#include <cmath>
+#include <stdexcept>
 #include "core/yokoi_sdl.h"
 #include "std/settings.h"
 
 namespace yokoi
 {
+    static SDL_Rect artwork_bounds(const SDL_FRect &area)
+    {
+        // Trim only canvas padding; round outward so edge pixels are retained.
+        const int left = std::max(0, int(std::floor(area.x)));
+        const int top = std::max(0, int(std::floor(area.y)));
+        const int right = std::min(logical_width, int(std::ceil(area.x + area.w)));
+        const int bottom = std::min(logical_height, int(std::ceil(area.y + area.h)));
+        if (right <= left || bottom <= top)
+            throw std::runtime_error("Invalid panel artwork dimensions");
+        return SDL_Rect{left, top, right - left, bottom - top};
+    }
+
     void GameRenderer::load(const GW_rom &game)
     {
         const bool mask_atlas = (game.segment_info[3] & 1) != 0;
@@ -58,9 +72,9 @@ namespace yokoi
             }
             auto *target = SDL_GetRenderTarget(renderer_);
             require_sdl(SDL_SetRenderTarget(renderer_, top_target_.get()) == 0, "Top panel target");
-            draw_panel(game, segments, ui, Panel::top);
+            const auto top_source = draw_panel(game, segments, ui, Panel::top);
             require_sdl(SDL_SetRenderTarget(renderer_, bottom_target_.get()) == 0, "Bottom panel target");
-            draw_panel(game, segments, ui, Panel::bottom);
+            const auto bottom_source = draw_panel(game, segments, ui, Panel::bottom);
             require_sdl(SDL_SetRenderTarget(renderer_, target) == 0, "Restore panel target");
             int output_width, output_height, previous_width, previous_height;
             require_sdl(SDL_GetRendererOutputSize(renderer_, &output_width, &output_height) == 0,
@@ -69,18 +83,22 @@ namespace yokoi
             require_sdl(SDL_RenderSetLogicalSize(renderer_, 0, 0) == 0, "Use full panel output");
             SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
             SDL_RenderClear(renderer_);
-            const auto fit_panel = [&](int y, int available_height)
+            const auto fit_panel = [&](const SDL_Rect &source, int y, int available_height)
             {
-                const float scale = std::min(float(output_width) / logical_width,
-                                             float(available_height) / logical_height);
-                const float width = logical_width * scale, height = logical_height * scale;
+                float width = float(output_width);
+                float height = width * source.h / source.w;
+                if (height > available_height)
+                {
+                    height = float(available_height);
+                    width = height * source.w / source.h;
+                }
                 return SDL_FRect{(output_width - width) / 2, y + (available_height - height) / 2, width, height};
             };
             const int top_height = output_height / 2;
-            const auto top = fit_panel(0, top_height);
-            const auto bottom = fit_panel(top_height, output_height - top_height);
-            require_sdl(SDL_RenderCopyF(renderer_, top_target_.get(), nullptr, &top) == 0, "Copy top panel");
-            require_sdl(SDL_RenderCopyF(renderer_, bottom_target_.get(), nullptr, &bottom) == 0, "Copy bottom panel");
+            const auto top = fit_panel(top_source, 0, top_height);
+            const auto bottom = fit_panel(bottom_source, top_height, output_height - top_height);
+            require_sdl(SDL_RenderCopyF(renderer_, top_target_.get(), &top_source, &top) == 0, "Copy top panel");
+            require_sdl(SDL_RenderCopyF(renderer_, bottom_target_.get(), &bottom_source, &bottom) == 0, "Copy bottom panel");
             if (settings_overlay)
             {
                 SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
@@ -101,18 +119,19 @@ namespace yokoi
         SDL_RenderPresent(renderer_);
     }
 
-    void GameRenderer::draw_panel(const GW_rom &game, const std::vector<Segment> &segments,
-                                  const UiState &ui, Panel panel)
+    SDL_Rect GameRenderer::draw_panel(const GW_rom &game, const std::vector<Segment> &segments,
+                                     const UiState &ui, Panel panel)
     {
         panel_ = panel;
         SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
         SDL_RenderClear(renderer_);
         if (ui.mode == AppMode::game)
-            draw_game(game, segments);
+            return draw_game(game, segments);
         else if (panel == Panel::bottom)
-            draw_console(game);
+            return draw_console(game);
         else
             draw_menu(game, ui);
+        return SDL_Rect{0, 0, logical_width, logical_height};
     }
 
     void GameRenderer::draw_menu(const GW_rom &game, const UiState &ui)
@@ -192,10 +211,10 @@ namespace yokoi
         SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_NONE);
     }
 
-    void GameRenderer::draw_console(const GW_rom &game)
+    SDL_Rect GameRenderer::draw_console(const GW_rom &game)
     {
         if (!console_ || !game.console_info)
-            return;
+            return SDL_Rect{0, 0, logical_width, logical_height};
         const auto *info = game.console_info;
         SDL_Rect source{info[2], info[3], info[4], info[5]};
         const float scale = std::min(float(logical_width) / std::max(1, source.w),
@@ -204,9 +223,10 @@ namespace yokoi
                               (logical_height - source.h * scale) / 2,
                               source.w * scale, source.h * scale};
         copy_texture(renderer_, console_.get(), source, destination);
+        return artwork_bounds(destination);
     }
 
-    void GameRenderer::draw_game(const GW_rom &game, const std::vector<Segment> &segments)
+    SDL_Rect GameRenderer::draw_game(const GW_rom &game, const std::vector<Segment> &segments)
     {
         const auto *info = game.segment_info;
         const float divisor = std::max(1, int(info[2]));
@@ -226,10 +246,7 @@ namespace yokoi
         // Android/3DS keep horizontal games together; only clamshell games split.
         const bool split = panel_ != Panel::combined && count == 2 && !horizontal;
         if (panel_ == Panel::bottom && !split)
-        {
-            draw_console(game);
-            return;
-        }
+            return draw_console(game);
         const int selected_screen = panel_ == Panel::bottom ? 1 : 0;
         const float canvas_width = split ? width[selected_screen] : count == 1 ? width[0] :
             horizontal ? width[0] + width[1] : std::max(width[0], width[1]);
@@ -329,5 +346,6 @@ namespace yokoi
         }
         if (background_in_front)
             draw_background();
+        return artwork_bounds(destination(0, 0, canvas_width, canvas_height));
     }
 }

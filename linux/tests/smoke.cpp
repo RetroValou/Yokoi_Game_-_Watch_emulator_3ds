@@ -596,6 +596,51 @@ static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool du
     SDL_FreeSurface(second_surface);
 }
 
+static void check_lcd_artwork_fit(SDL_Renderer *renderer, SDL_Surface *surface)
+{
+    const auto *game = load_game(0);
+    assert(game && game->size_segment > 0);
+    std::vector<Segment> segments(2, game->segment[0]);
+    segments[0].screen = 0;
+    segments[1].screen = 1;
+    const std::array<uint16_t, 13> background_info{8, 8, 0, 0, 8, 8, 0, 0, 8, 8, 0, 0, 0};
+    const std::array<Uint8, 3> black{0, 0, 0};
+    for (const auto aspect : {SDL_Point{160, 100}, SDL_Point{161, 101}})
+    {
+        const std::array<uint16_t, 8> info{8, 8, 1, 0, uint16_t(aspect.x), uint16_t(aspect.y),
+                                         uint16_t(aspect.x), uint16_t(aspect.y)};
+        GW_rom landscape(game->name, game->ref, game->date, game->rom, game->size_rom,
+                         game->melody, game->size_melody, game->path_segment,
+                         segments.data(), segments.size(), info.data(),
+                         game->path_background, background_info.data(), "", nullptr);
+        GameRenderer graphics(renderer);
+        graphics.load(landscape);
+        UiState ui;
+        ui.mode = AppMode::game;
+        captured_frame = SDL_RenderGetWindow(renderer) ? surface : nullptr;
+        graphics.draw(landscape, segments, ui);
+        captured_frame = nullptr;
+        const int top_height = surface->h / 2;
+        for (const auto region : {SDL_Point{0, top_height}, SDL_Point{top_height, surface->h - top_height}})
+        {
+            int first = region.x, last = region.x + region.y - 1;
+            while (first <= last && pixel(surface, surface->w / 2, first) == black) ++first;
+            while (last >= first && pixel(surface, surface->w / 2, last) == black) --last;
+            // Outward rounding can retain one padding pixel for fractional LCD bounds.
+            const int tolerance = aspect.x == 160 ? 0 : 1;
+            assert(first <= region.x + tolerance && last >= region.x + region.y - 1 - tolerance);
+            for (int y = first; y <= last; ++y)
+                assert(pixel(surface, surface->w / 2, y) != black);
+            int width = 0;
+            for (int x = 0; x < surface->w; ++x)
+                width += pixel(surface, x, region.x + region.y / 2) != black;
+            assert(std::abs(width - region.y * float(aspect.x) / aspect.y) <= 2);
+            assert(pixel(surface, surface->w / 2, first)[1] == 0);
+            assert(pixel(surface, surface->w / 2, last)[1] == 224);
+        }
+    }
+}
+
 static void check_square_output()
 {
     for (const int height : {720, 721})
@@ -631,8 +676,16 @@ static void check_square_output()
             graphics.draw(*game, segments, ui);
             assert(pixel(surface, 0, height / 2) != black);
             assert(pixel(surface, 360, 0) == black);
+            check_lcd_artwork_fit(renderer, surface);
         }
         SDL_DestroyRenderer(renderer);
+        auto *window = SDL_CreateWindow("LCD fitting regression", 0, 0, 720, height, SDL_WINDOW_HIDDEN);
+        assert(window);
+        renderer = SDL_CreateRenderer(window, -1, 0);
+        assert(renderer && SDL_RenderSetLogicalSize(renderer, 640, 480) == 0);
+        check_lcd_artwork_fit(renderer, surface);
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
         SDL_FreeSurface(surface);
     }
 }
@@ -678,7 +731,16 @@ static void check_resized_output()
     auto *window = SDL_CreateWindow("Layout regression", 0, 0, 640, 480,
                                    SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE);
     assert(window);
-    auto *renderer = SDL_CreateRenderer(window, -1, 0);
+    int software_index = -1;
+    for (int i = 0; i < SDL_GetNumRenderDrivers(); ++i)
+    {
+        SDL_RendererInfo info{};
+        assert(SDL_GetRenderDriverInfo(i, &info) == 0);
+        if (info.flags & SDL_RENDERER_SOFTWARE)
+            software_index = i;
+    }
+    assert(software_index >= 0);
+    auto *renderer = SDL_CreateRenderer(window, software_index, SDL_RENDERER_SOFTWARE);
     assert(renderer);
     {
         const auto *game = load_game(0);
@@ -704,6 +766,7 @@ static void check_resized_output()
             assert(width == 640 && height == 480);
             const std::array<Uint8, 3> black{0, 0, 0};
             assert(pixel(surface, size.x / 2, size.y - 1) != black);
+            check_lcd_artwork_fit(renderer, surface);
             SDL_FreeSurface(surface);
             App app(renderer);
             app.select(0);
