@@ -628,16 +628,84 @@ static void check_lcd_artwork_fit(SDL_Renderer *renderer, SDL_Surface *surface)
             while (last >= first && pixel(surface, surface->w / 2, last) == black) --last;
             // Outward rounding can retain one padding pixel for fractional LCD bounds.
             const int tolerance = aspect.x == 160 ? 0 : 1;
-            assert(first <= region.x + tolerance && last >= region.x + region.y - 1 - tolerance);
+            const int spare_row = surface->h % 2;
+            assert(first <= region.x + tolerance + spare_row &&
+                   last >= region.x + region.y - 1 - tolerance - spare_row);
             for (int y = first; y <= last; ++y)
                 assert(pixel(surface, surface->w / 2, y) != black);
             int width = 0;
             for (int x = 0; x < surface->w; ++x)
                 width += pixel(surface, x, region.x + region.y / 2) != black;
-            assert(std::abs(width - region.y * float(aspect.x) / aspect.y) <= 2);
+            assert(std::abs(width - top_height * float(aspect.x) / aspect.y) <= 2);
             assert(pixel(surface, surface->w / 2, first)[1] == 0);
             assert(pixel(surface, surface->w / 2, last)[1] == 224);
         }
+    }
+}
+
+static void check_matching_lcd_sizes(SDL_Renderer *renderer, SDL_Surface *surface)
+{
+    const auto *game = load_game(0);
+    assert(game && game->size_segment > 0);
+    std::vector<Segment> segments(2, game->segment[0]);
+    segments[0].screen = 0;
+    segments[1].screen = 1;
+    const auto bounds = [&](int first_row, int end_row)
+    {
+        const std::array<Uint8, 3> black{0, 0, 0};
+        int top = first_row, bottom = end_row - 1;
+        while (top <= bottom && pixel(surface, surface->w / 2, top) == black) ++top;
+        while (bottom >= top && pixel(surface, surface->w / 2, bottom) == black) --bottom;
+        assert(top <= bottom);
+        int left = 0, right = surface->w - 1;
+        const int middle = (top + bottom) / 2;
+        while (left <= right && pixel(surface, left, middle) == black) ++left;
+        while (right >= left && pixel(surface, right, middle) == black) --right;
+        return SDL_Rect{left, top, right - left + 1, bottom - top + 1};
+    };
+    for (const auto dimensions : {std::array<uint16_t, 4>{638, 400, 639, 403},
+                                  std::array<uint16_t, 4>{639, 424, 638, 413},
+                                  std::array<uint16_t, 4>{100, 100, 103, 100},
+                                  std::array<uint16_t, 4>{100, 100, 104, 100}})
+    {
+        const bool match = dimensions[2] != 104;
+        const std::array<uint16_t, 8> info{8, 8, 1, 0, dimensions[0], dimensions[1],
+                                         dimensions[2], dimensions[3]};
+        GW_rom pair(game->name, game->ref, game->date, game->rom, game->size_rom,
+                    game->melody, game->size_melody, game->path_segment,
+                    segments.data(), segments.size(), info.data(), "", nullptr, "", nullptr);
+        GameRenderer graphics(renderer);
+        graphics.load(pair);
+        UiState ui;
+        ui.mode = AppMode::game;
+        captured_frame = SDL_RenderGetWindow(renderer) ? surface : nullptr;
+        graphics.draw(pair, segments, ui);
+        captured_frame = nullptr;
+        const auto top = bounds(0, surface->h / 2);
+        const auto bottom = bounds(surface->h / 2, surface->h);
+        if (match)
+        {
+            assert(top.x == bottom.x && top.w == bottom.w && top.h == bottom.h);
+            assert(bottom.y - top.y - top.h <= 2);
+        }
+        else
+            assert(top.w != bottom.w || top.h != bottom.h);
+
+        graphics.set_panel(Panel::top);
+        captured_frame = SDL_RenderGetWindow(renderer) ? surface : nullptr;
+        graphics.draw(pair, segments, ui);
+        captured_frame = nullptr;
+        const auto separate_top = bounds(0, surface->h);
+        graphics.set_panel(Panel::bottom);
+        captured_frame = SDL_RenderGetWindow(renderer) ? surface : nullptr;
+        graphics.draw(pair, segments, ui);
+        captured_frame = nullptr;
+        const auto separate_bottom = bounds(0, surface->h);
+        if (match)
+            assert(separate_top.x == separate_bottom.x && separate_top.y == separate_bottom.y &&
+                   separate_top.w == separate_bottom.w && separate_top.h == separate_bottom.h);
+        else
+            assert(separate_top.w != separate_bottom.w || separate_top.h != separate_bottom.h);
     }
 }
 
@@ -677,6 +745,7 @@ static void check_square_output()
             assert(pixel(surface, 0, height / 2) != black);
             assert(pixel(surface, 360, 0) == black);
             check_lcd_artwork_fit(renderer, surface);
+            check_matching_lcd_sizes(renderer, surface);
         }
         SDL_DestroyRenderer(renderer);
         auto *window = SDL_CreateWindow("LCD fitting regression", 0, 0, 720, height, SDL_WINDOW_HIDDEN);
@@ -684,10 +753,80 @@ static void check_square_output()
         renderer = SDL_CreateRenderer(window, -1, 0);
         assert(renderer && SDL_RenderSetLogicalSize(renderer, 640, 480) == 0);
         check_lcd_artwork_fit(renderer, surface);
+        check_matching_lcd_sizes(renderer, surface);
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         SDL_FreeSurface(surface);
     }
+}
+
+static void check_widescreen_top_only()
+{
+    auto *window = SDL_CreateWindow("720p top-only regression", 0, 0, 1280, 720, SDL_WINDOW_HIDDEN);
+    assert(window);
+    auto *renderer = SDL_CreateRenderer(window, -1, 0);
+    assert(renderer && SDL_RenderSetLogicalSize(renderer, 640, 480) == 0);
+    auto *surface = SDL_CreateRGBSurfaceWithFormat(0, 1280, 720, 32, SDL_PIXELFORMAT_RGBA32);
+    assert(surface);
+    {
+        const auto *game = load_game(0);
+        assert(game && game->size_segment > 0);
+        for (const int layout : {0, 1, 2, 3})
+        {
+            const uint16_t width = layout == 0 ? 639 : layout == 1 ? 400 : layout == 2 ? 160 : 320;
+            const uint16_t height = layout == 0 ? 199 : layout == 1 ? 225 : layout == 2 ? 100 : 200;
+            std::vector<Segment> segments(layout == 2 ? 2 : 1, game->segment[0]);
+            segments[0].screen = 0;
+            if (layout == 2) segments[1].screen = 1;
+            const std::array<uint16_t, 8> info{8, 8, 1, uint16_t(layout == 2 ? 2 : 0),
+                                             width, height, width, height};
+            GW_rom wide(game->name, game->ref, game->date, game->rom, game->size_rom,
+                        game->melody, game->size_melody, game->path_segment,
+                        segments.data(), segments.size(), info.data(), "", nullptr, "", nullptr);
+            GameRenderer graphics(renderer);
+            graphics.load(wide);
+            UiState ui;
+            ui.mode = AppMode::game;
+            ui.top_only = true;
+            captured_frame = surface;
+            graphics.draw(wide, segments, ui);
+            captured_frame = nullptr;
+            const std::array<Uint8, 3> black{0, 0, 0};
+            if (layout == 3)
+            {
+                int artwork_width = 0;
+                for (int x = 0; x < 1280; ++x)
+                    artwork_width += pixel(surface, x, 360) != black;
+                assert(std::abs(artwork_width - 1152) <= 2);
+                assert(pixel(surface, 0, 360) == black);
+            }
+            else
+                for (int x = 0; x < 1280; ++x)
+                    assert(pixel(surface, x, 360) != black);
+            if (layout == 1 || layout == 3)
+            {
+                assert(pixel(surface, 640, 0) != black);
+                assert(pixel(surface, 640, 719) != black);
+            }
+            else
+            {
+                assert(pixel(surface, 640, 0) == black);
+                assert(pixel(surface, 640, 719) == black);
+            }
+            const int probe_x = layout == 3 ? 80 : 0;
+            const auto undimmed = pixel(surface, probe_x, 360);
+            captured_frame = surface;
+            graphics.draw(wide, segments, ui, true);
+            captured_frame = nullptr;
+            assert(pixel(surface, probe_x, 360)[1] < undimmed[1]);
+            int logical_w, logical_h;
+            SDL_RenderGetLogicalSize(renderer, &logical_w, &logical_h);
+            assert(logical_w == 640 && logical_h == 480);
+        }
+    }
+    SDL_FreeSurface(surface);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
 }
 
 static void check_exit_app(SDL_Renderer *renderer)
@@ -767,6 +906,7 @@ static void check_resized_output()
             const std::array<Uint8, 3> black{0, 0, 0};
             assert(pixel(surface, size.x / 2, size.y - 1) != black);
             check_lcd_artwork_fit(renderer, surface);
+            check_matching_lcd_sizes(renderer, surface);
             SDL_FreeSurface(surface);
             App app(renderer);
             app.select(0);
@@ -1072,6 +1212,7 @@ int main(int argc, char **argv)
     check_settings(renderer, surface, false);
     check_settings(renderer, surface, true);
     check_square_output();
+    check_widescreen_top_only();
     check_exit_app(renderer);
     check_resized_output();
     check_visual_settings(renderer, surface);

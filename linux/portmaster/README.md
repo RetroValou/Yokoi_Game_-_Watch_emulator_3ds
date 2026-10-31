@@ -209,7 +209,8 @@ the [Android layout](../../android/app/src/main/cpp/core/yokoi_layout.cpp) and
 | Horizontal two-screen game | Both LCDs side by side | Console artwork |
 | Clamshell two-screen game | LCD 0 | LCD 1 |
 
-Each panel preserves its own aspect ratio. Missing console artwork leaves
+Panels preserve artwork proportions, except for the small clamshell correction
+described below. Missing console artwork leaves
 the bottom panel empty. On stock Linux RGDS, SDL display 0 is the physical top
 panel and display 1 is the bottom panel. This differs from Android's default
 display ordering but produces the same physical top/bottom layout.
@@ -224,10 +225,19 @@ On one display, each panel is fitted into half of the actual output height,
 including square 720x720 screens, instead of a letterboxed 640x480 outer canvas.
 Fitting uses the actual LCD/console bounds, excluding padding inside the render
 targets. Landscape clamshell LCDs that fit the display width therefore fill each
-half vertically and meet at the middle, without stretching or cropping artwork.
-Artwork proportions are preserved: side padding can remain when stacking two
+half vertically and meet at the middle, without cropping artwork.
+Clamshell LCDs whose aspect ratios differ by at most 3% share one fitted size,
+correcting small extraction differences such as Donkey Kong II's 638x400 and
+639x403 LCDs. Backgrounds and segments receive the same small correction on both
+single- and dual-display layouts. More dissimilar LCDs retain their proportions.
+On an odd-height single display, one spare row is preferable to unequal LCD sizes.
+Side padding can remain when stacking two
 landscape panels on a square display. Window resizing updates this fit.
-That choice resets when leaving the game. With two displays, the saved Swap
+Top screen only fits the actual LCD bounds against the full output, not a 4:3
+outer viewport. Wide layouts, including Donkey Kong Hockey's combined LCD,
+use the full width of a 1280x720 display; remaining aspect-ratio bars are not cropped.
+This mode preserves the original LCD proportions and resets when leaving the game.
+With two displays, the saved Swap
 screens option exchanges panel content; settings remain on
 the physical bottom display.
 
@@ -346,7 +356,10 @@ Verified in this workspace on x86_64 Linux with SDL2 2.30:
   Window resizing covers square, 4:3 and widescreen outputs plus transformed
   pointer activation of settings using the software renderer. Landscape LCD
   tests check top/bottom edges, the center seam, fractional bounds and preserved
-  image edges. Fixed-size square windows also exercise offscreen OpenGL;
+  image edges. Shared-size tests cover Donkey Kong II and Black Jack dimensions,
+  the 3% correction boundary, and combined/separate displays. Fixed-size 1280x720
+  tests verify full-width wide/horizontal LCDs and a 1152x720 fit for 16:10 LCDs.
+  Fixed-size square and widescreen windows also exercise offscreen OpenGL;
   handheld GPU behavior still needs device confirmation.
 - Launcher passes `bash -n`.
 - Launcher tests cover Ports/APPS paths, early logging, old/new control scripts,

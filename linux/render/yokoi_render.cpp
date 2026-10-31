@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include "core/yokoi_sdl.h"
 #include "std/settings.h"
@@ -18,6 +20,22 @@ namespace yokoi
         if (right <= left || bottom <= top)
             throw std::runtime_error("Invalid panel artwork dimensions");
         return SDL_Rect{left, top, right - left, bottom - top};
+    }
+
+    static std::optional<int> shared_lcd_reference(const GW_rom &game, const std::vector<Segment> &segments)
+    {
+        const auto *info = game.segment_info;
+        if ((info[3] & 2) || !std::any_of(segments.begin(), segments.end(),
+                                        [](const Segment &segment) { return segment.screen == 1; }))
+            return std::nullopt;
+        const uint64_t top = uint64_t(info[4]) * info[7];
+        const uint64_t bottom = uint64_t(info[6]) * info[5];
+        if (!top || !bottom)
+            throw std::runtime_error("Invalid dual-LCD dimensions");
+        // Correct small extraction differences, not intentionally different LCD shapes.
+        if (std::max(top, bottom) * 100 > std::min(top, bottom) * 103)
+            return std::nullopt;
+        return top <= bottom ? 0 : 1;
     }
 
     void GameRenderer::load(const GW_rom &game)
@@ -60,21 +78,29 @@ namespace yokoi
     {
         const auto requested_panel = panel_;
         bool background_dimmed = false;
-        if (requested_panel == Panel::combined && !ui.top_only)
+        if (requested_panel == Panel::combined)
         {
             if (!top_target_)
             {
                 top_target_.reset(SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32,
                     SDL_TEXTUREACCESS_TARGET, logical_width, logical_height));
+                require_sdl(top_target_ != nullptr, "Create top panel target");
+            }
+            if (!ui.top_only && !bottom_target_)
+            {
                 bottom_target_.reset(SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32,
                     SDL_TEXTUREACCESS_TARGET, logical_width, logical_height));
-                require_sdl(top_target_ && bottom_target_, "Create panel targets");
+                require_sdl(bottom_target_ != nullptr, "Create bottom panel target");
             }
             auto *target = SDL_GetRenderTarget(renderer_);
             require_sdl(SDL_SetRenderTarget(renderer_, top_target_.get()) == 0, "Top panel target");
             const auto top_source = draw_panel(game, segments, ui, Panel::top);
-            require_sdl(SDL_SetRenderTarget(renderer_, bottom_target_.get()) == 0, "Bottom panel target");
-            const auto bottom_source = draw_panel(game, segments, ui, Panel::bottom);
+            SDL_Rect bottom_source{};
+            if (!ui.top_only)
+            {
+                require_sdl(SDL_SetRenderTarget(renderer_, bottom_target_.get()) == 0, "Bottom panel target");
+                bottom_source = draw_panel(game, segments, ui, Panel::bottom);
+            }
             require_sdl(SDL_SetRenderTarget(renderer_, target) == 0, "Restore panel target");
             int output_width, output_height, previous_width, previous_height;
             require_sdl(SDL_GetRendererOutputSize(renderer_, &output_width, &output_height) == 0,
@@ -95,10 +121,21 @@ namespace yokoi
                 return SDL_FRect{(output_width - width) / 2, y + (available_height - height) / 2, width, height};
             };
             const int top_height = output_height / 2;
-            const auto top = fit_panel(top_source, 0, top_height);
-            const auto bottom = fit_panel(bottom_source, top_height, output_height - top_height);
+            auto top = fit_panel(top_source, 0, ui.top_only ? output_height : top_height);
+            SDL_FRect bottom{};
+            if (!ui.top_only)
+            {
+                bottom = fit_panel(bottom_source, top_height, output_height - top_height);
+                if (ui.mode == AppMode::game && shared_lcd_reference(game, segments))
+                {
+                    top.y = (output_height - 2 * top.h) / 2;
+                    bottom = top;
+                    bottom.y += top.h;
+                }
+            }
             require_sdl(SDL_RenderCopyF(renderer_, top_target_.get(), &top_source, &top) == 0, "Copy top panel");
-            require_sdl(SDL_RenderCopyF(renderer_, bottom_target_.get(), &bottom_source, &bottom) == 0, "Copy bottom panel");
+            if (!ui.top_only)
+                require_sdl(SDL_RenderCopyF(renderer_, bottom_target_.get(), &bottom_source, &bottom) == 0, "Copy bottom panel");
             if (settings_overlay)
             {
                 SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
@@ -112,7 +149,7 @@ namespace yokoi
                         "Restore UI logical size");
         }
         else
-            draw_panel(game, segments, ui, requested_panel == Panel::combined ? Panel::top : requested_panel);
+            draw_panel(game, segments, ui, requested_panel);
         panel_ = requested_panel;
         if (settings_overlay)
             draw_settings(ui, !background_dimmed);
@@ -126,7 +163,7 @@ namespace yokoi
         SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
         SDL_RenderClear(renderer_);
         if (ui.mode == AppMode::game)
-            return draw_game(game, segments);
+            return draw_game(game, segments, !ui.top_only);
         else if (panel == Panel::bottom)
             return draw_console(game);
         else
@@ -226,7 +263,7 @@ namespace yokoi
         return artwork_bounds(destination);
     }
 
-    SDL_Rect GameRenderer::draw_game(const GW_rom &game, const std::vector<Segment> &segments)
+    SDL_Rect GameRenderer::draw_game(const GW_rom &game, const std::vector<Segment> &segments, bool match_lcd_sizes)
     {
         const auto *info = game.segment_info;
         const float divisor = std::max(1, int(info[2]));
@@ -248,9 +285,11 @@ namespace yokoi
         if (panel_ == Panel::bottom && !split)
             return draw_console(game);
         const int selected_screen = panel_ == Panel::bottom ? 1 : 0;
-        const float canvas_width = split ? width[selected_screen] : count == 1 ? width[0] :
+        const auto shared_screen = split && match_lcd_sizes ? shared_lcd_reference(game, segments) : std::nullopt;
+        const int sizing_screen = shared_screen.value_or(selected_screen);
+        const float canvas_width = split ? width[sizing_screen] : count == 1 ? width[0] :
             horizontal ? width[0] + width[1] : std::max(width[0], width[1]);
-        const float canvas_height = split ? height[selected_screen] : count == 1 ? height[0] :
+        const float canvas_height = split ? height[sizing_screen] : count == 1 ? height[0] :
             horizontal ? std::max(height[0], height[1]) : height[0] + height[1];
         const float zoom = std::min(logical_width / std::max(1.f, canvas_width),
                                     logical_height / std::max(1.f, canvas_height));
@@ -271,6 +310,13 @@ namespace yokoi
         const auto want_screen = [&](int screen) { return !split || screen == selected_screen; };
         const auto destination = [&](float x, float y, float w, float h)
         {
+            if (shared_screen)
+            {
+                x = x / width[selected_screen] * canvas_width;
+                y = y / height[selected_screen] * canvas_height;
+                w = w / width[selected_screen] * canvas_width;
+                h = h / height[selected_screen] * canvas_height;
+            }
             return SDL_FRect{(logical_width - canvas_width * zoom) / 2 + x * zoom,
                              (logical_height - canvas_height * zoom) / 2 + y * zoom,
                              w * zoom, h * zoom};
@@ -346,6 +392,8 @@ namespace yokoi
         }
         if (background_in_front)
             draw_background();
-        return artwork_bounds(destination(0, 0, canvas_width, canvas_height));
+        return artwork_bounds(SDL_FRect{(logical_width - canvas_width * zoom) / 2,
+                                         (logical_height - canvas_height * zoom) / 2,
+                                         canvas_width * zoom, canvas_height * zoom});
     }
 }
