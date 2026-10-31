@@ -13,6 +13,7 @@ namespace yokoi
     void load_display_preferences(UiState &ui)
     {
         ui.swap_screens = false;
+        ui.controller_layout = ControllerLayout::standard;
         const auto path = storage_path("yokoi_linux_preferences.dat");
         FILE *file = std::fopen(path.c_str(), "rb");
         if (!file)
@@ -28,9 +29,10 @@ namespace yokoi
         const bool closed = std::fclose(file) == 0;
         if (failed || !closed)
             throw std::runtime_error("Cannot read display preferences: " + path);
-        // Accept retired YLP2 files, preserving screen swap but ignoring face-button swap.
+        // Legacy byte 5 was a retired face-button swap, not a controller layout.
         const bool supported = std::memcmp(data.data(), "YLP1", 4) == 0 ||
-                               std::memcmp(data.data(), "YLP2", 4) == 0;
+                               std::memcmp(data.data(), "YLP2", 4) == 0 ||
+                               std::memcmp(data.data(), "YLP3", 4) == 0;
         if (read != data.size() || extra || !supported ||
             data[4] > 1 || data[5] > 1)
         {
@@ -38,14 +40,16 @@ namespace yokoi
             return;
         }
         ui.swap_screens = data[4] != 0;
+        if (data[3] == '3')
+            ui.controller_layout = data[5] ? ControllerLayout::rgds : ControllerLayout::standard;
     }
 
     void save_display_preferences(const UiState &ui)
     {
         const auto path = storage_path("yokoi_linux_preferences.dat");
         const auto temporary = path + ".tmp";
-        const std::array<unsigned char, 6> data{'Y', 'L', 'P', '1',
-            static_cast<unsigned char>(ui.swap_screens), 0};
+        const std::array<unsigned char, 6> data{'Y', 'L', 'P', '3',
+            static_cast<unsigned char>(ui.swap_screens), static_cast<unsigned char>(ui.controller_layout)};
         FILE *file = std::fopen(temporary.c_str(), "wb");
         if (!file)
             throw std::runtime_error("Cannot save display preferences: " + temporary + ": " + std::strerror(errno));

@@ -256,7 +256,7 @@ Nintendo button labels. PortMaster supplies each device's SDL mapping.
 | Start | — | Game A |
 | Select | — | Game B |
 | L | — | Time |
-| R / Guide / Back | Open/close settings | Open/close settings (pauses game) |
+| R1 / Menu | Open/close settings | Open/close settings (pauses game) |
 | L + B | — | Save and return to menu |
 | Select + Start | Save and exit | Save and exit |
 
@@ -265,6 +265,24 @@ R, F1 or Escape toggles settings; B also closes them. In settings, up/down
 selects a row, left/right changes its value and A activates a button.
 Normal exit uses Select+Start or window close, saving the running game first.
 Selection/start-choice settings also offer Exit App.
+
+If a handheld has no dedicated Back/Menu button, use **R1 (right shoulder)**
+to open or close settings. This is not the R2 trigger. With the Default controller
+layout, SDL Guide opens settings and SDL Back supplies Select.
+
+### RGDS controller layout
+
+On stock RGDS, the generic PortMaster mapping can interpret physical Select as
+SDL Guide and physical Menu as SDL Back. Open settings with **R1** (or Select
+before correcting this mapping), then set **Controller layout** to **RGDS**.
+The choice is saved automatically; no file editing or launcher changes are needed.
+
+RGDS layout exchanges the controller's SDL Back/Guide meanings so physical
+**Menu opens settings**, **Select is Game B**, and **Start+Select saves and exits**.
+Start, face buttons, shoulders, sticks and keyboard bindings remain unchanged.
+This is an opt-in correction for the stock mapping: keep **Default** on other
+handhelds, or on an RGDS whose firmware already maps Select/Menu correctly.
+PortMaster's controller database is not modified.
 
 ### SpruceOS / TrimUI
 
@@ -295,6 +313,7 @@ Android versioning remains independent.
 Both selection and in-game settings offer:
 - Segments: None (0), Light (5), Dark (10).
 - Background: Light Yellow, Light Blue, Greyish, White, Light Green or Cream.
+- Controller layout: Default / RGDS (Default initially), below Background.
 - Swap screens when a second display is active (off by default).
 
 In-game settings additionally offer Quit Game (save and return to selection),
@@ -311,9 +330,9 @@ Under `ports/yokoi/conf/` (or the supplied desktop storage directory):
 - `yokoi_gw_last_game_by_mfr.dat`: last manufacturer and each manufacturer's
   selected game reference. Boot restores the last selection, even after pack
   reordering; a new profile prefers `JR_55`, otherwise the first game.
-- `yokoi_linux_preferences.dat`: screen swap (`YLP1`).
-  Both `YLP1` and retired `YLP2` files retain screen swap; their retired
-  controls/A/B-swap byte is ignored. New writes set that byte to zero.
+- `yokoi_linux_preferences.dat`: screen swap and controller layout (`YLP3`).
+  Both legacy `YLP1` and retired `YLP2` files retain screen swap and use the
+  Default controller layout; their retired controls/A/B-swap byte is ignored.
 - `yokoi_gw_saves/`: per-game CPU saved states.
 
 Top-only mode is deliberately temporary. Invalid settings files produce warnings;
@@ -352,6 +371,10 @@ Verified in this workspace on x86_64 Linux with SDL2 2.30:
 - Virtual-controller checks cover button mappings, pressed/held edges, stick
   thresholds and hotplug; the real SDL window/event loop is exercised on exit.
   A Guide+R chord is checked for duplicate menu presses.
+  A virtual controller with the observed stock RGDS mapping verifies physical
+  Select/Menu/Start, the exit chord, unchanged keyboard/face/shoulder inputs,
+  and release-before-remapping behavior. Settings tests cover layout changes
+  by buttons/touch, saved restoration and legacy preference migration.
 - Dual-panel pixel checks cover menus, gameplay, console restoration, horizontal
   games, clamshell LCD isolation, independent aspect ratios and missing artwork.
   Window pixel checks verify that menu details go to display 0 and artwork to display 1.

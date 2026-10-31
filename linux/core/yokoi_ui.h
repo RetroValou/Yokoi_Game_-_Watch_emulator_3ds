@@ -7,7 +7,8 @@
 namespace yokoi
 {
     enum class AppMode { select, load_prompt, game };
-    enum class Setting { segments, background, swap, quit_game, top_only, exit_app, close };
+    enum class ControllerLayout { standard, rgds };
+    enum class Setting { segments, background, controller_layout, swap, quit_game, top_only, exit_app, close };
 
     struct UiState
     {
@@ -17,6 +18,7 @@ namespace yokoi
         bool load_save = false;
         bool has_save = false;
         bool swap_screens = false;
+        ControllerLayout controller_layout = ControllerLayout::standard;
         bool top_only = false;
     };
 
@@ -25,7 +27,7 @@ namespace yokoi
 
     inline std::vector<Setting> settings_items(const UiState &ui, bool dual)
     {
-        std::vector<Setting> items{Setting::segments, Setting::background};
+        std::vector<Setting> items{Setting::segments, Setting::background, Setting::controller_layout};
         if (dual)
             items.push_back(Setting::swap);
         if (ui.mode == AppMode::game)

@@ -17,7 +17,7 @@ ANDROID := ../android/app/src/main/cpp/core/yokoi_cpu_utils.cpp ../android/app/s
 FRONTEND := $(wildcard core/*.cpp input/*.cpp render/*.cpp)
 FONT_DATA := render/yokoi_font_data.S
 FONT_ASSETS := third_party/Audiowide-Regular.ttf third_party/Audiowide-OFL.txt
-SMOKE_WRAPS := SDL_OpenAudioDevice SDL_NewAudioStream SDL_GetNumVideoDisplays SDL_CreateWindow SDL_GetWindowDisplayIndex SDL_CreateRenderer SDL_RenderSetLogicalSize SDL_RenderPresent SDL_iconv_string time
+SMOKE_WRAPS := SDL_OpenAudioDevice SDL_NewAudioStream SDL_GetNumVideoDisplays SDL_CreateWindow SDL_GetWindowDisplayIndex SDL_CreateRenderer SDL_RenderSetLogicalSize SDL_RenderPresent SDL_GetKeyboardState SDL_iconv_string time
 .PHONY: all clean check check-cross-build check-launcher smoke-test
 all: $(TARGET)
 HEADERS := $(wildcard core/*.h input/*.h render/*.h ../source/SM5XX/*.h ../source/SM5XX/*/*.h ../source/std/*.h ../source/virtual_i_o/virtual_input.h ../android/app/src/main/cpp/core/yokoi_cpu_utils.h ../android/app/src/main/cpp/input/yokoi_input_mapping.h third_party/*.h)

@@ -232,6 +232,11 @@ namespace yokoi
                 throw std::runtime_error("Cannot save background settings");
             break;
         }
+        case Setting::controller_layout:
+            ui_.controller_layout = ui_.controller_layout == ControllerLayout::standard ?
+                ControllerLayout::rgds : ControllerLayout::standard;
+            save_display_preferences(ui_);
+            break;
         case Setting::swap:
             ui_.swap_screens = !ui_.swap_screens;
             pointers_.clear();

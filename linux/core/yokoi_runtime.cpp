@@ -137,7 +137,7 @@ namespace yokoi
                                 event.type == SDL_FINGERDOWN ? PointerPhase::press : PointerPhase::release, bottom);
                     }
                 }
-                const auto state = controller.poll();
+                const auto state = controller.poll(app.ui().controller_layout);
                 if (app.handle_input(state))
                     quit = true;
                 app.tick(state.held);

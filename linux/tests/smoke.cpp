@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include "core/yokoi_app.h"
 #include "core/yokoi_runtime.h"
 #include "core/yokoi_version.h"
@@ -32,10 +33,21 @@ extern "C" int __real_SDL_GetWindowDisplayIndex(SDL_Window *);
 extern "C" SDL_Renderer *__real_SDL_CreateRenderer(SDL_Window *, int, Uint32);
 extern "C" int __real_SDL_RenderSetLogicalSize(SDL_Renderer *, int, int);
 extern "C" void __real_SDL_RenderPresent(SDL_Renderer *);
+extern "C" const Uint8 *__real_SDL_GetKeyboardState(int *);
 extern "C" std::time_t __real_time(std::time_t *);
 static std::time_t test_time = 0;
 static int iconv_calls = 0;
 static SDL_Surface *captured_frame = nullptr;
+static const Uint8 *test_keys = nullptr;
+
+extern "C" const Uint8 *__wrap_SDL_GetKeyboardState(int *count)
+{
+    if (!test_keys)
+        return __real_SDL_GetKeyboardState(count);
+    if (count)
+        *count = SDL_NUM_SCANCODES;
+    return test_keys;
+}
 
 extern "C" char *__wrap_SDL_iconv_string(const char *, const char *, const char *, size_t)
 {
@@ -280,6 +292,117 @@ static void check_controller()
     controller.handle_event(removed);
     state = controller.poll();
     assert(state.held == 0 && state.pressed == 0);
+    SDL_JoystickClose(joystick);
+#endif
+}
+
+static void check_rgds_controller(SDL_Renderer *renderer)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+    const int index = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_UNKNOWN, 4, 14, 1);
+    assert(index >= 0);
+    auto *joystick = SDL_JoystickOpen(index);
+    assert(joystick);
+    char guid[33]{};
+    SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joystick), guid, sizeof(guid));
+    const std::string mapping = std::string(guid) +
+        ",Test RGDS,a:b0,b:b1,x:b3,y:b2,back:b8,guide:b6,start:b7,"
+        "leftstick:b9,rightstick:b12,leftshoulder:b4,rightshoulder:b5,"
+        "dpup:h0.1,dpleft:h0.8,dpdown:h0.4,dpright:h0.2,"
+        "leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:b10,righttrigger:b11,platform:Linux,";
+    assert(SDL_GameControllerAddMapping(mapping.c_str()) >= 0);
+    Controller controller;
+    controller.open();
+    const auto poll = [&](ControllerLayout layout)
+    {
+        SDL_JoystickUpdate();
+        return controller.poll(layout);
+    };
+    for (const auto layout : {ControllerLayout::standard, ControllerLayout::rgds})
+    {
+        assert(poll(layout).held == 0);
+        const std::array<std::pair<int, uint32_t>, 8> buttons{{
+            {6, layout == ControllerLayout::rgds ? CTL_SELECT : CTL_MENU},
+            {7, CTL_START},
+            {8, layout == ControllerLayout::rgds ? CTL_MENU : CTL_SELECT},
+            {13, 0},
+            {4, CTL_L1}, {5, CTL_MENU}, {0, CTL_A}, {1, CTL_B}}};
+        for (const auto &[button, expected] : buttons)
+        {
+            assert(SDL_JoystickSetVirtualButton(joystick, button, 1) == 0);
+            const auto state = poll(layout);
+            assert(state.held == expected && state.pressed == expected);
+            assert(poll(layout).pressed == 0);
+            assert(SDL_JoystickSetVirtualButton(joystick, button, 0) == 0);
+            assert(poll(layout).held == 0);
+        }
+    }
+    for (const int button : {6, 8})
+    {
+        assert(poll(ControllerLayout::standard).held == 0);
+        assert(SDL_JoystickSetVirtualButton(joystick, button, 1) == 0);
+        assert(SDL_JoystickSetVirtualButton(joystick, 7, 1) == 0);
+        poll(ControllerLayout::standard);
+        auto state = poll(ControllerLayout::rgds);
+        assert(state.held == CTL_START && state.pressed == 0);
+        assert(poll(ControllerLayout::rgds).held == CTL_START);
+        assert(SDL_JoystickSetVirtualButton(joystick, button, 0) == 0);
+        assert(poll(ControllerLayout::rgds).held == CTL_START);
+        assert(SDL_JoystickSetVirtualButton(joystick, button, 1) == 0);
+        state = poll(ControllerLayout::rgds);
+        const auto expected = button == 6 ? CTL_SELECT : CTL_MENU;
+        assert(state.held == (CTL_START | expected) && state.pressed == expected);
+        state = poll(ControllerLayout::standard);
+        assert(state.held == CTL_START && state.pressed == 0);
+        assert(SDL_JoystickSetVirtualButton(joystick, button, 0) == 0);
+        assert(SDL_JoystickSetVirtualButton(joystick, 7, 0) == 0);
+        assert(poll(ControllerLayout::standard).held == 0);
+    }
+    assert(poll(ControllerLayout::rgds).held == 0);
+    {
+        App app(renderer);
+        app.initialize();
+        assert(SDL_JoystickSetVirtualButton(joystick, 8, 1) == 0);
+        assert(SDL_JoystickSetVirtualButton(joystick, 13, 1) == 0);
+        assert(!app.handle_input(poll(ControllerLayout::rgds)));
+        assert(app.ui().settings_open);
+        assert(SDL_JoystickSetVirtualButton(joystick, 8, 0) == 0);
+        assert(SDL_JoystickSetVirtualButton(joystick, 13, 0) == 0);
+        assert(!app.handle_input(poll(ControllerLayout::rgds)));
+        assert(SDL_JoystickSetVirtualButton(joystick, 7, 1) == 0);
+        assert(SDL_JoystickSetVirtualButton(joystick, 8, 1) == 0);
+        assert(!app.handle_input(poll(ControllerLayout::rgds)));
+        assert(!app.ui().settings_open);
+        assert(SDL_JoystickSetVirtualButton(joystick, 8, 0) == 0);
+        assert(poll(ControllerLayout::rgds).held == CTL_START);
+        assert(SDL_JoystickSetVirtualButton(joystick, 6, 1) == 0);
+        assert(app.handle_input(poll(ControllerLayout::rgds)));
+        assert(SDL_JoystickSetVirtualButton(joystick, 6, 0) == 0);
+        assert(SDL_JoystickSetVirtualButton(joystick, 7, 0) == 0);
+        assert(poll(ControllerLayout::rgds).held == 0);
+    }
+    std::array<Uint8, SDL_NUM_SCANCODES> keyboard{};
+    test_keys = keyboard.data();
+    for (const auto layout : {ControllerLayout::standard, ControllerLayout::rgds})
+    {
+        assert(poll(layout).held == 0);
+        for (const auto &[key, expected] : std::array<std::pair<SDL_Scancode, uint32_t>, 5>{{
+            {SDL_SCANCODE_TAB, CTL_SELECT}, {SDL_SCANCODE_RETURN, CTL_START},
+            {SDL_SCANCODE_R, CTL_MENU}, {SDL_SCANCODE_F1, CTL_MENU}, {SDL_SCANCODE_Z, CTL_A}}})
+        {
+            keyboard[key] = 1;
+            const auto state = poll(layout);
+            assert(state.held == expected && state.pressed == expected);
+            keyboard[key] = 0;
+            assert(poll(layout).held == 0);
+        }
+        keyboard[SDL_SCANCODE_TAB] = keyboard[SDL_SCANCODE_RETURN] = 1;
+        assert(poll(layout).held == (CTL_SELECT | CTL_START));
+        keyboard.fill(0);
+        assert(poll(layout).held == 0);
+    }
+    test_keys = nullptr;
+    assert(SDL_JoystickDetachVirtual(index) == 0);
     SDL_JoystickClose(joystick);
 #endif
 }
@@ -541,11 +664,19 @@ static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool du
         check_version_footer(dual ? second_surface : surface);
         const auto menu_items = settings_items(app.ui(), dual);
         assert(menu_items == (dual ?
-            std::vector<Setting>{Setting::segments, Setting::background, Setting::swap, Setting::exit_app, Setting::close} :
-            std::vector<Setting>{Setting::segments, Setting::background, Setting::exit_app, Setting::close}));
+            std::vector<Setting>{Setting::segments, Setting::background, Setting::controller_layout, Setting::swap, Setting::exit_app, Setting::close} :
+            std::vector<Setting>{Setting::segments, Setting::background, Setting::controller_layout, Setting::exit_app, Setting::close}));
         assert(std::find(menu_items.begin(), menu_items.end(), Setting::quit_game) == menu_items.end());
         assert(std::find(menu_items.begin(), menu_items.end(), Setting::top_only) == menu_items.end());
         assert((std::find(menu_items.begin(), menu_items.end(), Setting::swap) != menu_items.end()) == dual);
+        assert(app.ui().controller_layout == ControllerLayout::standard);
+        focus_setting(app, Setting::controller_layout, dual);
+        press(app, CTL_DPAD_RIGHT);
+        assert(app.ui().controller_layout == ControllerLayout::rgds);
+        press(app, CTL_DPAD_LEFT);
+        assert(app.ui().controller_layout == ControllerLayout::standard);
+        press(app, CTL_A);
+        assert(app.ui().controller_layout == ControllerLayout::rgds);
         focus_setting(app, Setting::segments, dual);
         press(app, CTL_DPAD_RIGHT);
         assert(g_settings.segment_marking_alpha == 10);
@@ -578,6 +709,7 @@ static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool du
             App restored(renderer, dual ? second_renderer : nullptr);
             restored.initialize();
             assert(restored.ui().swap_screens == dual);
+            assert(restored.ui().controller_layout == ControllerLayout::rgds);
             assert(!restored.ui().top_only);
             assert(g_settings.segment_marking_alpha == 5);
             assert(g_settings.background_color == BACKGROUND_PRESETS[0].color);
@@ -595,8 +727,15 @@ static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool du
         press(app, CTL_MENU);
         assert(app.ui().settings_open);
         assert(settings_items(app.ui(), dual) == (dual ?
-            std::vector<Setting>{Setting::segments, Setting::background, Setting::swap, Setting::quit_game, Setting::close} :
-            std::vector<Setting>{Setting::segments, Setting::background, Setting::quit_game, Setting::top_only, Setting::close}));
+            std::vector<Setting>{Setting::segments, Setting::background, Setting::controller_layout, Setting::swap, Setting::quit_game, Setting::close} :
+            std::vector<Setting>{Setting::segments, Setting::background, Setting::controller_layout, Setting::quit_game, Setting::top_only, Setting::close}));
+        focus_setting(app, Setting::controller_layout, dual);
+        const PointerId layout_finger{2, 1};
+        app.handle_pointer(layout_finger, 320, 78 + app.ui().settings_row * 50 + 23,
+                           PointerPhase::press, dual);
+        assert(app.ui().controller_layout == ControllerLayout::standard);
+        app.handle_pointer(layout_finger, 320, 78 + app.ui().settings_row * 50 + 23,
+                           PointerPhase::release, dual);
         for (int i = 0; i < 120; ++i) app.tick(CTL_START | CTL_A);
         assert(cpu_snapshot(app.cpu()) == before);
         press(app, CTL_MENU);
@@ -1116,8 +1255,10 @@ static void check_persistence_errors()
     assert(file && std::fputc(0, file) != EOF && std::fclose(file) == 0);
     UiState preferences;
     preferences.swap_screens = true;
+    preferences.controller_layout = ControllerLayout::rgds;
     load_display_preferences(preferences);
     assert(!preferences.swap_screens);
+    assert(preferences.controller_layout == ControllerLayout::standard);
     save_display_preferences(preferences);
     for (const unsigned char version : {'1', '2'})
     {
@@ -1126,18 +1267,29 @@ static void check_persistence_errors()
         assert(file && std::fwrite(retired, 1, sizeof(retired), file) == sizeof(retired) &&
                std::fclose(file) == 0);
         preferences.swap_screens = false;
+        preferences.controller_layout = ControllerLayout::rgds;
         load_display_preferences(preferences);
         assert(preferences.swap_screens);
+        assert(preferences.controller_layout == ControllerLayout::standard);
     }
+    preferences.controller_layout = ControllerLayout::rgds;
     save_display_preferences(preferences);
     file = std::fopen(preferences_path.c_str(), "rb");
     std::array<unsigned char, 6> saved{};
     assert(file && std::fread(saved.data(), 1, saved.size(), file) == saved.size() &&
            std::fgetc(file) == EOF && std::fclose(file) == 0);
-    const std::array<unsigned char, 6> expected{'Y', 'L', 'P', '1', 1, 0};
+    const std::array<unsigned char, 6> expected{'Y', 'L', 'P', '3', 1, 1};
     assert(saved == expected);
     load_display_preferences(preferences);
     assert(preferences.swap_screens);
+    assert(preferences.controller_layout == ControllerLayout::rgds);
+    file = std::fopen(preferences_path.c_str(), "wb");
+    const unsigned char invalid[] = {'Y', 'L', 'P', '3', 1, 2};
+    assert(file && std::fwrite(invalid, 1, sizeof(invalid), file) == sizeof(invalid) &&
+           std::fclose(file) == 0);
+    load_display_preferences(preferences);
+    assert(!preferences.swap_screens && preferences.controller_layout == ControllerLayout::standard);
+    save_display_preferences(preferences);
     set_storage_root(root + "/nonexistent-parent");
     assert(!save_settings());
     assert(!save_last_selected_game(0, "AC_01"));
@@ -1252,6 +1404,7 @@ int main(int argc, char **argv)
     check_persistence_errors();
     check_navigation(renderer);
     check_controller();
+    check_rgds_controller(renderer);
     SDL_DestroyRenderer(renderer);
     SDL_FreeSurface(surface);
     SDL_Quit();

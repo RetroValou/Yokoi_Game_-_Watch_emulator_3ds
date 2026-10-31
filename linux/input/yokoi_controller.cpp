@@ -32,7 +32,7 @@ namespace yokoi
         }
     }
 
-    ControllerState Controller::poll()
+    ControllerState Controller::poll(ControllerLayout layout)
     {
         struct Binding
         {
@@ -56,12 +56,29 @@ namespace yokoi
             {SDL_CONTROLLER_BUTTON_GUIDE, SDL_SCANCODE_F1, CTL_MENU},
         };
         const auto *keys = SDL_GetKeyboardState(nullptr);
+        const bool layout_changed = layout != layout_;
+        layout_ = layout;
         uint32_t mask = 0;
         for (const auto &binding : bindings)
         {
-            if (keys[binding.key] ||
-                (device_ && SDL_GameControllerGetButton(device_.get(), binding.button)))
+            if (keys[binding.key])
                 mask |= binding.bit;
+            bool held = device_ && SDL_GameControllerGetButton(device_.get(), binding.button);
+            uint32_t bit = binding.bit;
+            if (binding.button == SDL_CONTROLLER_BUTTON_BACK || binding.button == SDL_CONTROLLER_BUTTON_GUIDE)
+            {
+                const bool back = binding.button == SDL_CONTROLLER_BUTTON_BACK;
+                auto &suppressed = suppressed_remapped_buttons_[back ? 0 : 1];
+                if (layout_changed)
+                    suppressed = held;
+                // A held button must be released before acquiring its new meaning.
+                suppressed = suppressed && held;
+                held = held && !suppressed;
+                if (layout == ControllerLayout::rgds)
+                    bit = back ? CTL_MENU : CTL_SELECT;
+            }
+            if (held)
+                mask |= bit;
         }
         if (device_)
         {

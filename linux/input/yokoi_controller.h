@@ -1,8 +1,10 @@
 #pragma once
 
 #include <SDL.h>
+#include <array>
 #include <cstdint>
 #include <memory>
+#include "core/yokoi_ui.h"
 
 namespace yokoi
 {
@@ -20,11 +22,13 @@ namespace yokoi
     public:
         void open();
         void handle_event(const SDL_Event &event);
-        ControllerState poll();
+        ControllerState poll(ControllerLayout layout = ControllerLayout::standard);
 
     private:
         std::unique_ptr<SDL_GameController, decltype(&SDL_GameControllerClose)>
             device_{nullptr, SDL_GameControllerClose};
         uint32_t previous_ = 0;
+        ControllerLayout layout_ = ControllerLayout::standard;
+        std::array<bool, 2> suppressed_remapped_buttons_{};
     };
 }

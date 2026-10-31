@@ -227,6 +227,10 @@ namespace yokoi
             {
             case Setting::segments: label = "Segments"; value = segment_names[alpha_index]; break;
             case Setting::background: label = "Background color"; value = BACKGROUND_PRESETS[background_index].name; break;
+            case Setting::controller_layout:
+                label = "Controller layout";
+                value = ui.controller_layout == ControllerLayout::rgds ? "RGDS" : "Default";
+                break;
             case Setting::swap: label = "Swap screens"; value = ui.swap_screens ? "On" : "Off"; break;
             case Setting::quit_game: label = "Quit Game"; break;
             case Setting::top_only: label = ui.top_only ? "Show both screens" : "Top screen only"; break;
