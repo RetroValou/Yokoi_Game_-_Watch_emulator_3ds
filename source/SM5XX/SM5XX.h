@@ -2,7 +2,7 @@
 #include <vector>
 #include <stdint.h>
 #include <string>
-#include <SM5XX\Base_Structure.h>
+#include <SM5XX/Base_Structure.h>
 #include "virtual_i_o/time_addresses.h"
 
 

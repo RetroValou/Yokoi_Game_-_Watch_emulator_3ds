@@ -1,5 +1,5 @@
 #include "SM5XX/SM511_SM512/SM511_2.h"
-#include "SM5XX/SM511_SM512/sm511_2.h"
+#include "SM5XX/SM511_SM512/SM511_2.h"
 #include "std/timer.h"
 #include <cstring>
 

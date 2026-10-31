@@ -1,4 +1,4 @@
-#include "SM5XX/SM511_SM512/sm511_2.h"
+#include "SM5XX/SM511_SM512/SM511_2.h"
 
 void SM511_2::execute_curr_opcode() {
 	switch (curr_opcode & 0xf0)
