@@ -1,0 +1,34 @@
+"""Run Linux build executables against four original fixtures and rejected packs."""
+import os
+from pathlib import Path
+import struct
+import subprocess
+import tempfile
+
+root = Path(__file__).resolve().parents[2]
+binary = Path(os.environ.get('YOKOI_BINARY', root/'linux/build/yokoi'))
+smoke_binary = Path(os.environ.get('YOKOI_SMOKE_BINARY', root/'linux/build/smoke-test'))
+env = dict(os.environ, SDL_VIDEODRIVER='dummy', SDL_AUDIODRIVER='dummy')
+with tempfile.TemporaryDirectory(prefix='yokoi-smoke-') as temporary:
+    base = Path(temporary)
+    for mode in ('single', 'vertical', 'horizontal', 'mask'):
+        folder = base / mode
+        folder.mkdir()
+        pack = folder / 'fixture.ykp'
+        subprocess.run(['python3', str(root/'linux/tests/make_fixture.py'), str(pack), mode], check=True)
+        subprocess.run([str(smoke_binary), str(pack), str(folder)], env=env, check=True)
+    raw = bytearray((base/'single/fixture.ykp').read_bytes())
+    for label, offset, value, expected in (
+        ('wrong-platform', 8, 1, 'wrong pack platform'),
+        ('old-content', 12, 1, 'rom pack too old'),
+    ):
+        data = raw.copy()
+        struct.pack_into('<I', data, offset, value)
+        pack = base/(label+'.ykp')
+        pack.write_bytes(data)
+        result = subprocess.run([str(binary), str(pack)], env=env, capture_output=True, text=True)
+        assert result.returncode == 1 and expected in result.stderr, result
+        print('PASS:', label)
+    result = subprocess.run([str(binary), str(base/'missing.ykp')], env=env, capture_output=True, text=True)
+    assert result.returncode == 1 and 'open failed' in result.stderr
+    print('PASS: missing pack')

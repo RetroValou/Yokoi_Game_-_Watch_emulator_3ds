@@ -52,4 +52,20 @@ android/app/release
 android/app/embedded
 android/app/rompackOnly
 
+# ROM packs
 *.ykp
+*.ypk
+
+# Linux build outputs (executables and intermediate files)
+/linux/build/
+# Legacy executable locations
+/linux/yokoi
+/linux/smoke-test
+# PortMaster staged executables
+/linux/portmaster/yokoi/yokoi.*
+/linux/portmaster/yokoi/log.txt
+/linux/portmaster/yokoi/conf/
+/linux/portmaster/yokoi-launch.log
+
+# Linux output
+/linux/yokoi_gw_saves/
