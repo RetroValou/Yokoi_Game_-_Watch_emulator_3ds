@@ -60,6 +60,7 @@ namespace yokoi
         std::map<PointerId, int> pointers_;
         int gamea_pulse_ = 0;
         bool playing_ = false;
+        bool quit_requested_ = false;
         uint32_t rate_accumulator_ = 0;
         int time_grace_ = 500;
     };

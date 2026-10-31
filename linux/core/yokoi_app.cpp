@@ -248,6 +248,10 @@ namespace yokoi
                 toggle_settings();
             }
             break;
+        case Setting::exit_app:
+            if (activate)
+                quit_requested_ = true;
+            break;
         case Setting::close:
             if (activate)
                 toggle_settings();
@@ -257,13 +261,13 @@ namespace yokoi
 
     bool App::handle_input(const ControllerState &state)
     {
-        if ((state.held & (CTL_START | CTL_SELECT)) == (CTL_START | CTL_SELECT))
+        if (quit_requested_ || (state.held & (CTL_START | CTL_SELECT)) == (CTL_START | CTL_SELECT))
             return true;
         if (state.pressed & CTL_MENU)
         {
             toggle_settings();
             suppressed_inputs_ |= state.held;
-            return false;
+            return quit_requested_;
         }
         if (ui_.settings_open)
         {
@@ -279,7 +283,7 @@ namespace yokoi
             else if (state.pressed & (CTL_DPAD_RIGHT | CTL_A))
                 change_setting(1, (state.pressed & CTL_A) != 0);
             suppressed_inputs_ |= state.held;
-            return false;
+            return quit_requested_;
         }
         if (ui_.mode == AppMode::select)
         {
@@ -313,6 +317,8 @@ namespace yokoi
 
     void App::handle_pointer(PointerId id, float x, float y, PointerPhase phase, bool physical_bottom)
     {
+        if (quit_requested_)
+            return;
         if (phase == PointerPhase::release)
         {
             pointers_.erase(id);

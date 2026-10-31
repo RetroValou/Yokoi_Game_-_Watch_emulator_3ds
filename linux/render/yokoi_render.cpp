@@ -45,6 +45,7 @@ namespace yokoi
                             const UiState &ui, bool settings_overlay)
     {
         const auto requested_panel = panel_;
+        bool background_dimmed = false;
         if (requested_panel == Panel::combined && !ui.top_only)
         {
             if (!top_target_)
@@ -61,17 +62,42 @@ namespace yokoi
             require_sdl(SDL_SetRenderTarget(renderer_, bottom_target_.get()) == 0, "Bottom panel target");
             draw_panel(game, segments, ui, Panel::bottom);
             require_sdl(SDL_SetRenderTarget(renderer_, target) == 0, "Restore panel target");
+            int output_width, output_height, previous_width, previous_height;
+            require_sdl(SDL_GetRendererOutputSize(renderer_, &output_width, &output_height) == 0,
+                        "Get panel output size");
+            SDL_RenderGetLogicalSize(renderer_, &previous_width, &previous_height);
+            require_sdl(SDL_RenderSetLogicalSize(renderer_, 0, 0) == 0, "Use full panel output");
             SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
             SDL_RenderClear(renderer_);
-            SDL_FRect top{160, 0, 320, 240}, bottom{160, 240, 320, 240};
+            const auto fit_panel = [&](int y, int available_height)
+            {
+                const float scale = std::min(float(output_width) / logical_width,
+                                             float(available_height) / logical_height);
+                const float width = logical_width * scale, height = logical_height * scale;
+                return SDL_FRect{(output_width - width) / 2, y + (available_height - height) / 2, width, height};
+            };
+            const int top_height = output_height / 2;
+            const auto top = fit_panel(0, top_height);
+            const auto bottom = fit_panel(top_height, output_height - top_height);
             require_sdl(SDL_RenderCopyF(renderer_, top_target_.get(), nullptr, &top) == 0, "Copy top panel");
             require_sdl(SDL_RenderCopyF(renderer_, bottom_target_.get(), nullptr, &bottom) == 0, "Copy bottom panel");
+            if (settings_overlay)
+            {
+                SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
+                SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 170);
+                SDL_RenderFillRect(renderer_, nullptr);
+                SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_NONE);
+                background_dimmed = true;
+            }
+            // Restore the UI viewport, which also keeps SDL's pointer coordinates consistent.
+            require_sdl(SDL_RenderSetLogicalSize(renderer_, previous_width, previous_height) == 0,
+                        "Restore UI logical size");
         }
         else
             draw_panel(game, segments, ui, requested_panel == Panel::combined ? Panel::top : requested_panel);
         panel_ = requested_panel;
         if (settings_overlay)
-            draw_settings(ui);
+            draw_settings(ui, !background_dimmed);
         SDL_RenderPresent(renderer_);
     }
 
@@ -119,11 +145,14 @@ namespace yokoi
         }
     }
 
-    void GameRenderer::draw_settings(const UiState &ui)
+    void GameRenderer::draw_settings(const UiState &ui, bool dim_background)
     {
         SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 170);
-        SDL_RenderFillRect(renderer_, nullptr);
+        if (dim_background)
+        {
+            SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 170);
+            SDL_RenderFillRect(renderer_, nullptr);
+        }
         SDL_FRect box{56, 20, 528, 440};
         SDL_SetRenderDrawColor(renderer_, 38, 38, 38, 255);
         SDL_RenderFillRectF(renderer_, &box);
@@ -144,6 +173,7 @@ namespace yokoi
             case Setting::swap: label = "Swap screens"; value = ui.swap_screens ? "On" : "Off"; break;
             case Setting::quit_game: label = "Quit Game"; break;
             case Setting::top_only: label = ui.top_only ? "Show both screens" : "Top screen only"; break;
+            case Setting::exit_app: label = "Exit App"; break;
             case Setting::close: label = "Close"; break;
             }
             const float y = 78 + i * 50;

@@ -28,7 +28,7 @@ namespace yokoi
     private:
         void draw_panel(const GW_rom &game, const std::vector<Segment> &segments, const UiState &ui, Panel panel);
         void draw_menu(const GW_rom &game, const UiState &ui);
-        void draw_settings(const UiState &ui);
+        void draw_settings(const UiState &ui, bool dim_background);
         void draw_console(const GW_rom &game);
         void draw_game(const GW_rom &game, const std::vector<Segment> &segments);
 

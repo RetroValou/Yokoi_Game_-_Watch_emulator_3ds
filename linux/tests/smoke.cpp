@@ -34,6 +34,7 @@ extern "C" void __real_SDL_RenderPresent(SDL_Renderer *);
 extern "C" std::time_t __real_time(std::time_t *);
 static std::time_t test_time = 0;
 static int iconv_calls = 0;
+static SDL_Surface *captured_frame = nullptr;
 
 extern "C" char *__wrap_SDL_iconv_string(const char *, const char *, const char *, size_t)
 {
@@ -122,6 +123,15 @@ extern "C" int __wrap_SDL_RenderSetLogicalSize(SDL_Renderer *renderer, int width
 
 extern "C" void __wrap_SDL_RenderPresent(SDL_Renderer *renderer)
 {
+    if (captured_frame)
+    {
+        int width, height;
+        SDL_RenderGetLogicalSize(renderer, &width, &height);
+        assert(SDL_RenderSetLogicalSize(renderer, 0, 0) == 0);
+        assert(SDL_RenderReadPixels(renderer, nullptr, SDL_PIXELFORMAT_RGBA32,
+                                    captured_frame->pixels, captured_frame->pitch) == 0);
+        assert(SDL_RenderSetLogicalSize(renderer, width, height) == 0);
+    }
     if (displays.count >= 0)
     {
         auto *window = SDL_RenderGetWindow(renderer);
@@ -251,6 +261,18 @@ static void check_controller()
         state = controller.poll();
         assert(state.held == 0 && state.pressed == 0);
     }
+    assert(SDL_JoystickSetVirtualButton(joystick, SDL_CONTROLLER_BUTTON_GUIDE, 1) == 0);
+    SDL_JoystickUpdate();
+    assert(controller.poll().pressed == CTL_MENU);
+    assert(SDL_JoystickSetVirtualButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, 1) == 0);
+    SDL_JoystickUpdate();
+    assert(controller.poll().pressed == 0);
+    assert(SDL_JoystickSetVirtualButton(joystick, SDL_CONTROLLER_BUTTON_GUIDE, 0) == 0);
+    SDL_JoystickUpdate();
+    assert(controller.poll().held == CTL_MENU);
+    assert(SDL_JoystickSetVirtualButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, 0) == 0);
+    SDL_JoystickUpdate();
+    assert(controller.poll().held == 0);
     assert(SDL_JoystickDetachVirtual(index) == 0);
     SDL_Event removed{};
     removed.type = SDL_CONTROLLERDEVICEREMOVED;
@@ -488,8 +510,8 @@ static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool du
         press(app, CTL_MENU);
         const auto menu_items = settings_items(app.ui(), dual);
         assert(menu_items == (dual ?
-            std::vector<Setting>{Setting::segments, Setting::background, Setting::swap, Setting::close} :
-            std::vector<Setting>{Setting::segments, Setting::background, Setting::close}));
+            std::vector<Setting>{Setting::segments, Setting::background, Setting::swap, Setting::exit_app, Setting::close} :
+            std::vector<Setting>{Setting::segments, Setting::background, Setting::exit_app, Setting::close}));
         assert(std::find(menu_items.begin(), menu_items.end(), Setting::quit_game) == menu_items.end());
         assert(std::find(menu_items.begin(), menu_items.end(), Setting::top_only) == menu_items.end());
         assert((std::find(menu_items.begin(), menu_items.end(), Setting::swap) != menu_items.end()) == dual);
@@ -541,6 +563,9 @@ static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool du
         const auto before = cpu_snapshot(app.cpu());
         press(app, CTL_MENU);
         assert(app.ui().settings_open);
+        assert(settings_items(app.ui(), dual) == (dual ?
+            std::vector<Setting>{Setting::segments, Setting::background, Setting::swap, Setting::quit_game, Setting::close} :
+            std::vector<Setting>{Setting::segments, Setting::background, Setting::quit_game, Setting::top_only, Setting::close}));
         for (int i = 0; i < 120; ++i) app.tick(CTL_START | CTL_A);
         assert(cpu_snapshot(app.cpu()) == before);
         press(app, CTL_MENU);
@@ -569,6 +594,132 @@ static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool du
     }
     SDL_DestroyRenderer(second_renderer);
     SDL_FreeSurface(second_surface);
+}
+
+static void check_square_output()
+{
+    for (const int height : {720, 721})
+    {
+        auto *surface = SDL_CreateRGBSurfaceWithFormat(0, 720, height, 32, SDL_PIXELFORMAT_RGBA32);
+        assert(surface);
+        auto *renderer = SDL_CreateSoftwareRenderer(surface);
+        assert(renderer && SDL_RenderSetLogicalSize(renderer, 640, 480) == 0);
+        {
+            const auto *game = load_game(0);
+            assert(game);
+            std::vector<Segment> segments(game->segment, game->segment + game->size_segment);
+            GameRenderer graphics(renderer);
+            graphics.load(*game);
+            UiState ui;
+            graphics.draw(*game, segments, ui);
+            const std::array<Uint8, 3> black{0, 0, 0};
+            assert(pixel(surface, 360, height - 1) != black);
+            int artwork_width = 0;
+            for (int x = 0; x < 720; ++x)
+                artwork_width += pixel(surface, x, height - 1) != black;
+            assert(std::abs(artwork_width - (height - height / 2)) <= 2);
+            assert(pixel(surface, 175, height - 1) == black);
+            const auto undimmed = pixel(surface, 360, height - 1);
+            graphics.draw(*game, segments, ui, true);
+            const auto dimmed = pixel(surface, 360, height - 1);
+            assert(dimmed[2] < undimmed[2]);
+            int width, logical_h;
+            SDL_RenderGetLogicalSize(renderer, &width, &logical_h);
+            assert(width == 640 && logical_h == 480);
+            ui.mode = AppMode::game;
+            ui.top_only = true;
+            graphics.draw(*game, segments, ui);
+            assert(pixel(surface, 0, height / 2) != black);
+            assert(pixel(surface, 360, 0) == black);
+        }
+        SDL_DestroyRenderer(renderer);
+        SDL_FreeSurface(surface);
+    }
+}
+
+static void check_exit_app(SDL_Renderer *renderer)
+{
+    auto *surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBA32);
+    assert(surface);
+    auto *secondary = SDL_CreateSoftwareRenderer(surface);
+    assert(secondary);
+    for (const bool dual : {false, true})
+        for (const bool prompt : {false, true})
+            for (const bool pointer : {false, true})
+            {
+                App app(renderer, dual ? secondary : nullptr);
+                app.select(0);
+                if (prompt)
+                    press(app, CTL_A);
+                app.toggle_settings();
+                focus_setting(app, Setting::exit_app, dual);
+                assert(!app.handle_input({CTL_DPAD_RIGHT, CTL_DPAD_RIGHT}));
+                const auto mode = app.ui().mode;
+                if (pointer)
+                {
+                    const PointerId finger{7, 1};
+                    app.handle_pointer(finger, 320, 78 + app.ui().settings_row * 50 + 23,
+                                       PointerPhase::press, true);
+                    app.handle_pointer(finger, 320, 79, PointerPhase::press, true);
+                    assert(app.handle_input({}));
+                }
+                else
+                    assert(app.handle_input({CTL_A, CTL_A}));
+                assert(app.handle_input({CTL_A, CTL_A}));
+                assert(app.ui().mode == mode && !app.cpu() && !app.playing());
+                app.save();
+            }
+    SDL_DestroyRenderer(secondary);
+    SDL_FreeSurface(surface);
+}
+
+static void check_resized_output()
+{
+    auto *window = SDL_CreateWindow("Layout regression", 0, 0, 640, 480,
+                                   SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE);
+    assert(window);
+    auto *renderer = SDL_CreateRenderer(window, -1, 0);
+    assert(renderer);
+    {
+        const auto *game = load_game(0);
+        assert(game);
+        std::vector<Segment> segments(game->segment, game->segment + game->size_segment);
+        GameRenderer graphics(renderer);
+        graphics.load(*game);
+        for (const auto size : {SDL_Point{640, 480}, SDL_Point{720, 720}, SDL_Point{960, 480},
+                                SDL_Point{720, 721}})
+        {
+            SDL_SetWindowSize(window, size.x, size.y);
+            SDL_PumpEvents();
+            assert(SDL_RenderSetLogicalSize(renderer, 640, 480) == 0);
+            int width, height;
+            assert(SDL_GetRendererOutputSize(renderer, &width, &height) == 0);
+            assert(width == size.x && height == size.y);
+            auto *surface = SDL_CreateRGBSurfaceWithFormat(0, width, height, 32, SDL_PIXELFORMAT_RGBA32);
+            assert(surface);
+            captured_frame = surface;
+            graphics.draw(*game, segments, true);
+            captured_frame = nullptr;
+            SDL_RenderGetLogicalSize(renderer, &width, &height);
+            assert(width == 640 && height == 480);
+            const std::array<Uint8, 3> black{0, 0, 0};
+            assert(pixel(surface, size.x / 2, size.y - 1) != black);
+            SDL_FreeSurface(surface);
+            App app(renderer);
+            app.select(0);
+            app.toggle_settings();
+            focus_setting(app, Setting::exit_app, false);
+            app.draw();
+            int x, y;
+            SDL_RenderLogicalToWindow(renderer, 320, 78 + app.ui().settings_row * 50 + 23, &x, &y);
+            float logical_x, logical_y;
+            SDL_RenderWindowToLogical(renderer, x, y, &logical_x, &logical_y);
+            app.handle_pointer({8, 1}, logical_x, logical_y, PointerPhase::press, true);
+            assert(app.handle_input({}));
+        }
+    }
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
 }
 
 static void check_font(SDL_Renderer *renderer, SDL_Surface *surface)
@@ -733,12 +884,25 @@ static void check_persistence_errors()
     load_display_preferences(preferences);
     assert(!preferences.swap_screens);
     save_display_preferences(preferences);
-    file = std::fopen(preferences_path.c_str(), "wb");
-    const unsigned char legacy[] = {'Y', 'L', 'P', '1', 1, 1};
-    assert(file && std::fwrite(legacy, 1, sizeof(legacy), file) == sizeof(legacy) && std::fclose(file) == 0);
+    for (const unsigned char version : {'1', '2'})
+    {
+        file = std::fopen(preferences_path.c_str(), "wb");
+        const unsigned char retired[] = {'Y', 'L', 'P', version, 1, 1};
+        assert(file && std::fwrite(retired, 1, sizeof(retired), file) == sizeof(retired) &&
+               std::fclose(file) == 0);
+        preferences.swap_screens = false;
+        load_display_preferences(preferences);
+        assert(preferences.swap_screens);
+    }
+    save_display_preferences(preferences);
+    file = std::fopen(preferences_path.c_str(), "rb");
+    std::array<unsigned char, 6> saved{};
+    assert(file && std::fread(saved.data(), 1, saved.size(), file) == saved.size() &&
+           std::fgetc(file) == EOF && std::fclose(file) == 0);
+    const std::array<unsigned char, 6> expected{'Y', 'L', 'P', '1', 1, 0};
+    assert(saved == expected);
     load_display_preferences(preferences);
     assert(preferences.swap_screens);
-    save_display_preferences(preferences);
     set_storage_root(root + "/nonexistent-parent");
     assert(!save_settings());
     assert(!save_last_selected_game(0, "AC_01"));
@@ -844,6 +1008,9 @@ int main(int argc, char **argv)
     check_panels(renderer, surface);
     check_settings(renderer, surface, false);
     check_settings(renderer, surface, true);
+    check_square_output();
+    check_exit_app(renderer);
+    check_resized_output();
     check_visual_settings(renderer, surface);
     check_font(renderer, surface);
     check_persistence_errors();

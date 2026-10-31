@@ -28,7 +28,11 @@ namespace yokoi
         const bool closed = std::fclose(file) == 0;
         if (failed || !closed)
             throw std::runtime_error("Cannot read display preferences: " + path);
-        if (read != data.size() || extra || std::memcmp(data.data(), "YLP1", 4) || data[4] > 1 || data[5] > 1)
+        // Accept retired YLP2 files, preserving screen swap but ignoring face-button swap.
+        const bool supported = std::memcmp(data.data(), "YLP1", 4) == 0 ||
+                               std::memcmp(data.data(), "YLP2", 4) == 0;
+        if (read != data.size() || extra || !supported ||
+            data[4] > 1 || data[5] > 1)
         {
             std::fprintf(stderr, "Invalid display preferences: %s; using defaults.\n", path.c_str());
             return;
@@ -40,7 +44,6 @@ namespace yokoi
     {
         const auto path = storage_path("yokoi_linux_preferences.dat");
         const auto temporary = path + ".tmp";
-        // Keep the retired controls byte for compatibility with existing YLP1 files.
         const std::array<unsigned char, 6> data{'Y', 'L', 'P', '1',
             static_cast<unsigned char>(ui.swap_screens), 0};
         FILE *file = std::fopen(temporary.c_str(), "wb");

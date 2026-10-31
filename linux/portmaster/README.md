@@ -220,6 +220,10 @@ expose both displays and support windows on each; two physical panels alone
 do not guarantee this. If SDL reports one display or cannot initialize the second
 window/renderer, Yokoi logs the reason and composes the same top/bottom panels
 on one display. In-game settings can temporarily enlarge the top panel only.
+On one display, each panel is fitted into half of the actual output height,
+including square 720x720 screens, instead of a letterboxed 640x480 outer canvas.
+Artwork proportions are preserved: side padding can remain when stacking two
+landscape panels on a square display. Window resizing updates this fit.
 That choice resets when leaving the game. With two displays, the saved Swap
 screens option exchanges panel content; settings remain on
 the physical bottom display.
@@ -247,6 +251,19 @@ Desktop: arrows; Z=A, X=B, S=X, A=Y; Enter=Start, Tab=Select, Q=L.
 R, F1 or Escape toggles settings; B also closes them. In settings, up/down
 selects a row, left/right changes its value and A activates a button.
 Normal exit uses Select+Start or window close, saving the running game first.
+Selection/start-choice settings also offer Exit App.
+
+### SpruceOS / TrimUI
+
+Spruce's Ports controller mode defaults to X360. In Spruce's Ports list,
+highlight Yokoi without launching it, press **X** to open its configuration,
+then choose **Controller Mode → Nintendo** to match all printed face-button
+labels. Yokoi uses the supplied SDL mapping without an additional button swap.
+
+Menu/SDL Guide and R open Yokoi settings; Select remains Game B and Start+Select
+saves and exits. Menu and Start+Select work in the currently tested Spruce setup;
+no Menu workaround is needed there. Yokoi does not disable the system watchdog
+or modify firmware settings.
 
 The selection panel shows manufacturer, game name and year in the Android
 layout. Left/right cycles only the current manufacturer's games; up/down changes
@@ -275,7 +292,9 @@ Under `ports/yokoi/conf/` (or the supplied desktop storage directory):
 - `yokoi_gw_last_game_by_mfr.dat`: last manufacturer and each manufacturer's
   selected game reference. Boot restores the last selection, even after pack
   reordering; a new profile prefers `JR_55`, otherwise the first game.
-- `yokoi_linux_preferences.dat`: screen swap (older controls preferences are ignored).
+- `yokoi_linux_preferences.dat`: screen swap (`YLP1`).
+  Both `YLP1` and retired `YLP2` files retain screen swap; their retired
+  controls/A/B-swap byte is ignored. New writes set that byte to zero.
 - `yokoi_gw_saves/`: per-game CPU saved states.
 
 Top-only mode is deliberately temporary. Invalid settings files produce warnings;
@@ -306,17 +325,24 @@ Verified in this workspace on x86_64 Linux with SDL2 2.30:
 - Settings tests cover context-specific options, all segment/background presets,
   paused/resumed CPU state, saved swaps/legacy preferences, touch input, temporary top-only
   mode, menu text/segment pixels, corrupt settings and failed writes.
+  Selection/prompt Exit App is tested with controllers and pointers.
 - Font checks verify proportional metrics, UTF-8 text, embedded licensing and
   antialiased glyph pixels using real SDL rendering. They simulate unavailable
   firmware character conversion and reject malformed/overlong UTF-8.
 - Wrong-platform packs, old packs and missing packs are rejected.
 - Virtual-controller checks cover button mappings, pressed/held edges, stick
   thresholds and hotplug; the real SDL window/event loop is exercised on exit.
+  A Guide+R chord is checked for duplicate menu presses.
 - Dual-panel pixel checks cover menus, gameplay, console restoration, horizontal
   games, clamshell LCD isolation, independent aspect ratios and missing artwork.
   Window pixel checks verify that menu details go to display 0 and artwork to display 1.
   Mocked display enumeration covers 0/1/2/3 displays and second-window, placement,
   renderer and logical-size failures, using real SDL windows/renderers.
+- Real SDL pixel checks cover 720x720 and odd-height square composition,
+  artwork proportions, full-output modal dimming and top-only fitting.
+  Window resizing covers square, 4:3 and widescreen outputs plus transformed
+  pointer activation of settings. Square/resize checks also pass with offscreen
+  OpenGL on the host; handheld GPU behavior still needs device confirmation.
 - Launcher passes `bash -n`.
 - Launcher tests cover Ports/APPS paths, early logging, old/new control scripts,
   missing files, architecture detection and executable exit status.

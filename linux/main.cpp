@@ -20,6 +20,7 @@ int main(int argc, char **argv)
                   "Keyboard: arrows, Z=A X=B A=Y S=X, Enter=Start, Tab=Select, Q=L, R/F1/Escape=settings\n"
                   "Menu: left/right game, up/down manufacturer; Z opens fresh/save choice; X goes back.\n"
                   "Settings: up/down row, left/right change, Z activate; Start+Select saves and exits.\n"
+                  "Selection settings also offer Exit App.\n"
                   "Font: embedded Audiowide (SIL OFL 1.1); --font-license prints its licence.");
         return 0;
     }

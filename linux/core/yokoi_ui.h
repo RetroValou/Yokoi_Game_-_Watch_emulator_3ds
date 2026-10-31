@@ -7,7 +7,7 @@
 namespace yokoi
 {
     enum class AppMode { select, load_prompt, game };
-    enum class Setting { segments, background, swap, quit_game, top_only, close };
+    enum class Setting { segments, background, swap, quit_game, top_only, exit_app, close };
 
     struct UiState
     {
@@ -34,6 +34,8 @@ namespace yokoi
             if (!dual)
                 items.push_back(Setting::top_only);
         }
+        else
+            items.push_back(Setting::exit_app);
         items.push_back(Setting::close);
         return items;
     }
