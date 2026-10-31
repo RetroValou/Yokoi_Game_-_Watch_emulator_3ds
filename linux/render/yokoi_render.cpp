@@ -6,6 +6,7 @@
 #include <optional>
 #include <stdexcept>
 #include "core/yokoi_sdl.h"
+#include "core/yokoi_version.h"
 #include "std/settings.h"
 
 namespace yokoi
@@ -245,6 +246,8 @@ namespace yokoi
             font_.draw(560 - text_width(value) * scale, y + 12, value, scale, 0xcccccc);
         }
         font_.draw(80, 426, "Up/Down: select  Left/Right: change  A: choose  B/R: close", 1);
+        const std::string version_label = std::string("Yokoi ") + app_version;
+        font_.draw(560 - text_width(version_label), 444, version_label, 1, 0x888888);
         SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_NONE);
     }
 

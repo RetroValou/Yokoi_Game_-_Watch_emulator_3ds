@@ -4,10 +4,16 @@
 #include <exception>
 #include <string>
 #include "core/yokoi_runtime.h"
+#include "core/yokoi_version.h"
 #include "render/yokoi_graphics.h"
 
 int main(int argc, char **argv)
 {
+    if (argc > 1 && std::string(argv[1]) == "--version")
+    {
+        std::printf("Yokoi Linux %s\n", yokoi::app_version);
+        return 0;
+    }
     if (argc > 1 && std::string(argv[1]) == "--font-license")
     {
         std::puts(yokoi::font_license());
@@ -15,13 +21,14 @@ int main(int argc, char **argv)
     }
     if (argc > 1 && std::string(argv[1]) == "--help")
     {
-        std::puts("Yokoi Linux: yokoi [Android ROM pack.ykp] [storage directory]\n"
+        std::printf("Yokoi Linux %s: yokoi [Android ROM pack.ykp] [storage directory]\n"
                   "Default pack: ./yokoi_pack_rgds.ykp\n"
                   "Keyboard: arrows, Z=A X=B A=Y S=X, Enter=Start, Tab=Select, Q=L, R/F1/Escape=settings\n"
                   "Menu: left/right game, up/down manufacturer; Z opens fresh/save choice; X goes back.\n"
                   "Settings: up/down row, left/right change, Z activate; Start+Select saves and exits.\n"
                   "Selection settings also offer Exit App.\n"
-                  "Font: embedded Audiowide (SIL OFL 1.1); --font-license prints its licence.");
+                  "Font: embedded Audiowide (SIL OFL 1.1); --font-license prints its licence.\n"
+                  "--version prints the application version.\n", yokoi::app_version);
         return 0;
     }
     try

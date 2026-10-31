@@ -10,6 +10,7 @@
 #include <string>
 #include "core/yokoi_app.h"
 #include "core/yokoi_runtime.h"
+#include "core/yokoi_version.h"
 #include "input/yokoi_controller.h"
 #include "render/yokoi_graphics.h"
 #include "std/gw_pack.h"
@@ -494,6 +495,34 @@ static void check_clock_startup(SDL_Renderer *renderer)
     test_time = 0;
 }
 
+static void check_version_footer(SDL_Surface *surface)
+{
+    auto *expected = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBA32);
+    assert(expected);
+    auto *renderer = SDL_CreateSoftwareRenderer(expected);
+    assert(renderer);
+    {
+        assert(SDL_SetRenderDrawColor(renderer, 38, 38, 38, 255) == 0);
+        assert(SDL_RenderClear(renderer) == 0);
+        Font font(renderer);
+        const std::string label = std::string("Yokoi ") + app_version;
+        font.draw(560 - text_width(label), 444, label, 1, 0x888888);
+        SDL_RenderPresent(renderer);
+        int text_pixels = 0;
+        const std::array<Uint8, 3> background{38, 38, 38};
+        for (int y = 440; y < 460; ++y)
+            for (int x = 80; x < 560; ++x)
+            {
+                const auto color = pixel(expected, x, y);
+                assert(pixel(surface, x, y) == color);
+                text_pixels += color != background;
+            }
+        assert(text_pixels > 0);
+    }
+    SDL_DestroyRenderer(renderer);
+    SDL_FreeSurface(expected);
+}
+
 static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool dual)
 {
     auto *second_surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBA32);
@@ -508,6 +537,8 @@ static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool du
         app.initialize();
         app.select(0);
         press(app, CTL_MENU);
+        app.draw();
+        check_version_footer(dual ? second_surface : surface);
         const auto menu_items = settings_items(app.ui(), dual);
         assert(menu_items == (dual ?
             std::vector<Setting>{Setting::segments, Setting::background, Setting::swap, Setting::exit_app, Setting::close} :
@@ -583,6 +614,7 @@ static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool du
         app.draw();
         focus_setting(app, Setting::quit_game, dual);
         app.draw();
+        check_version_footer(dual ? second_surface : surface);
         assert(SDL_SaveBMP(dual ? second_surface : surface,
             storage_path(dual ? "settings-dual.bmp" : "settings-single.bmp").c_str()) == 0);
         press(app, CTL_A);

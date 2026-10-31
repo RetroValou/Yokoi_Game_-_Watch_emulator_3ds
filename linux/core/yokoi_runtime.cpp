@@ -8,6 +8,7 @@
 #include <string>
 #include "core/yokoi_app.h"
 #include "core/yokoi_sdl.h"
+#include "core/yokoi_version.h"
 #include "input/yokoi_controller.h"
 #include "render/yokoi_render.h"
 #include "std/gw_pack.h"
@@ -17,6 +18,7 @@ namespace yokoi
 {
     void run_application(const char *pack_path, const char *storage_root)
     {
+        std::fprintf(stderr, "Yokoi Linux %s\n", app_version);
         std::string error;
         set_storage_root(storage_root);
         std::filesystem::create_directories(::storage_root());

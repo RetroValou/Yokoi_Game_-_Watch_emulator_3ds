@@ -286,6 +286,12 @@ A confirms and B cancels. An existing saved state is selected by default.
 
 ### Settings and persistence
 
+Linux version 2.5 appears in the settings footer and startup log.
+Run `./yokoi.aarch64 --version` (or `./build/yokoi --version` on desktop)
+to print `Yokoi Linux 2.5` without loading a ROM pack or initializing SDL.
+The Linux version is defined once in `linux/core/yokoi_version.h`;
+Android versioning remains independent.
+
 Both selection and in-game settings offer:
 - Segments: None (0), Light (5), Dark (10).
 - Background: Light Yellow, Light Blue, Greyish, White, Light Green or Cream.
@@ -324,7 +330,7 @@ Check `date` over SSH: incorrect device time/timezone also affects the game cloc
 ## Verification and remaining work
 
 Verified in this workspace on x86_64 Linux with SDL2 2.30:
-- Production executable builds and `--help` works.
+- Production executable builds; `--help` and `--version` work without a ROM pack.
 - ARM64 executable cross-compiles with cached Ubuntu Focal GNU GCC 10 and SDL2
   2.26.2; ELF architecture and cache reuse are verified.
 - Four original synthetic ROM/PNG packs (single, vertical, horizontal, mask) exercise
