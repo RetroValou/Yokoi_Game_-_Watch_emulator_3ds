@@ -49,7 +49,8 @@ sysroot and use the matching PortMaster DEVICE_ARCH suffix. Do not rename an x86
 binary to aarch64. Avoid host-specific `-march=native` flags. Use `ldd`/`readelf`
 to check shared dependencies and GLIBC/GLIBCXX compatibility with the target CFW.
 The desktop build needs only SDL2 and the C++ standard library at runtime.
-PNG decoding and TrueType rendering are vendored, with their licenses in the headers.
+PNG decoding and TrueType rendering are vendored, with their licenses in the headers
+and in `yokoi/licenses/`.
 The Audiowide font and its SIL Open Font License are embedded in the executable;
 no external font files or SDL_ttf installation are needed.
 
@@ -286,6 +287,10 @@ PortMaster's controller database is not modified.
 
 ### SpruceOS / TrimUI
 
+On TrimUI Brick the launcher has run under BusyBox `ash` despite its bash shebang.
+PortMaster's `device_info.txt` needs bash arrays, so the launcher restarts itself
+under Spruce's bundled `spruce/smartpro/bin/bash` when it detects a non-bash shell.
+
 Spruce's Ports controller mode defaults to X360. In Spruce's Ports list,
 highlight Yokoi without launching it, press **X** to open its configuration,
 then choose **Controller Mode → Nintendo** to match all printed face-button
@@ -438,3 +443,7 @@ Audiowide is separately licensed under SIL OFL 1.1; its copyright notice and
 licence are in [Audiowide-OFL.txt](../third_party/Audiowide-OFL.txt) and embedded
 in each executable. stb_truetype is pinned to upstream revision
 `003501f6d7a8668ce8b6d875e34dd97ad0d5d5b5`.
+
+The port ships these notices in `yokoi/licenses/`: `stb_image.txt`,
+`stb_truetype.txt` and `Audiowide-OFL.txt`. Keep `Audiowide-OFL.txt` identical to
+the copy in `third_party/`.
