@@ -7,11 +7,12 @@ A Game & Watch emulator for 3DS, Android & Linux/PortMaster: SM5A, SM510, and SM
 # Supported devices
 
 - **Nintendo 3DS/2DS family** (Old/New models) running Homebrew/CFW.
-- **Anbernic RGDS (dual screen, Android)**: supported and recommended. 
+- **Anbernic RGDS (dual screen, Android & Linux)**: supported and recommended. 
+- **Anbernic RGDS Plus (dual screen, Linux)**: supported and recommended. 
 - **AYN Thor (dual screen, Android)**: supported. (Thanks [ABerguerand](https://github.com/ABerguerand))
 - **Android (arm64-v8a)** devices (phones/tablets/handhelds).
 - **Linux handhelds via PortMaster**: tested on SpruceOS, MustardOS, ArkOS, Knulli, ROCKNIX, dArkOS, and
-  Anbernic RGDS running Linux. The PortMaster version supports single and dual-screen devices,
+  Anbernic RGDS / RGDS Plus running Linux. The PortMaster version supports single and dual-screen devices,
   including RGDS. Single-screen devices display both panels on one screen.
 
 # Supported games

@@ -5,7 +5,7 @@ install type for your firmware, then check its notes below.
 
 | Firmware | Tested on | Install type | What else you need to do |
 | --- | --- | --- | --- |
-| [Stock Linux on RGDS](#stock-linux-on-rgds) | RGDS | Normal | Set Controller layout to RGDS |
+| [Stock Linux on RGDS/RGDS Plus](#stock-linux-on-rgds) | RGDS | Normal | Set Controller layout to RGDS |
 | [Knulli](#knulli) | RG40XX-H | Normal | Install PortMaster, then switch A/B and X/Y |
 | [SpruceOS](#spruceos) | TrimUI Brick, TrimUI Smart Pro S | Normal | Set Controller Mode to Nintendo |
 | [MustardOS (muOS)](#mustardos-muos) | RG CubeXX, RG40XX-H (older version) | Split |  |
@@ -45,9 +45,9 @@ ports/
     └── yokoi_pack_rgds.ykp
 ```
 
-## Stock Linux on RGDS
+## Stock Linux on RGDS / RGDS Plus
 
-Tested on an Anbernic RGDS.
+Tested on an Anbernic RGDS / RGDS Plus.
 
 The game folder is `/mnt/mmc/Ports/yokoi`. A launcher copied into
 `/mnt/mmc/Roms/APPS` finds that same folder. If your device has both menu entries,
