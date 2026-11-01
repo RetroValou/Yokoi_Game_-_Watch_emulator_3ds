@@ -162,20 +162,21 @@ success or failure. The downloaded toolchain cache remains outside the repositor
 ## Install on handheld
 
 1. From the repository, copy `linux/portmaster/Yokoi.sh` and the
-   `linux/portmaster/yokoi/` directory into your device's `ports/` directory.
+   `linux/portmaster/yokoi/` directory to your device, using the Normal or Split
+   [install type](DEVICES.md#install-types) for your firmware.
 2. The ARM64 cross-build already stages `yokoi/yokoi.aarch64`. For another
-   architecture, place its executable in `ports/yokoi/` with the matching suffix.
+   architecture, place its executable in `yokoi/` with the matching suffix.
 3. Generate your own **Android/RGDS pack**, as described in
    [CONVERT_ROM/README.md](../CONVERT_ROM/README.md).
-   Copy it to `ports/yokoi/yokoi_pack_rgds.ykp` (content version 3 or later).
+   Copy it to `yokoi/yokoi_pack_rgds.ykp` (content version 3 or later).
    A 3DS pack contains incompatible textures and is explicitly rejected.
 4. Run Yokoi from the Ports menu. Saves are in `ports/yokoi/conf/yokoi_gw_saves/`;
    launch output is in `ports/yokoi/log.txt`.
 
 The launcher resolves the game folder alongside itself instead of assuming
-`/roms/ports`. On stock RGDS this is `/mnt/mmc/Ports/yokoi`; a launcher copied
-into `/mnt/mmc/Roms/APPS` also finds that same Ports folder. Update both launcher
-copies if your device has both menu entries.
+`/roms/ports`. Firmware-specific paths and setup steps, including installing
+PortMaster on Knulli and changing button settings, are in
+[DEVICES.md](DEVICES.md).
 
 PortMaster is detected by looking for `control.txt` in `/mnt/ports/PortMaster`,
 `/PortMaster`, the usual `/opt/...` locations, the user data directory,
@@ -188,12 +189,7 @@ scripts without `DEVICE_ARCH` use the host's ARM64/x86-64 architecture; optional
 Logging starts **before** PortMaster setup. If the game directory is missing,
 diagnostics go to `yokoi-launch.log` alongside the launcher instead. Normal
 `yokoi/log.txt` includes startup errors and the executable's exit status and is
-overwritten on each launch. For a full stock RGDS shell trace over SSH:
-
-```sh
-bash -x /mnt/mmc/Ports/Yokoi.sh > /tmp/yokoi-launch.log 2>&1
-cat /tmp/yokoi-launch.log
-```
+overwritten on each launch.
 
 Audio requests stereo output and allows SDL to negotiate the device's frequency
 and channel count; the CPU's mono sound is converted to that output format.
@@ -215,9 +211,7 @@ the [Android layout](../android/app/src/main/cpp/core/yokoi_layout.cpp) and
 
 Panels preserve artwork proportions, except for the small clamshell correction
 described below. Missing console artwork leaves
-the bottom panel empty. On stock Linux RGDS, SDL display 0 is the physical top
-panel and display 1 is the bottom panel. This differs from Android's default
-display ordering but produces the same physical top/bottom layout.
+the bottom panel empty.
 
 The video driver, SDL display count, and chosen mode are recorded in `log.txt`.
 Detection is performed at startup, not on hotplug. The SDL video backend must
@@ -274,35 +268,8 @@ If a handheld has no dedicated Back/Menu button, use **R1 (right shoulder)**
 to open or close settings. This is not the R2 trigger. With the Default controller
 layout, SDL Guide opens settings and SDL Back supplies Select.
 
-### RGDS controller layout
-
-On stock RGDS, the generic PortMaster mapping can interpret physical Select as
-SDL Guide and physical Menu as SDL Back. Open settings with **R1** (or Select
-before correcting this mapping), then set **Controller layout** to **RGDS**.
-The choice is saved automatically; no file editing or launcher changes are needed.
-
-RGDS layout exchanges the controller's SDL Back/Guide meanings so physical
-**Menu opens settings**, **Select is Game B**, and **Start+Select saves and exits**.
-Start, face buttons, shoulders, sticks and keyboard bindings remain unchanged.
-This is an opt-in correction for the stock mapping: keep **Default** on other
-handhelds, or on an RGDS whose firmware already maps Select/Menu correctly.
-PortMaster's controller database is not modified.
-
-### SpruceOS / TrimUI
-
-On TrimUI Brick the launcher has run under BusyBox `ash` despite its bash shebang.
-PortMaster's `device_info.txt` needs bash arrays, so the launcher restarts itself
-under Spruce's bundled `spruce/smartpro/bin/bash` when it detects a non-bash shell.
-
-Spruce's Ports controller mode defaults to X360. In Spruce's Ports list,
-highlight Yokoi without launching it, press **X** to open its configuration,
-then choose **Controller Mode → Nintendo** to match all printed face-button
-labels. Yokoi uses the supplied SDL mapping without an additional button swap.
-
-Menu/SDL Guide and R open Yokoi settings; Select remains Game B and Start+Select
-saves and exits. Menu and Start+Select work in the currently tested Spruce setup;
-no Menu workaround is needed there. Yokoi does not disable the system watchdog
-or modify firmware settings.
+If buttons are swapped or Select/Menu behave differently from this table, check
+your firmware in [DEVICES.md](DEVICES.md).
 
 The selection panel shows manufacturer, game name and year in the Android
 layout. Left/right cycles only the current manufacturer's games; up/down changes
@@ -322,6 +289,7 @@ Both selection and in-game settings offer:
 - Segments: None (0), Light (5), Dark (10).
 - Background: Light Yellow, Light Blue, Greyish, White, Light Green or Cream.
 - Controller layout: Default / RGDS (Default initially), below Background.
+  See [DEVICES.md](DEVICES.md#controller-layout).
 - Swap screens when a second display is active (off by default).
 
 In-game settings additionally offer Quit Game (save and return to selection),

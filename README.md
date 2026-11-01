@@ -10,7 +10,7 @@ A Game & Watch emulator for 3DS, Android & Linux/PortMaster: SM5A, SM510, and SM
 - **Anbernic RGDS (dual screen, Android)**: supported and recommended. 
 - **AYN Thor (dual screen, Android)**: supported. (Thanks [ABerguerand](https://github.com/ABerguerand))
 - **Android (arm64-v8a)** devices (phones/tablets/handhelds).
-- **Linux handhelds via PortMaster**: tested on SpruceOS, MustardOS, ArkOS, and
+- **Linux handhelds via PortMaster**: tested on SpruceOS, MustardOS, ArkOS, Knulli, ROCKNIX, dArkOS, and
   Anbernic RGDS running Linux. The PortMaster version supports single and dual-screen devices,
   including RGDS. Single-screen devices display both panels on one screen.
 
@@ -107,19 +107,21 @@ The rompack is **not provided**, you will need to generate your own from MAME ro
 ## Linux / PortMaster
 
 Use a PortMaster setup supported by your device's firmware. Tested platforms are
-SpruceOS, MustardOS, ArkOS, and Linux on Anbernic RGDS.
+SpruceOS, MustardOS, ArkOS, dArkOS, Knulli, ROCKNIX, and Linux on Anbernic RGDS. Some firmwares need
+extra setup, such as installing PortMaster or changing a button setting: see
+[linux/DEVICES.md](/linux/DEVICES.md) for your firmware.
 
 The PortMaster ZIP includes the launcher, executable, and all required support
 files. No compilation is needed; the rompack must be supplied separately.
 
 1. Download and extract the provided **Yokoi PortMaster ZIP**.
-2. Copy the entire extracted `yokoi/` folder into your device's `ports/`
-   directory. On most firmwares, place `Yokoi.sh` alongside it, but some firmwares
-   require the launcher in a separate apps/launcher directory instead. Follow
-   your firmware's layout.
-3. Generate an **Android/RGDS rompack** as detailed in
+2. Copy `Yokoi.sh` and the entire extracted `yokoi/` folder using the
+   [install type](/linux/DEVICES.md#install-types) for your firmware:
+	- **Normal**: `Yokoi.sh` and `yokoi/` both go in the `ports/` folder.
+	- **Split** (MustardOS): `Yokoi.sh` goes in `ROMS/Ports/` and `yokoi/` goes in `ports/`.
+3. For either install type, generate an **Android/RGDS rompack** as detailed in
    [CONVERT_ROM/README.md](/CONVERT_ROM/README.md), then drop
-   `yokoi_pack_rgds.ykp` into `ports/yokoi/`. Use content version 3 or later.
+   `yokoi_pack_rgds.ykp` into the `yokoi/` folder. Use content version 3 or later.
    The 3DS rompack is not compatible.
 4. Launch **Yokoi** from the device's Ports menu.
 
@@ -138,6 +140,8 @@ The executable name above is for ARM64 devices. Saves are stored under
 `ports/yokoi/conf/`, and launch diagnostics are written to `ports/yokoi/log.txt`.
 Dual-screen support is automatic when SDL exposes both displays. Otherwise,
 both panels are composed on one screen.
+
+For firmware-specific setup and quirks, see the [device notes](/linux/DEVICES.md).
 
 # Building
 
