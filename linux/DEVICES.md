@@ -167,3 +167,5 @@ BananaOS turns off the bottom panel's backlight when it starts a port, because i
 expects ports to use only the top panel. The launcher turns that backlight back on so
 Yokoi can use both screens, and BananaOS turns it off again when Yokoi exits. If the
 bottom screen stays dark, check `log.txt` for a `BananaOS:` line.
+
+Use **Controller layout** setting **RGDS**. **Select** or **R1** opens settings.
