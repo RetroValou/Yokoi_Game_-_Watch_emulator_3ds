@@ -664,6 +664,7 @@ void update_settings_display(Virtual_Screen* v_screen) {
     
     // Title
     v_screen->set_text("Settings", text_offset_x, 10, 0, 2);
+    v_screen->set_text("Yokoi " YOKOI_APP_VERSION, text_offset_x, 35, 1, 1);
     
     // Background Color setting
     std::string bg_text = "Background Color: ";

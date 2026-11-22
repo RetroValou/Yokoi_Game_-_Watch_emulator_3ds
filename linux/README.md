@@ -279,9 +279,9 @@ A confirms and B cancels. An existing saved state is selected by default.
 
 ### Settings and persistence
 
-Linux version 2.5 appears in the settings footer and startup log.
+Linux version 2.6 appears in the settings footer and startup log.
 Run `./yokoi.aarch64 --version` (or `./build/yokoi --version` on desktop)
-to print `Yokoi Linux 2.5` without loading a ROM pack or initializing SDL.
+to print `Yokoi Linux 2.6` without loading a ROM pack or initializing SDL.
 The Linux version is defined once in `linux/core/yokoi_version.h`;
 Android versioning remains independent.
 

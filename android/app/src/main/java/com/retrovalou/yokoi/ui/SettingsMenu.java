@@ -14,6 +14,7 @@ import android.widget.TextView;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.retrovalou.yokoi.AppModes;
+import com.retrovalou.yokoi.BuildConfig;
 import com.retrovalou.yokoi.input.overlay.OverlayControls;
 import com.retrovalou.yokoi.nativebridge.YokoiNative;
 import com.retrovalou.yokoi.prefs.AppPrefs;
@@ -259,7 +260,7 @@ public final class SettingsMenu {
         root.addView(closeBtn);
 
         MaterialAlertDialogBuilder b = new MaterialAlertDialogBuilder(activity);
-        b.setTitle("Settings");
+        b.setTitle("Settings - Yokoi " + BuildConfig.VERSION_NAME);
         b.setView(root);
         b.setCancelable(true);
 

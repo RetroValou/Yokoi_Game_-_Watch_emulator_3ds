@@ -8,6 +8,10 @@ Building has only been tested on Windows.
 
 If you are building the applications yourself you can choose to build either an **embedded** or **rompack** build. The embedded build has all the assets and roms built into the application and the rompack build does not, which then requires the separate rompack to also be built and installed.
 
+The app version is visible in Settings on 3DS, Android, and Linux. Release
+versions are set in the top-level `Makefile` (3DS), `android/app/build.gradle`
+(Android), and `linux/core/yokoi_version.h` (Linux).
+
 ## 3DS (devkitPro)
 
 ### Prerequisites

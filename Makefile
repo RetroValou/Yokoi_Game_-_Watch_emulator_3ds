@@ -91,7 +91,10 @@ endif
 
 
 APP_TITLE		:=	Yokoi G&W Emulator
-APP_DESCRIPTION	:=	a Game&Watch emulator for 3ds
+APP_VERSION_MAJOR	:=	2
+APP_VERSION_MINOR	:=	6
+APP_VERSION		:=	$(APP_VERSION_MAJOR).$(APP_VERSION_MINOR)
+APP_DESCRIPTION	:=	Game & Watch emulator for 3DS (v$(APP_VERSION))
 APP_AUTHOR		:=	RetroValou
 
 #---------------------------------------------------------------------------------
@@ -107,6 +110,7 @@ CFLAGS	+=	$(INCLUDE) -D__3DS__
 
 # Apply pack-only defines (if any).
 CFLAGS	+=	$(ROMPACK_DEFINES)
+CFLAGS	+=	-DYOKOI_APP_VERSION='"$(APP_VERSION)"'
 
 #CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++20
@@ -235,6 +239,7 @@ build_cia: build_3dsx
 	@bannertool makebanner -i "meta/banner.png" -a "meta/audio.wav" -o "$(BUILD)/banner.bnr"
 	@bannertool makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" -p "$(APP_AUTHOR)" -i "$(APP_ICON)" -f "nosavebackups,visible" -o "$(BUILD)/icon.icn"
 	@makerom -f cia -o "$(OUTPUT).cia" -target t -exefslogo \
+		-major $(APP_VERSION_MAJOR) -minor $(APP_VERSION_MINOR) \
 		-elf "$(TARGET).elf" \
 		-rsf "meta/app.rsf" \
 		-banner "$(BUILD)/banner.bnr" \
