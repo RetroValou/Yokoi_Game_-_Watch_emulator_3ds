@@ -213,7 +213,19 @@ Panels preserve artwork proportions, except for the small clamshell correction
 described below. Missing console artwork leaves
 the bottom panel empty.
 
-The video driver, SDL display count, and chosen mode are recorded in `log.txt`.
+Each panel with a dedicated fullscreen window and a 1024x768 SDL renderer
+output draws game and console artwork on whole physical pixels. Menus and
+touch coordinates still use the 640x480 logical layout. Existing rompacks
+work unchanged, and their artwork is scaled as needed.
+
+The video driver, SDL display count, renderer output sizes, and chosen mode are
+recorded in `log.txt`. To check the actual output sizes after launch, run this
+from the installed `yokoi/` directory:
+
+```sh
+grep 'renderer output:' log.txt
+```
+
 Detection is performed at startup, not on hotplug. The SDL video backend must
 expose both displays and support windows on each; two physical panels alone
 do not guarantee this. If SDL reports one display or cannot initialize the second

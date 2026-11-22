@@ -80,6 +80,17 @@ namespace yokoi
                         secondary_window.reset();
                 }
             }
+            const auto log_output_size = [](int display, SDL_Renderer *target)
+            {
+                int width, height;
+                if (SDL_GetRendererOutputSize(target, &width, &height) == 0)
+                    std::fprintf(stderr, "SDL display %d renderer output: %dx%d\n", display, width, height);
+                else
+                    std::fprintf(stderr, "SDL display %d output size failed: %s\n", display, SDL_GetError());
+            };
+            log_output_size(0, renderer.get());
+            if (secondary_renderer)
+                log_output_size(1, secondary_renderer.get());
             // Stock Linux RGDS exposes the top panel first, unlike Android's primary display.
             App app(renderer.get(), secondary_renderer.get());
             app.initialize();

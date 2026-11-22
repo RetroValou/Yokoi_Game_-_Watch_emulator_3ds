@@ -823,6 +823,43 @@ static void check_lcd_layer_order(SDL_Renderer *renderer, SDL_Surface *surface)
     g_settings.background_color = saved_background;
 }
 
+static void check_native_panel_artwork()
+{
+    const auto *game = load_game(0);
+    const std::array<uint16_t, 6> info{8, 8, 1, 0, 638, 480};
+    const GW_rom artwork(game->name, game->ref, game->date, game->rom, game->size_rom,
+                         game->melody, game->size_melody, game->path_segment,
+                         game->segment, game->size_segment, info.data(), "", nullptr, "", nullptr);
+    const auto saved_background = g_settings.background_color;
+    g_settings.background_color = 0xc8c8c8;
+    const std::array<Uint8, 3> black{0, 0, 0}, fill{200, 200, 200};
+    for (const int width : {640, 1024})
+    {
+        const int height = width * 3 / 4;
+        auto *surface = SDL_CreateRGBSurfaceWithFormat(0, width, height, 32, SDL_PIXELFORMAT_RGBA32);
+        assert(surface);
+        auto *renderer = SDL_CreateSoftwareRenderer(surface);
+        assert(renderer && SDL_RenderSetLogicalSize(renderer, 640, 480) == 0);
+        {
+            GameRenderer graphics(renderer, Panel::top);
+            graphics.load(artwork);
+            graphics.draw(artwork, {}, false);
+            // A one-logical-pixel margin is 1.6 physical pixels on the Plus: round both edges.
+            const int margin = width == 1024 ? 2 : 1;
+            assert(pixel(surface, margin - 1, height / 2) == black);
+            assert(pixel(surface, margin, height / 2) == fill);
+            assert(pixel(surface, width - margin - 1, height / 2) == fill);
+            assert(pixel(surface, width - margin, height / 2) == black);
+            int logical_w, logical_h;
+            SDL_RenderGetLogicalSize(renderer, &logical_w, &logical_h);
+            assert(logical_w == 640 && logical_h == 480);
+        }
+        SDL_DestroyRenderer(renderer);
+        SDL_FreeSurface(surface);
+    }
+    g_settings.background_color = saved_background;
+}
+
 static void check_lcd_artwork_fit(SDL_Renderer *renderer, SDL_Surface *surface)
 {
     const auto *game = load_game(0);
@@ -1399,6 +1436,7 @@ int main(int argc, char **argv)
         assert(r == 128 && g == 160 && b == 50 && a == 255);
     }
     check_lcd_layer_order(renderer, surface);
+    check_native_panel_artwork();
     {
         App app(renderer);
         app.select(0);

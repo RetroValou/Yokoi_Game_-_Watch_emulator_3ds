@@ -26,11 +26,13 @@ namespace yokoi
         void set_panel(Panel panel) { panel_ = panel; }
 
     private:
-        SDL_Rect draw_panel(const GW_rom &game, const std::vector<Segment> &segments, const UiState &ui, Panel panel);
+        SDL_Rect draw_panel(const GW_rom &game, const std::vector<Segment> &segments,
+                            const UiState &ui, Panel panel, float output_scale = 0.f);
         void draw_menu(const GW_rom &game, const UiState &ui);
         void draw_settings(const UiState &ui, bool dim_background);
-        SDL_Rect draw_console(const GW_rom &game);
-        SDL_Rect draw_game(const GW_rom &game, const std::vector<Segment> &segments, bool match_lcd_sizes);
+        SDL_Rect draw_console(const GW_rom &game, float output_scale);
+        SDL_Rect draw_game(const GW_rom &game, const std::vector<Segment> &segments,
+                           bool match_lcd_sizes, float output_scale);
 
         SDL_Renderer *renderer_;
         Panel panel_;
