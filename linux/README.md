@@ -378,7 +378,10 @@ controller mappings, CFW compatibility and performance still require testing.
 The menu/settings behavior is a controller-friendly SDL adaptation:
 the Audiowide font and widgets are not pixel-identical to Android's system UI.
 Android platform features such as camera, pack-import activities and stereoscopic
-3D are not implemented. LCD marking, shadow and tint passes follow Android.
+3D are not implemented. LCD marking, segment shadows, and tint follow Android.
+Background artwork casts a faint shadow when enabled by the game's ROM pack.
+Like Android, Linux draws the artwork and its shadow beneath the LCD segments
+and their shadows; the 3DS foreground flag does not change the flat layer order.
 The existing core's known emulation issues remain applicable.
 
 Before PortMaster submission: produce target binaries, include required library

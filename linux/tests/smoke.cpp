@@ -767,6 +767,62 @@ static void check_settings(SDL_Renderer *renderer, SDL_Surface *surface, bool du
     SDL_FreeSurface(second_surface);
 }
 
+static void check_lcd_layer_order(SDL_Renderer *renderer, SDL_Surface *surface)
+{
+    const auto *game = load_game(0);
+    Segment segment = game->segment[0];
+    segment.pos_scr[0] = 40;
+    segment.pos_scr[1] = 32;
+    segment.buffer_state = false;
+    std::vector<Segment> segments{segment};
+    std::array<uint16_t, 6> info{8, 8, 1, 0, 80, 60};
+    std::array<uint16_t, 9> background_info{8, 8, 0, 0, 8, 8, 0, 0, 0};
+    const GW_rom artwork(game->name, game->ref, game->date, game->rom, game->size_rom,
+                         game->melody, game->size_melody, game->path_segment,
+                         segments.data(), segments.size(), info.data(),
+                         "gfx/artwork.png", background_info.data(), "", nullptr);
+    GameRenderer graphics(renderer, Panel::top);
+    graphics.load(artwork);
+    const auto saved_background = g_settings.background_color;
+    g_settings.background_color = 0xc8c8c8;
+    const std::array<Uint8, 3> fill{200, 200, 200}, color{212, 96, 48};
+    const std::array<Uint8, 3> segment_color{24, 24, 24};
+    for (const uint16_t foreground : {0, 1})
+    {
+        background_info[7] = foreground;
+        for (const uint16_t shadow : {0, 1, 0})
+        {
+            background_info[6] = shadow;
+            graphics.draw(artwork, segments, false);
+            // The packed artwork is mirrored: its right edge is x=480, shifted shadow x=528.
+            const auto sample = pixel(surface, 505, 270);
+            if (shadow)
+                assert(std::all_of(sample.begin(), sample.end(), [](int channel) {
+                    return channel >= 170 && channel <= 173;
+                }));
+            else
+                assert(sample == fill);
+            assert(pixel(surface, 300, 270) == color);
+            assert(pixel(surface, 580, 270) == fill);
+        }
+        background_info[6] = 1;
+        segments[0].buffer_state = true;
+        graphics.draw(artwork, segments, false);
+        assert(pixel(surface, 340, 280) == segment_color);
+        const auto segment_shadow = pixel(surface, 392, 280);
+        for (size_t i = 0; i < color.size(); ++i)
+            assert(segment_shadow[i] < color[i]);
+        segments[0].buffer_state = false;
+    }
+    info[3] = 1; // Mask sprites keep their RGB and still render over the artwork.
+    graphics.load(artwork);
+    segments[0].buffer_state = true;
+    graphics.draw(artwork, segments, false);
+    assert(pixel(surface, 340, 280)[2] == 50);
+    assert(pixel(surface, 392, 280) == color);
+    g_settings.background_color = saved_background;
+}
+
 static void check_lcd_artwork_fit(SDL_Renderer *renderer, SDL_Surface *surface)
 {
     const auto *game = load_game(0);
@@ -1342,6 +1398,7 @@ int main(int argc, char **argv)
         SDL_GetRGBA(*static_cast<Uint32 *>(surface->pixels), surface->format, &r, &g, &b, &a);
         assert(r == 128 && g == 160 && b == 50 && a == 255);
     }
+    check_lcd_layer_order(renderer, surface);
     {
         App app(renderer);
         app.select(0);

@@ -4,10 +4,15 @@ import sys
 from pathlib import Path
 import zlib
 
-def png():
+def png(artwork=False):
     def chunk(kind, data):
         return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
-    return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 8, 8, 8, 6, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(b''.join(b'\x00' + b''.join(bytes((x*32, y*32, 50, 255)) for x in range(8)) for y in range(8)))) + chunk(b'IEND', b'')
+    def pixel(x, y):
+        if artwork:
+            return bytes((212, 96, 48, 255 if 2 <= x < 5 and 2 <= y < 5 else 0))
+        return bytes((x*32, y*32, 50, 255))
+    rows = b''.join(b'\x00' + b''.join(pixel(x, y) for x in range(8)) for y in range(8))
+    return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 8, 8, 8, 6, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b'')
 
 mode = sys.argv[2] if len(sys.argv) > 2 else 'single'
 games = [('Synthetic test', 'AC_01', 0)]
@@ -21,7 +26,9 @@ if mode.startswith('multi'):
         games.reverse()
 single = mode in ('single', 'clock') or mode.startswith('multi')
 file_offset = 36 + 100 * len(games)
-out = bytearray(file_offset + 16)
+file_count = 2
+data_offset = file_offset + 16 * file_count
+out = bytearray(data_offset)
 def blob(data):
     start = len(out)
     out.extend(data)
@@ -58,5 +65,6 @@ for index, (name, ref, manufacturer) in enumerate(games):
     struct.pack_into('<25I', out, 36 + index * 100, *entry)
 image = blob(png())
 struct.pack_into('<4I', out, file_offset, *file_name, *image)
-struct.pack_into('<9I', out, 0, 0x31504B59, 3, 2, 3, len(games), 1, 36, file_offset, file_offset + 16)
+struct.pack_into('<4I', out, file_offset + 16, *string('artwork.png'), *blob(png(artwork=True)))
+struct.pack_into('<9I', out, 0, 0x31504B59, 3, 2, 3, len(games), file_count, 36, file_offset, data_offset)
 Path(sys.argv[1]).write_bytes(out)

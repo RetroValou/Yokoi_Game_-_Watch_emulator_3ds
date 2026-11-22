@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include "core/yokoi_sdl.h"
 #include "core/yokoi_version.h"
+#include "std/GW_info_reader.h"
 #include "std/settings.h"
 
 namespace yokoi
@@ -328,18 +329,19 @@ namespace yokoi
                              (logical_height - canvas_height * zoom) / 2 + y * zoom,
                              w * zoom, h * zoom};
         };
-        const bool background_in_front = game.background_info && game.background_info[3 + count * 4] != 0;
-        const auto draw_background = [&]
+        const auto *background_info = game.background_info;
+        const auto draw_background = [&](float offset = 0.f)
         {
-            if (!background_ || !game.background_info)
+            if (!background_ || !background_info)
                 return;
             for (int screen = 0; screen < count; ++screen)
             {
                 if (!want_screen(screen))
                     continue;
-                const auto *background = game.background_info + 2 + screen * 4;
+                const auto *background = background_info + bg_jump(screen);
                 SDL_Rect source{background[0], background[1], background[2], background[3]};
-                const auto dest = destination(offset_x[screen], offset_y[screen], width[screen], height[screen]);
+                const auto dest = destination(offset_x[screen] + offset, offset_y[screen] + offset,
+                                              width[screen], height[screen]);
                 copy_texture(renderer_, background_.get(), source, dest);
             }
         };
@@ -352,9 +354,18 @@ namespace yokoi
             SDL_SetRenderDrawColor(renderer_, (color >> 16) & 255, (color >> 8) & 255, color & 255, 255);
             SDL_RenderFillRectF(renderer_, &dest);
         }
-        // Artwork can be behind the LCD segments or overlay them (mask packs).
-        if (!background_in_front)
-            draw_background();
+        // Like Android, cast the artwork's shadow onto the LCD fill before compositing the other layers.
+        if (background_ && background_info && background_info[i_bg_shadow(count)] == 1)
+        {
+            auto *texture = background_.get();
+            require_sdl(SDL_SetTextureColorMod(texture, 0, 0, 0) == 0, "Background shadow color");
+            require_sdl(SDL_SetTextureAlphaMod(texture, 0x24) == 0, "Background shadow opacity");
+            draw_background(6.f);
+            require_sdl(SDL_SetTextureColorMod(texture, 255, 255, 255) == 0, "Restore background color");
+            require_sdl(SDL_SetTextureAlphaMod(texture, 255) == 0, "Restore background opacity");
+        }
+        // Match Android's flat composition; the 3DS foreground flag is for parallax.
+        draw_background();
         const bool mask = (info[3] & 1) != 0;
         for (int pass = 0; pass < (mask ? 1 : 3); ++pass)
         for (const auto &segment : segments)
@@ -397,8 +408,6 @@ namespace yokoi
             SDL_SetTextureAlphaMod(texture, 255);
             copy_texture(renderer_, texture, source, dest);
         }
-        if (background_in_front)
-            draw_background();
         return artwork_bounds(SDL_FRect{(logical_width - canvas_width * zoom) / 2,
                                          (logical_height - canvas_height * zoom) / 2,
                                          canvas_width * zoom, canvas_height * zoom});
