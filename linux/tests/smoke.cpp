@@ -1024,6 +1024,43 @@ static void check_square_output()
     }
 }
 
+static void check_direct_single_screen_detail()
+{
+    const auto *game = load_game(0);
+    Segment segment = game->segment[0];
+    segment.screen = 0;
+    segment.pos_scr[0] = 641;
+    segment.pos_scr[1] = 480;
+    segment.pos_tex[0] = 2;
+    segment.pos_tex[1] = 5;
+    segment.size_tex[0] = 1;
+    segment.size_tex[1] = 1;
+    segment.buffer_state = true;
+    const std::vector<Segment> segments{segment};
+    const std::array<uint16_t, 6> info{8, 8, 1, 1, 1280, 960};
+    GW_rom artwork(game->name, game->ref, game->date, game->rom, game->size_rom,
+                   game->melody, game->size_melody, "gfx/artwork.png",
+                   segments.data(), segments.size(), info.data(), "", nullptr, "", nullptr);
+    auto *surface = SDL_CreateRGBSurfaceWithFormat(0, 1280, 960, 32, SDL_PIXELFORMAT_RGBA32);
+    assert(surface);
+    auto *renderer = SDL_CreateSoftwareRenderer(surface);
+    assert(renderer && SDL_RenderSetLogicalSize(renderer, 640, 480) == 0);
+    {
+        GameRenderer graphics(renderer);
+        graphics.load(artwork);
+        UiState ui;
+        ui.mode = AppMode::game;
+        ui.top_only = true;
+        graphics.draw(artwork, segments, ui);
+        const std::array<Uint8, 3> fill{8, 9, 8}, red{212, 96, 48};
+        // A one-pixel segment must not disappear or spread to its neighbors on a larger output.
+        assert(pixel(surface, 641, 480) == red);
+        assert(pixel(surface, 640, 480) == fill && pixel(surface, 642, 480) == fill);
+    }
+    SDL_DestroyRenderer(renderer);
+    SDL_FreeSurface(surface);
+}
+
 static void check_widescreen_top_only()
 {
     auto *window = SDL_CreateWindow("720p top-only regression", 0, 0, 1280, 720, SDL_WINDOW_HIDDEN);
@@ -1491,6 +1528,7 @@ int main(int argc, char **argv)
     check_settings(renderer, surface, false);
     check_settings(renderer, surface, true);
     check_square_output();
+    check_direct_single_screen_detail();
     check_widescreen_top_only();
     check_exit_app(renderer);
     check_resized_output();

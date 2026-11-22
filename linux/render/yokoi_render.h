@@ -26,13 +26,32 @@ namespace yokoi
         void set_panel(Panel panel) { panel_ = panel; }
 
     private:
-        SDL_Rect draw_panel(const GW_rom &game, const std::vector<Segment> &segments,
-                            const UiState &ui, Panel panel, float output_scale = 0.f);
-        void draw_menu(const GW_rom &game, const UiState &ui);
+        struct PanelLayout
+        {
+            SDL_FRect bounds{0, 0, logical_width, logical_height};
+            SDL_FPoint offset[2]{};
+            SDL_FPoint size[2]{};
+            float divisor = 1.f;
+            float zoom = 1.f;
+            int lcd_count = 0;
+            int selected_screen = -1;
+            bool match_lcd = false;
+        };
+        struct OutputTransform
+        {
+            float scale = 1.f;
+            SDL_FPoint offset{};
+            bool snap = false;
+            SDL_FRect rect(const SDL_FRect &area) const;
+        };
+        PanelLayout layout_panel(const GW_rom &game, const std::vector<Segment> &segments,
+                                 const UiState &ui, Panel panel) const;
+        void draw_panel(const GW_rom &game, const std::vector<Segment> &segments, const UiState &ui,
+                        Panel panel, const PanelLayout &layout, const OutputTransform &output);
+        void draw_menu(const GW_rom &game, const UiState &ui, const OutputTransform &output);
         void draw_settings(const UiState &ui, bool dim_background);
-        SDL_Rect draw_console(const GW_rom &game, float output_scale);
-        SDL_Rect draw_game(const GW_rom &game, const std::vector<Segment> &segments,
-                           bool match_lcd_sizes, float output_scale);
+        void draw_game(const GW_rom &game, const std::vector<Segment> &segments,
+                       const PanelLayout &layout, const OutputTransform &output);
 
         SDL_Renderer *renderer_;
         Panel panel_;
@@ -41,8 +60,6 @@ namespace yokoi
         Texture background_{nullptr, SDL_DestroyTexture};
         Texture console_{nullptr, SDL_DestroyTexture};
         Texture marking_{nullptr, SDL_DestroyTexture};
-        Texture top_target_{nullptr, SDL_DestroyTexture};
-        Texture bottom_target_{nullptr, SDL_DestroyTexture};
         std::array<Texture, 5> colors_{{{nullptr, SDL_DestroyTexture},
                                        {nullptr, SDL_DestroyTexture},
                                        {nullptr, SDL_DestroyTexture},

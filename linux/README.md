@@ -233,9 +233,10 @@ window/renderer, Yokoi logs the reason and composes the same top/bottom panels
 on one display. In-game settings can temporarily enlarge the top panel only.
 On one display, each panel is fitted into half of the actual output height,
 including square 720x720 screens, instead of a letterboxed 640x480 outer canvas.
-Fitting uses the actual LCD/console bounds, excluding padding inside the render
-targets. Landscape clamshell LCDs that fit the display width therefore fill each
-half vertically and meet at the middle, without cropping artwork.
+Yokoi fits the actual LCD/console bounds and draws artwork directly into those
+output regions, without scaling up an intermediate 640x480 image. Landscape
+clamshell LCDs that fit the display width therefore fill each half vertically
+and meet at the middle, without cropping artwork.
 Clamshell LCDs whose aspect ratios differ by at most 3% share one fitted size,
 correcting small extraction differences such as Donkey Kong II's 638x400 and
 639x403 LCDs. Backgrounds and segments receive the same small correction on both
