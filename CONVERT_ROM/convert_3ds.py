@@ -4,6 +4,7 @@ import shutil
 import importlib.util
 import struct
 import subprocess
+from fractions import Fraction
 from pathlib import Path
 from PIL import Image, ImageEnhance
 import numpy as np
@@ -75,6 +76,11 @@ default_console = r'.\rom\default.png'
 # - Cache files are always written after a successful rebuild (best-effort).
 # - Reading cache to skip rebuilding is only enabled with --use-cache.
 USE_CACHE_READ = False
+RGDS_PLUS = False
+USE_SHARED_RGDS_SVGS = False
+RGDS_PLUS_SUFFIX = "2.6x"
+RGDS_PLUS_NAME = f"rgds{RGDS_PLUS_SUFFIX}"
+PLUS_WIDTH, PLUS_HEIGHT = 1024, 768
 
 
 def _load_games_path_for_target(target_name: str) -> dict:
@@ -220,9 +226,49 @@ def apply_profile(
         else:
             destination_graphique_file = "../gfx2x/"
 
-def sort_by_screen(name: str):
+def _plus_fit_rects(sizes: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """Fit one LCD/console or two side-by-side LCDs, snapping edges like Linux."""
+    width = sum(w for w, _ in sizes)
+    height = max(h for _, h in sizes)
+    zoom = min(Fraction(PLUS_WIDTH, width), Fraction(PLUS_HEIGHT, height))
+    left = (PLUS_WIDTH - width * zoom) / 2
+    top = (PLUS_HEIGHT - height * zoom) / 2
+
+    def snap(edge: Fraction) -> int:
+        return int(edge + Fraction(1, 2))
+
+    result = []
+    for w, h in sizes:
+        y = top + (height - h) * zoom / 2
+        right = left + w * zoom
+        result.append((snap(right) - snap(left), snap(y + h * zoom) - snap(y)))
+        left = right
+    return result
+
+
+def _plus_lcd_sizes(size_list, transform, screen_count: int, rotate: bool, horizontal: bool):
+    standard = []
+    for i in range(screen_count):
+        ratio, _, _ = im.ratio_cut(transform, i)
+        if not ratio:
+            raise ValueError("RGDS Plus requires transform_visual with the regular RGDS ratio for each LCD")
+        w, h = size_list[i]
+        standard.append(im.fit_size(h, w, 1 / ratio) if rotate else im.fit_size(w, h, ratio))
+
+    if horizontal:
+        return _plus_fit_rects(standard)
+    if screen_count == 2:
+        (w0, h0), (w1, h1) = standard
+        top, bottom = w0 * h1, w1 * h0
+        # Linux gives near-equal clamshell LCDs the frame of the narrower aspect.
+        if max(top, bottom) * 100 <= min(top, bottom) * 103:
+            return _plus_fit_rects([standard[0 if top <= bottom else 1]]) * 2
+    return [_plus_fit_rects([size])[0] for size in standard]
+
+
+def sort_by_screen(img_dir: str):
     img_screen_sort = []
-    for filename in os.listdir("./tmp/img/"+name):
+    for filename in os.listdir(img_dir):
         if(filename[-4:] == '.png'):
             curr_screen = int(filename.split(".")[3])
             while(len(img_screen_sort) <= curr_screen): img_screen_sort.append([])
@@ -287,10 +333,12 @@ def find_best_parquet(rects: list):
     return None, None
 
 
-def visual_data_file(name, size_list, background_path_list, rotate = False, mask = False, color_segment = False, two_in_one_screen = False, transform = []):
+def visual_data_file(name, size_list, background_path_list, rotate = False, mask = False, color_segment = False, two_in_one_screen = False, transform = [], *, img_dir, native_sizes=None):
     """
     """
-    img_screen_sort = sort_by_screen(name)
+    img_screen_sort = sort_by_screen(img_dir)
+    if native_sizes is not None and (len(img_screen_sort) != len(native_sizes) or not all(img_screen_sort)):
+        raise RuntimeError(f"Missing segment exports for '{name}'")
     screen_size = []
     all_img = []
     i = 0
@@ -301,11 +349,13 @@ def visual_data_file(name, size_list, background_path_list, rotate = False, mask
         new_ratio, x_cut, y_cut = im.ratio_cut(transform, i)
             
         for filename in files_list:
-            filepath = os.path.join("./tmp/img/"+name, filename)
-            img = Image.open(filepath)
-            img_r, pos_x, pos_y, x_size_max, y_size_max = im.convert_to_only_Alpha(img, size_list[i][0], size_list[i][1]
-                                                                , respect_ratio= True, rotate_90 = rotate, miror = True
-                                                                , new_ratio = new_ratio, cut = [x_cut, y_cut], add_SHARPEN = True)
+            filepath = os.path.join(img_dir, filename)
+            with Image.open(filepath) as img:
+                img_r, pos_x, pos_y, x_size_max, y_size_max = im.convert_to_only_Alpha(
+                    img, size_list[i][0], size_list[i][1], respect_ratio=True, rotate_90=rotate, miror=True,
+                    new_ratio=new_ratio, cut=[x_cut, y_cut], add_SHARPEN=True,
+                    output_size=native_sizes[i] if native_sizes is not None else None,
+                )
             if(size_update == 0):
                 screen_size.append([x_size_max, y_size_max])
                 size_update = 1
@@ -351,9 +401,8 @@ def visual_data_file(name, size_list, background_path_list, rotate = False, mask
     int_mask = 0
     if(mask): int_mask = 1 # first byte
     if(two_in_one_screen) : int_mask += 2 # second byte
-    # segment_info[2] is a scale divisor used by Android/RGDS renderer.
-    # Keep it at 1 for legacy targets, but allow higher-resolution packs to
-    # render at the same logical size by setting it to size_scale.
+    # Hi-res uses the integer divisor to preserve Android's logical sizes.
+    # Plus uses its fitted pixel sizes directly; Linux fits them to the panel.
     seg_info_ints: list[int] = [int(atlas_size[0]), int(atlas_size[1]), int(size_scale), int(int_mask)]
 
     for src in screen_size:
@@ -396,11 +445,13 @@ def background_data_file(name, path_list = [], size_list = [], rotate = False, a
     for size in size_list:
         atlas_size[0] = max(1+atlas_size[0]+1, size[0])
         atlas_size[1] += size[1]+2
+    if RGDS_PLUS:
+        atlas_size[0] = max(size[0] for size in size_list) + 1  # Artwork starts at x=1.
    
     for i_a in range(2):
         atlas_size[i_a] = _round_up_to_one_of(atlas_size[i_a], background_atlas_sizes or [atlas_size[i_a]])
         
-    result_img = np.zeros((atlas_size[1], atlas_size[0], 4))
+    result_img = np.zeros((atlas_size[1], atlas_size[0], 4), dtype=np.uint8 if RGDS_PLUS else float)
     curr_ind_r_img = 1
     info_background_ints: list[int] = [int(atlas_size[0]), int(atlas_size[1])]
     
@@ -488,7 +539,13 @@ def visual_console_data(name, path_console):
     # Convert cuts to fractions
     x_cut = [x_cut_left / original_width, x_cut_right / original_width]
     
-    img, tmp_x, tmp_y = im.transform_img(img, console_size[0], console_size[1], respect_ratio = True
+    output_width, output_height = console_size
+    if RGDS_PLUS:
+        crop_width = original_width - sum(int(cut * original_width) for cut in x_cut)
+        crop_height = original_height - sum(int(cut * original_height) for cut in y_cut)
+        standard_size = im.fit_size(output_width, output_height, crop_width / crop_height)
+        (output_width, output_height), = _plus_fit_rects([standard_size])
+    img, tmp_x, tmp_y = im.transform_img(img, output_width, output_height, respect_ratio = not RGDS_PLUS
                                          , rotate_90 = False, miror = True
                                          , new_ratio = 0, cut = [x_cut, y_cut], add_SHARPEN = False)
     img = np.array(img)
@@ -598,16 +655,26 @@ def generate_game_file(destination_game_file, name, display_name, ref, date
         c_file += rom_text(name, rom_path)
         c_file += melody_text(name, melody_path)
     
-    cs.extract_group_segs(visual_path, "./tmp/img/"+name, INKSCAPE_PATH, export_dpi=export_dpi)
+    native_sizes = None
+    if RGDS_PLUS:
+        native_sizes = _plus_lcd_sizes(size_visual, transform, len(visual_path), rotate, two_in_one_screen)
+    if USE_SHARED_RGDS_SVGS:
+        img_dir = cs.cached_group_segs(visual_path, Path("tmp", "svg_rgds_v1"), INKSCAPE_PATH,
+                                       export_dpi, refresh=reset_img_svg)
+    else:
+        img_dir = os.path.join("tmp", "img", name)
+        cs.extract_group_segs(visual_path, img_dir, INKSCAPE_PATH, export_dpi=export_dpi)
     text, new_size_screen, seg_info_ints, segment_records = visual_data_file(
-        name, size_visual, background_path, rotate, mask, color_segment, two_in_one_screen, transform
+        name, size_visual, background_path, rotate, mask, color_segment, two_in_one_screen, transform,
+        img_dir=img_dir, native_sizes=native_sizes,
     )
     if write_embedded_files:
         c_file += text
     
     size_background = []
     for s in new_size_screen: size_background.append([int(s[0]), int(s[1])])
-    if(two_in_one_screen): size_background[0] = size_background[1]
+    if two_in_one_screen and not RGDS_PLUS:
+        size_background[0] = size_background[1]
         
     if(mask): background_path = [] # background used for create segment
     bg_text, background_info_ints = background_data_file(
@@ -781,13 +848,14 @@ def process_single_game(args):
         # prevent cache invalidation or gfx cleanup.
 
         # Remove existing ./tmp/img/<game> directory if it exists
-        try:
-            shutil.rmtree("./tmp/img/" + key)
-            print(f"Removed cache folder: tmp/img/{key}")
-        except FileNotFoundError:
-            pass
-        except Exception as e:
-            print(f"Warning: unable to remove tmp/img/{key}: {e}")
+        if not USE_SHARED_RGDS_SVGS:
+            try:
+                shutil.rmtree("./tmp/img/" + key)
+                print(f"Removed cache folder: tmp/img/{key}")
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                print(f"Warning: unable to remove tmp/img/{key}: {e}")
 
         # Also invalidate the per-game build cache (even if tmp/img didn't exist).
         deleted_cache = game_cache.invalidate_game(key)
@@ -797,8 +865,13 @@ def process_single_game(args):
         # Clean up gfx for this game: remove all .t3s/.png/.t3x files
         # whose filenames contain the current game key.
         if os.path.exists(destination_graphique_file):
-            pattern = os.path.join(destination_graphique_file, f"*{key}*")
-            for file_path in glob.glob(pattern):
+            if RGDS_PLUS:
+                generated = [os.path.join(destination_graphique_file, f"{layer}_{key}{ext}")
+                             for layer in ("segment", "background", "console") for ext in (".png", ".t3s")]
+                files_to_remove = [file_path for file_path in generated if os.path.isfile(file_path)]
+            else:
+                files_to_remove = glob.glob(os.path.join(destination_graphique_file, f"*{key}*"))
+            for file_path in files_to_remove:
                 filename = os.path.basename(file_path)
                 try:
                     os.remove(file_path)
@@ -1065,6 +1138,44 @@ def write_rom_pack_v1(pack_games: list[dict], gfx_dir: str, out_path: str, platf
         f.write(data)
 
 
+def configure_build(args):
+    global RGDS_PLUS, USE_CACHE_READ, reset_img_svg, size_altas_check, background_atlas_sizes
+    global USE_SHARED_RGDS_SVGS
+    RGDS_PLUS = args.plus
+    USE_SHARED_RGDS_SVGS = args.target == "rgds"
+    USE_CACHE_READ = bool(args.use_cache)
+    reset_img_svg = bool(args.reset_img_svg)
+    apply_profile(args.target, args.out_gfx, args.out_gw_all, args.out_gw_rom_dir,
+                  args.export_dpi, 2 if args.hires else None, args.no_embedded)
+    if RGDS_PLUS:
+        size_altas_check += [4096, 8192]
+        background_atlas_sizes += [4096]
+
+    # Always write cache metadata; only read it with --use-cache.
+    game_cache.configure(
+        enabled=True,
+        target_name=RGDS_PLUS_NAME if RGDS_PLUS else str(args.target),
+        cache_dir=Path(r".\\tmp\\cache"),
+        export_dpi=export_dpi,
+        segment_export_mode="shared-svg-v1" if USE_SHARED_RGDS_SVGS else None,
+        size_scale=size_scale,
+        resolution_up=resolution_up,
+        resolution_down=resolution_down,
+        console_size=console_size,
+        console_atlas_size=console_atlas_size,
+        tex3ds_enabled=tex3ds_enabled,
+        texture_path_prefix=texture_path_prefix,
+        texture_path_ext=texture_path_ext,
+        destination_game_file=destination_game_file,
+        destination_graphique_file=destination_graphique_file,
+        write_embedded_files=WRITE_EMBEDDED_FILES,
+        default_console=default_console,
+        default_alpha_bright=default_alpha_bright,
+        default_fond_bright=default_fond_bright,
+        default_rotate=default_rotate,
+    )
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -1100,10 +1211,16 @@ if __name__ == "__main__":
         default=None,
         help="Override Inkscape export DPI (default depends on target).",
     )
-    parser.add_argument(
+    rgds_variant = parser.add_mutually_exclusive_group()
+    rgds_variant.add_argument(
         "--hires",
         action="store_true",
         help="RGDS only: build the hi-res Android pack (pack-only, outputs to ../gfx3x/ by default).",
+    )
+    rgds_variant.add_argument(
+        "--plus",
+        action="store_true",
+        help="RGDS only: build a pack-only native artwork pack for 1024x768 Linux panels.",
     )
     parser.add_argument(
         "--game",
@@ -1136,7 +1253,7 @@ if __name__ == "__main__":
         "--clean",
         dest="reset_img_svg",
         action="store_true",
-        help="Delete and regenerate ./tmp/img/<game> before processing, and invalidate the per-game cache entry",
+        help="Re-export SVGs for the selected game(s) and invalidate their per-game build cache",
     )
 
     parser.add_argument(
@@ -1149,7 +1266,18 @@ if __name__ == "__main__":
 
     print(f"\n=== convert_3ds.py target: {args.target} ===\n")
 
-    # Validate --hires usage.
+    if args.plus:
+        if args.target != "rgds":
+            parser.error("--plus is only supported for target 'rgds'")
+        if args.export_dpi is not None and args.export_dpi <= 0:
+            parser.error("--plus requires a positive --export-dpi")
+        args.no_embedded = True
+        gfx_dir = Path(args.out_gfx or (Path("..") / f"gfx{RGDS_PLUS_SUFFIX}")).resolve()
+        legacy_dirs = [Path(path).resolve() for path in ("../gfx/", "../gfx2x/", "../gfx3x/")]
+        if gfx_dir in legacy_dirs:
+            parser.error("--plus requires an output directory separate from the regular artwork")
+        args.out_gfx = str(gfx_dir) + os.sep
+
     if args.hires:
         if args.target != "rgds":
             parser.error("--hires is only supported for target 'rgds'")
@@ -1162,34 +1290,7 @@ if __name__ == "__main__":
             # Keep legacy naming used by the Android loader/assets.
             args.out_gfx = "../gfx3x/"
 
-    scale_override = 2 if (args.target == "rgds" and bool(args.hires)) else None
-    apply_profile(args.target, args.out_gfx, args.out_gw_all, args.out_gw_rom_dir, args.export_dpi, scale_override, args.no_embedded)
-
-    # Always enable cache *writing* so rebuilt games produce fresh cache files.
-    # Cache *reading* (skip rebuilds) is controlled separately by --use-cache.
-    cache_enabled = True
-    USE_CACHE_READ = bool(args.use_cache)
-    game_cache.configure(
-        enabled=cache_enabled,
-        target_name=str(args.target),
-        cache_dir=Path(r".\\tmp\\cache"),
-        export_dpi=export_dpi,
-        size_scale=size_scale,
-        resolution_up=resolution_up,
-        resolution_down=resolution_down,
-        console_size=console_size,
-        console_atlas_size=console_atlas_size,
-        tex3ds_enabled=tex3ds_enabled,
-        texture_path_prefix=texture_path_prefix,
-        texture_path_ext=texture_path_ext,
-        destination_game_file=destination_game_file,
-        destination_graphique_file=destination_graphique_file,
-        write_embedded_files=WRITE_EMBEDDED_FILES,
-        default_console=default_console,
-        default_alpha_bright=default_alpha_bright,
-        default_fond_bright=default_fond_bright,
-        default_rotate=default_rotate,
-    )
+    configure_build(args)
 
     # Load games_path based on target.
     games_path = _load_games_path_for_target(args.target)
@@ -1201,12 +1302,6 @@ if __name__ == "__main__":
 
     # Toggle to control processing mode
     USE_PARALLEL_PROCESSING = args.use_parallel  # default False unless --parallel is passed
-
-    # Control whether we reset ./tmp/img/<game> directories before processing
-    # If -c/--clean is passed, we enable cleaning; otherwise we leave the
-    # module-level default value unchanged.
-    if args.reset_img_svg:
-        reset_img_svg = True
 
     # Validate all game files before processing
     if not validate_game_files(games_path):
@@ -1279,7 +1374,8 @@ if __name__ == "__main__":
         print(f"{'='*60}\n")
 
         try:
-            with Pool(processes=num_processes) as pool:
+            worker_config = {"initializer": configure_build, "initargs": (args,)} if USE_SHARED_RGDS_SVGS else {}
+            with Pool(processes=num_processes, **worker_config) as pool:
                 results = pool.map(process_single_game, game_items)
 
             print(f"\n{'='*60}")
@@ -1325,6 +1421,8 @@ if __name__ == "__main__":
     if args.target == "rgds" and bool(args.hires):
         # Keep legacy pack naming.
         pack_name = "rgds3x"
+    elif RGDS_PLUS:
+        pack_name = RGDS_PLUS_NAME
 
     canonical_pack_path = script_dir / f"yokoi_pack_{pack_name}.ykp"
     versioned_pack_path = script_dir / f"yokoi_pack_{pack_name}_v{ROMPACK_FORMAT_VERSION}.{ROMPACK_CONTENT_VERSION}.ykp"
@@ -1364,6 +1462,8 @@ if __name__ == "__main__":
     print(f"Writing ROM pack (canonical):  {canonical_pack_path}")
     print(f"Pack textures from: {pack_gfx_dir}")
     pack_games = [r for r in results if isinstance(r, dict)]
+    if RGDS_PLUS and len(pack_games) != len(game_items):
+        raise RuntimeError("RGDS Plus conversion failed for one or more games; existing packs were not replaced")
     # Write the versioned file for humans, and also keep the canonical filename that the apps load.
     write_rom_pack_v1(pack_games, pack_gfx_dir, str(versioned_pack_path), platform=platform_id, texture_file_ext=texture_file_ext)
     try:

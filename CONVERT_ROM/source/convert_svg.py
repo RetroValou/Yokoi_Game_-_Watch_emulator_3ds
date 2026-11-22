@@ -1,6 +1,10 @@
+import errno
+import hashlib
 import os
 import shutil
 import subprocess
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from lxml import etree
 import re
 
@@ -44,7 +48,37 @@ def _resolve_external_app(app_label: str, configured_path: str) -> str:
 
 
 
-def extract_group_segs(svg_path_list, output_dir, INKSCAPE_PATH, export_dpi: int = 50):
+def cached_group_segs(svg_paths: list[str], cache_root: Path, inkscape_path: str,
+                      export_dpi: int, *, refresh: bool = False) -> str:
+    # Screen indices depend on SVG order. Old tmp/img exports have no DPI/source provenance.
+    key = hashlib.sha256()
+    for svg_path in svg_paths:
+        key.update(hashlib.sha256(Path(svg_path).read_bytes()).digest())
+    cache_dir = cache_root / str(export_dpi) / key.hexdigest()
+    if not refresh and cache_dir.is_dir():
+        return str(cache_dir)
+
+    cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=cache_dir.parent) as temp:
+        staging = Path(temp) / "exports"
+        extract_group_segs(svg_paths, str(staging), inkscape_path, export_dpi, require_complete=True)
+        if not any(staging.glob("*.png")):
+            raise RuntimeError(f"No segment PNGs exported for {svg_paths}")
+        # Publish only after Inkscape has completed every export.
+        if not cache_dir.is_dir():
+            try:
+                staging.rename(cache_dir)
+            except OSError as error:
+                if error.errno not in (errno.EEXIST, errno.ENOTEMPTY) or not cache_dir.is_dir():
+                    raise
+        if refresh and staging.is_dir():
+            for png in staging.glob("*.png"):
+                png.replace(cache_dir / png.name)
+    return str(cache_dir)
+
+
+def extract_group_segs(svg_path_list, output_dir, INKSCAPE_PATH, export_dpi: int = 50, *,
+                       require_complete: bool = False):
     os.makedirs(output_dir, exist_ok=True)
 
     inkscape_exe = _resolve_external_app("Inkscape", INKSCAPE_PATH)
@@ -68,6 +102,8 @@ def extract_group_segs(svg_path_list, output_dir, INKSCAPE_PATH, export_dpi: int
 
         segs_group = root.find('.//svg:g[@inkscape:label="segs"]', ns)
         if segs_group is None:
+            if require_complete:
+                raise ValueError(f"No segment group in '{svg_path}'")
             print("ERROR NOT FIND SEG GROUP IN SVG")
             return
         # Detect problematic matrix transform (e.g., matrix(0.1,0,0,-0.1,0,1053))
@@ -169,3 +205,9 @@ def extract_group_segs(svg_path_list, output_dir, INKSCAPE_PATH, export_dpi: int
                     os.remove(svg_path)
                 except:
                     pass
+        if require_complete:
+            missing = [png_path for _, png_path in export_commands if not os.path.isfile(png_path)]
+            if missing:
+                raise RuntimeError(
+                    f"Inkscape did not export {len(missing)} segment PNG(s), including '{missing[0]}'"
+                )

@@ -54,6 +54,7 @@ def configure(
     default_alpha_bright: float,
     default_fond_bright: float,
     default_rotate: bool,
+    segment_export_mode: str | None = None,
 ) -> None:
     """Configure cache module for the current run.
 
@@ -68,6 +69,7 @@ def configure(
 
     _context.update({
         "export_dpi": int(export_dpi),
+        "segment_export_mode": segment_export_mode,
         "size_scale": int(size_scale),
         "resolution_up": list(resolution_up),
         "resolution_down": list(resolution_down),
@@ -268,6 +270,9 @@ def _build_game_signature_and_hints(key: str, game_data: dict, *, prev_hints: di
         "inputs": [],
     }
 
+    if _context.get("segment_export_mode"):
+        signature["segment_export_mode"] = _context["segment_export_mode"]
+
     game_opts = {
         "ref": str(game_data.get("ref", "")),
         "display_name": str(game_data.get("display_name", key)),
@@ -355,6 +360,7 @@ def _describe_cache_mismatch(old_sig: dict, new_sig: dict) -> list[str]:
     for k in (
         "target",
         "export_dpi",
+        "segment_export_mode",
         "size_scale",
         "resolution_up",
         "resolution_down",

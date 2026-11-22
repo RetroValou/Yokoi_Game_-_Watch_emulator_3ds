@@ -9,6 +9,8 @@ The `rgds` target is shared by these platforms, not limited to the RGDS device.
 This repo does **not** include original Game & Watch ROMs or artwork. You need to find them yourself.
 
 If you are looking for how to build the apps themselves, see [BUILDING.md](/BUILDING.md).
+For a side-by-side breakdown of DPI, artwork sizes, and runtime coordinates,
+see [Conversion profile comparison](CONVERSION_COMPARISON.md).
 
 ## Table of contents
 
@@ -24,6 +26,7 @@ If you are looking for how to build the apps themselves, see [BUILDING.md](/BUIL
   - [Build assets, roms, graphics and rompacks](#build-assets-roms-graphics-and-rompacks)
     - [3DS](#3ds)
     - [Android and Linux/PortMaster (RGDS rompack)](#android-and-linuxportmaster-rgds-rompack)
+    - [Android and Linux/PortMaster (RGDS Plus rompack)](#android-and-linuxportmaster-rgds-plus-rompack)
     - [Android and Linux/PortMaster (rompack-only hi-res)](#android-and-linuxportmaster-rompack-only-hi-res)
       - [Additional notes](#additional-notes)
   - [Advanced script descriptions and options](#advanced-script-descriptions-and-options)
@@ -127,6 +130,34 @@ Outputs:
 - External rompack written into `CONVERT_ROM/` as `yokoi_pack_rgds.ykp` and `yokoi_pack_rgds_vX.X.ykp`.
     - Both files are identical, but one includes versioning for convenience.
 
+### Android and Linux/PortMaster (RGDS Plus rompack)
+
+With the regular RGDS inputs already prepared, run from `CONVERT_ROM`:
+
+```powershell
+cd CONVERT_ROM
+python convert_original.py --target rgds
+python convert_3ds.py --target rgds --plus
+```
+
+If you haven't prepared the inputs yet, first run `python convert_original.py --target rgds`.
+`--plus` is pack-only and cannot be combined with `--hires`. It writes
+`yokoi_pack_rgds2.6x.ykp` and a versioned copy, with artwork under `..\gfx2.6x\`
+and a separate per-game cache. It does not overwrite the standard or hi-res pack.
+Standard RGDS, Plus, and hi-res share intermediate Inkscape PNGs at **100 DPI**.
+The first build populates `tmp/svg_rgds_v1/`, later variants reuse the PNGs if
+the source SVGs and DPI match. Older exports in `tmp/img/` aren't imported
+because their source and DPI aren't recorded. `--export-dpi` uses a separate
+cache entry. Use `--use-cache` to also skip rebuilding unchanged final artwork.
+`--game` writes a **one-game pack** to the same Plus filenames; omit it for a full build.
+
+For PortMaster, back up the installed pack and copy `yokoi_pack_rgds2.6x.ykp`
+to `ports/yokoi/yokoi_pack_rgds.ykp`. The pack is designed for the RGDS Plus
+and its two 1024x768 panels. The converter preserves the
+regular RGDS framing, including LCD margins, and sizes art for 1:1 drawing
+on those panels. The single-display stacked layout and other output sizes
+can still scale the artwork. The menu and settings UI are unchanged.
+
 ### Android and Linux/PortMaster (rompack-only hi-res)
 
 Build an optional higher-resolution rompack compatible with Android and Linux/PortMaster.
@@ -201,10 +232,13 @@ Command-line arguments:
 - `--game NAME`, `-g NAME`
   - Only rebuild a single game.
   - Use the key from `games_path.py` (for example `Crab_Grab` or `Fire`).
+- `--plus`
+  - Build the pack-only RGDS Plus native artwork variant with `--target rgds`.
 - `--parallel`
   - Enable multiprocessing when building multiple games. (Not well tested)
 - `-c`, `--clean`
-  - Delete and regenerate `./tmp/img/<game>` cache files before processing. If combined with `-g` only the single game data will be deleted.
+  - Force SVG re-export and rebuild final artwork for the selected games. With `-g`, only the selected game is rebuilt.
+  - For RGDS variants, refresh the shared SVG cache entry for the selected DPI and rebuild only the selected variant's final artwork. For 3DS, regenerate the existing `tmp/img/<game>` exports.
 - `--use-cache`
   - **Experimental:** enables a per-game “up-to-date” cache to skip rebuilding games whose inputs/options and expected outputs have not changed.
   - When enabled, the script prints why a game is being rebuilt (missing outputs, changed inputs/options, invalid cache data) and then continues.

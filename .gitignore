@@ -9,6 +9,7 @@ console_*.t3s
 
 romfs/gfx/*
 !romfs/gfx/.gitkeep
+/gfx2.6x/
 build/*
 !build/.gitkeep
 source/std/GW_ROM/*

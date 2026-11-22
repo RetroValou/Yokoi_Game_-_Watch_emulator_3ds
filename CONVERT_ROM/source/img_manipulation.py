@@ -107,7 +107,7 @@ def crop_img(img_base):
             
             
 def convert_to_only_Alpha(img_base, x_size, y_size, respect_ratio = False, rotate_90 = False, miror = False
-                          , new_ratio = 0, cut = [[0, 0],[0, 0]], add_SHARPEN = False):
+                          , new_ratio = 0, cut = [[0, 0],[0, 0]], add_SHARPEN = False, *, output_size=None):
     # Fast path: for segments we only need alpha, so transform in L mode.
     alpha_img, x_size, y_size = transform_alpha_mask(
         img_base,
@@ -119,6 +119,7 @@ def convert_to_only_Alpha(img_base, x_size, y_size, respect_ratio = False, rotat
         new_ratio,
         cut,
         add_SHARPEN,
+        output_size=output_size,
     )
 
     bbox = alpha_img.getbbox()
@@ -135,8 +136,13 @@ def convert_to_only_Alpha(img_base, x_size, y_size, respect_ratio = False, rotat
     return out, pos_x, pos_y, x_size, y_size
 
 
+def fit_size(width, height, ratio):
+    height = min(height, int(width / ratio))
+    return min(width, int(height * ratio)), height
+
+
 def transform_alpha_mask(image_b, x_size, y_size, respect_ratio, rotate_90, miror,
-                         new_ratio=0, cut=[[0, 0], [0, 0]], add_SHARPEN=False):
+                         new_ratio=0, cut=[[0, 0], [0, 0]], add_SHARPEN=False, *, output_size=None):
     """Transform an image but keep only its alpha channel (L mode).
 
     This is much faster than doing the same work in RGBA when we only need the
@@ -186,13 +192,12 @@ def transform_alpha_mask(image_b, x_size, y_size, respect_ratio, rotate_90, miro
         if new_ratio != 0:
             new_ratio = 1 / new_ratio
 
-    if new_ratio != 0:
-        y_size = min(y_size, int(x_size / new_ratio))
-        x_size = min(x_size, int(y_size * new_ratio))
+    if output_size is not None:
+        x_size, y_size = output_size
+    elif new_ratio != 0:
+        x_size, y_size = fit_size(x_size, y_size, new_ratio)
     elif respect_ratio:
-        ratio = alpha.size[0] / alpha.size[1]
-        y_size = min(y_size, int(x_size / ratio))
-        x_size = min(x_size, int(y_size * ratio))
+        x_size, y_size = fit_size(x_size, y_size, alpha.width / alpha.height)
 
     alpha = alpha.resize((x_size, y_size), resample=Image.LANCZOS)
     if add_SHARPEN:
