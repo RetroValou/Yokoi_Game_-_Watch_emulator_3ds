@@ -101,6 +101,21 @@ if [ ! -x "$binary" ]; then
     exit 1
 fi
 mkdir -p "$GAMEDIR/conf" || exit 1
+# BananaOS's run-port turns the bottom panel's backlight off for ports and names it in
+# /run/banana/panel-off, which bananad uses to turn it off again after wake-up or lid
+# open. Yokoi draws on both panels, so switch it back on and drop the marker. run-port
+# switches the backlight back on and removes the marker itself when the port exits.
+banana_panel_off=/run/banana/panel-off
+if [ -f "$banana_panel_off" ]; then
+    banana_backlight=$(cat "$banana_panel_off" 2>/dev/null)
+    if [ -n "$banana_backlight" ] && [ -w "$banana_backlight/bl_power" ] &&
+        echo 0 > "$banana_backlight/bl_power"; then
+        rm -f "$banana_panel_off"
+        printf 'BananaOS: turned the second panel backlight back on (%s).\n' "$banana_backlight"
+    else
+        printf 'BananaOS: could not turn the second panel backlight on (%s).\n' "${banana_backlight:-unknown}"
+    fi
+fi
 # Exit is handled in SDL so save-state writing completes before shutdown.
 if command -v pm_platform_helper >/dev/null 2>&1; then
     # Non-fatal: muOS's helper can fail writing its process tracking file.

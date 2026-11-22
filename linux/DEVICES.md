@@ -12,6 +12,7 @@ install type for your firmware, then check its notes below.
 | [ArkOS](#arkos) | RG351, RGB30 | Normal |  |
 | [dArkOS](#darkos) | RGB30 | Normal | Install PortMaster |
 | [ROCKNIX](#rocknix) | RG ARC-S | Normal |  |
+| [BananaOS](#bananaos) | RGDS | Normal | Install PortMaster from the Store |
 
 ## Install types
 
@@ -150,3 +151,19 @@ ROCKNIX keeps PortMaster under `/storage` and may have no `/roms` path. The laun
 checks the `/storage` locations and a `PortMaster` folder alongside itself.
 
 No extra setup needed.
+
+## BananaOS
+
+Tested on an Anbernic RGDS Plus.
+
+[BananaOS](https://github.com/JorreFog/BananaLinux) uses the [Normal](#normal) install
+type. Its `ports/` folder is `roms/ports` on the card, which is `/data/roms/ports` on
+the device.
+
+**Install PortMaster first.** PortMaster is not built in: install it from the
+BananaOS Store, then copy Yokoi across.
+
+BananaOS turns off the bottom panel's backlight when it starts a port, because it
+expects ports to use only the top panel. The launcher turns that backlight back on so
+Yokoi can use both screens, and BananaOS turns it off again when Yokoi exits. If the
+bottom screen stays dark, check `log.txt` for a `BananaOS:` line.
